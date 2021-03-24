@@ -20,6 +20,7 @@ type RoundStates struct {
 	ValidatorSet       *objs.ValidatorSet
 	OwnValidatingState *objs.OwnValidatingState
 	PeerStateMap       map[string]*objs.RoundState
+	maxHR              *objs.RoundState
 }
 
 func (r *RoundStates) OwnRoundState() *objs.RoundState {
@@ -88,6 +89,7 @@ func (r *RoundStates) GetCurrentPreVotes() (objs.PreVoteList, objs.PreVoteNilLis
 }
 
 func (r *RoundStates) GetCurrentPreCommits() (objs.PreCommitList, objs.PreCommitNilList, error) {
+	// if rs.pvl ==  nil -> do calc, otherwise return cached value
 	pvl := objs.PreCommitList{}
 	pvnl := objs.PreCommitNilList{}
 	rcert := r.OwnRoundState().RCert

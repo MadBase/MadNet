@@ -258,6 +258,22 @@ func (ce *Engine) updateLocalStateInternal(rs *RoundStates) (bool, error) {
 		}
 	}
 
+	if len(FH) > 0 {
+		var maxHR *objs.RoundState
+		var maxHeight uint32
+		var vroundState *objs.RoundState
+		for i := 0; i < len(FH); i++ {
+			vroundState = FH[i]
+			if vroundState.RCert.RClaims.Height > maxHeight {
+				maxHR = vroundState
+				maxHeight = vroundState.RCert.RClaims.Height
+			}
+		}
+		if maxHR != nil {
+			rs.maxHR = maxHR
+		}
+	}
+
 	// var currentHandler handler
 
 	// if there are ANY peers in a future height, try to follow
@@ -288,25 +304,63 @@ func (ce *Engine) updateLocalStateInternal(rs *RoundStates) (bool, error) {
 	PCNCurrent := os.PCNCurrent(rcert)
 	NRCurrent := os.NRCurrent(rcert)
 
+	// local node cast a precommit nil this round
+	// count the precommits
+	pcl, _, err := rs.GetCurrentPreCommits()
+	if err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+
+	// last of all count next round messages from this round only
+	_, nrl, err := rs.GetCurrentNext()
+	if err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+
 	//
 	//	Order:
 	//		NR, PC, PCN, PV, PVN, ProposalTO, IsProposer
 
 	ceHandlers := []handler{
-		&fhHandler{ce: ce, rs: rs, FH: FH},
-		&rCertHandler{ce: ce, rs: rs, ChFr: ChFr},
-		&doNrHandler{ce: ce, rs: rs, rcert: rcert},
-		&castNhHandler{ce: ce, rs: rs, NHs: NHs, NHCurrent: NHCurrent},
-		&doNextHeightHandler{ce: ce, rs: rs, NHs: NHs, NHCurrent: NHCurrent},
-		&doRoundJumpHandler{ce: ce, rs: rs, ChFr: ChFr},
+		// absorbed further handler into fh handler
+		&fhHandler{rs: rs, external: ce.fhFunc},
+		// &rCertHandler{rs: rs, ChFr: ChFr, external: ce.rCertFunc},
+		// split r cert handler into the following two handlers
+		&roundJumpUpdateValidValueHandler{rs: rs, ChFr: ChFr, pcl: pcl, external: ce.roundJumpUpdateValidValueFunc},
+		&roundJumpSetRCertHandler{rs: rs, ChFr: ChFr, pcl: pcl, external: ce.roundJumpSetRCertFunc},
 
-		&nrCurrentHandler{ce: ce, rs: rs, NRCurrent: NRCurrent},
-		&pcCurrentHandler{ce: ce, rs: rs, PCCurrent: PCCurrent},
-		&pcnCurrentHandler{ce: ce, rs: rs, PCNCurrent: PCNCurrent},
-		&pvCurrentHandler{ce: ce, rs: rs, PVCurrent: PVCurrent},
-		&pvnCurrentHandler{ce: ce, rs: rs, PVNCurrent: PVNCurrent},
-		&ptoExpiredHandler{ce: ce, rs: rs},
-		&validPropHandler{ce: ce, rs: rs, PCurrent: PCurrent},
+		// &doNrHandler{rs: rs, rcert: rcert, external: ce.doNrFunc},
+		// split do nr handler into the following two
+		&doNrsCastNextHeightHandler{rs: rs, rcert: rcert, pcl: pcl, external: ce.doNrsCastNextHeightHandlerFunc},
+		&doNrsCastNextRoundHandler{rs: rs, rcert: rcert, pcl: pcl, nrl: nrl, external: ce.doNrsCastNextRoundHandlerFunc},
+
+		// this handler does not have any other further handlers
+		&castNhHandler{rs: rs, NHs: NHs, NHCurrent: NHCurrent, external: ce.castNhFunc},
+
+		// &doNextHeightHandler{rs: rs, NHs: NHs, NHCurrent: NHCurrent, external: ce.doNextHeightFunc},
+		// flattened handler pair from above into the following
+		&castBlockHeaderHandler{rs: rs, NHs: NHs, NHCurrent: NHCurrent, external: ce.castBlockHeaderHandlerFunc},
+
+		// &doRoundJumpHandler{rs: rs, ChFr: ChFr, external: ce.doRoundJumpFunc},
+		// split the above into the following two
+		&doRoundJumpUpdateValidValueHandler{rs: rs, ChFr: ChFr, pcl: pcl, external: ce.roundJumpUpdateValidValueFunc},
+		&doRoundJumpSetRCertHandler{rs: rs, ChFr: ChFr, pcl: pcl, external: ce.roundJumpSetRCertFunc},
+
+		// -----
+
+		// &nrCurrentHandler{rs: rs, NRCurrent: NRCurrent, external: ce.nrCurrentFunc},
+		// split the above into the following two
+		&nrCurrentCnhHandler{rs: rs, NRCurrent: NRCurrent, rcert: rcert, pcl: pcl, external: ce.doNrsCastNextHeightHandlerFunc},
+		&nrCurrentCnrHandler{rs: rs, NRCurrent: NRCurrent, rcert: rcert, pcl: pcl, nrl: nrl, external: ce.doNrsCastNextRoundHandlerFunc},
+
+		&pcCurrentHandler{rs: rs, PCCurrent: PCCurrent, external: ce.pcCurrentFunc},
+		&pcnCurrentHandler{rs: rs, PCNCurrent: PCNCurrent, external: ce.pcnCurrentFunc},
+		&pvCurrentHandler{rs: rs, PVCurrent: PVCurrent, external: ce.pvCurrentFunc},
+		&pvnCurrentHandler{rs: rs, PVNCurrent: PVNCurrent, external: ce.pvnCurrentFunc},
+		&ptoExpiredHandler{rs: rs, external: ce.ptoExpiredFunc},
+		&validPropHandler{rs: rs, PCurrent: PCurrent, external: ce.validPropFunc},
 	}
 
 	for i := 0; i < len(ceHandlers); i++ {
@@ -328,52 +382,65 @@ type handler interface {
 }
 
 type fhHandler struct {
-	ce    *Engine
-	rs    *RoundStates
-	maxHR *objs.RoundState
-	FH    []*objs.RoundState
+	rs       *RoundStates
+	external func(*RoundStates) (bool, error)
 }
 
 func (fhh *fhHandler) evalCriteria() bool {
-	if len(fhh.FH) > 0 {
-		var maxHR *objs.RoundState
-		var maxHeight uint32
-		var vroundState *objs.RoundState
-		for i := 0; i < len(fhh.FH); i++ {
-			vroundState = fhh.FH[i]
-			if vroundState.RCert.RClaims.Height > maxHeight {
-				maxHR = vroundState
-				maxHeight = vroundState.RCert.RClaims.Height
-			}
-		}
-		if maxHR != nil {
-			fhh.maxHR = maxHR
-			return true
-		}
-	}
-
-	return false
+	rcert := fhh.rs.maxHR.RCert
+	cond1 := rcert.RClaims.Height <= fhh.rs.Height()+1
+	cond2 := fhh.rs.ValidValueCurrent()
+	return fhh.rs.maxHR != nil && cond1 && cond2
 }
 
 func (fhh *fhHandler) evalLogic() (bool, error) {
-	return fhh.ce.fhFunc(fhh.rs, fhh.maxHR)
+	return fhh.external(fhh.rs)
 }
 
-func (ce *Engine) fhFunc(rs *RoundStates, maxHR *objs.RoundState) (bool, error) {
-	rcert := maxHR.RCert
-	err := ce.doHeightJumpStep(rs, rcert)
+func (ce *Engine) fhFunc(rs *RoundStates) (bool, error) {
+	rcert := rs.maxHR.RCert
+
+	// get the last element of the sorted future height
+	// if we can just jump up to this height, do so.
+	// if the height is only one more, we can simply move to this
+	// height if everything looks okay
+
+	// if we have a valid value, check if the valid value
+	// matches the previous blockhash of block n+1
+	// if so, form the block and jump up to this level
+	// this is safe because we call isValid on all values
+	// before storing in a lock
+
+	bhsh, err := rs.ValidValue().PClaims.BClaims.BlockHash()
 	if err != nil {
 		utils.DebugTrace(ce.logger, err)
 		return false, err
 	}
+	if bytes.Equal(bhsh, rcert.RClaims.PrevBlock) && rcert.RClaims.Round == 1 {
+		vv := rs.ValidValue()
+		err := ce.castNewCommittedBlockFromProposalAndRCert(rs, vv, rcert)
+		if err != nil {
+			var e *errorz.ErrInvalid
+			if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+				utils.DebugTrace(ce.logger, err)
+				return false, err
+			}
+		}
+		rs.OwnValidatingState.ValidValue = nil
+		rs.OwnValidatingState.LockedValue = nil
+	}
+
+	// we can not do anything from here without a ton of work
+	// so easier to just wait for the next block header to unsync us
+
 	return true, nil
 }
 
 type rCertHandler struct {
-	ce       *Engine
 	rs       *RoundStates
 	maxRCert *objs.RCert
 	ChFr     []*objs.RoundState
+	external func(*RoundStates, *objs.RCert) (bool, error)
 }
 
 func (rch *rCertHandler) evalCriteria() bool {
@@ -391,7 +458,7 @@ func (rch *rCertHandler) evalCriteria() bool {
 }
 
 func (rch *rCertHandler) evalLogic() (bool, error) {
-	return rch.ce.rCertFunc(rch.rs, rch.maxRCert)
+	return rch.external(rch.rs, rch.maxRCert)
 }
 
 func (ce *Engine) rCertFunc(rs *RoundStates, maxRCert *objs.RCert) (bool, error) {
@@ -403,10 +470,100 @@ func (ce *Engine) rCertFunc(rs *RoundStates, maxRCert *objs.RCert) (bool, error)
 	return true, nil
 }
 
+type roundJumpUpdateValidValueHandler struct {
+	rs       *RoundStates
+	maxRCert *objs.RCert
+	ChFr     []*objs.RoundState
+	pcl      objs.PreCommitList
+	external func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (rch *roundJumpUpdateValidValueHandler) evalCriteria() bool {
+	cond := len(rch.pcl) > rch.rs.GetCurrentThreshold()
+	if len(rch.ChFr) > 0 {
+		var vroundState *objs.RoundState
+		for i := 0; i < len(rch.ChFr); i++ {
+			vroundState = rch.ChFr[i]
+			if vroundState.RCert.RClaims.Round == constants.DEADBLOCKROUND {
+				rch.maxRCert = vroundState.RCert
+				if cond {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (rch *roundJumpUpdateValidValueHandler) evalLogic() (bool, error) {
+	return rch.external(rch.rs, rch.maxRCert, rch.pcl)
+}
+
+func (ce *Engine) roundJumpUpdateValidValueFunc(rs *RoundStates, maxRCert *objs.RCert, pcl objs.PreCommitList) (bool, error) {
+
+	p, err := pcl.GetProposal()
+	if err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+	if err := ce.updateValidValue(rs, p); err != nil {
+		var e *errorz.ErrInvalid
+		if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+			utils.DebugTrace(ce.logger, err)
+			return false, err
+		}
+	}
+	if err := ce.setMostRecentRCert(rs, maxRCert); err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+
+	return true, nil
+}
+
+type roundJumpSetRCertHandler struct {
+	rs       *RoundStates
+	maxRCert *objs.RCert
+	ChFr     []*objs.RoundState
+	pcl      objs.PreCommitList
+	external func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (rch *roundJumpSetRCertHandler) evalCriteria() bool {
+	cond := len(rch.pcl) <= rch.rs.GetCurrentThreshold()
+	if len(rch.ChFr) > 0 {
+		var vroundState *objs.RoundState
+		for i := 0; i < len(rch.ChFr); i++ {
+			vroundState = rch.ChFr[i]
+			if vroundState.RCert.RClaims.Round == constants.DEADBLOCKROUND {
+				rch.maxRCert = vroundState.RCert
+				if cond {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (rch *roundJumpSetRCertHandler) evalLogic() (bool, error) {
+	return rch.external(rch.rs, rch.maxRCert, rch.pcl)
+}
+
+func (ce *Engine) roundJumpSetRCertFunc(rs *RoundStates, maxRCert *objs.RCert, pcl objs.PreCommitList) (bool, error) {
+
+	if err := ce.setMostRecentRCert(rs, maxRCert); err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+
+	return true, nil
+}
+
 type doNrHandler struct {
-	ce    *Engine
-	rs    *RoundStates
-	rcert *objs.RCert
+	rs       *RoundStates
+	rcert    *objs.RCert
+	external func(*RoundStates, *objs.RCert) (bool, error)
 }
 
 func (dnrh *doNrHandler) evalCriteria() bool {
@@ -419,7 +576,7 @@ func (dnrh *doNrHandler) evalCriteria() bool {
 }
 
 func (dnrh *doNrHandler) evalLogic() (bool, error) {
-	return dnrh.ce.doNrFunc(dnrh.rs, dnrh.rcert)
+	return dnrh.external(dnrh.rs, dnrh.rcert)
 }
 
 func (ce *Engine) doNrFunc(rs *RoundStates, rcert *objs.RCert) (bool, error) {
@@ -431,11 +588,112 @@ func (ce *Engine) doNrFunc(rs *RoundStates, rcert *objs.RCert) (bool, error) {
 	return true, nil
 }
 
+type doNrsCastNextHeightHandler struct {
+	rs       *RoundStates
+	rcert    *objs.RCert
+	pcl      objs.PreCommitList
+	external func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (dnrh *doNrsCastNextHeightHandler) evalCriteria() bool {
+	cond := len(dnrh.pcl) >= dnrh.rs.GetCurrentThreshold()
+	if dnrh.rs.OwnRoundState().NextRound != nil {
+		if dnrh.rs.OwnRoundState().NRCurrent(dnrh.rcert) {
+			return dnrh.rcert.RClaims.Round == constants.DEADBLOCKROUNDNR && cond
+		}
+	}
+	return false
+}
+
+func (dnrh *doNrsCastNextHeightHandler) evalLogic() (bool, error) {
+	return dnrh.external(dnrh.rs, dnrh.rcert, dnrh.pcl)
+}
+
+func (ce *Engine) doNrsCastNextHeightHandlerFunc(rs *RoundStates, rcert *objs.RCert, pcl objs.PreCommitList) (bool, error) {
+	p, err := pcl.GetProposal()
+	if err != nil {
+		return false, err
+	}
+	errorFree := true
+	if err := ce.updateValidValue(rs, p); err != nil {
+		var e *errorz.ErrInvalid
+		if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+			utils.DebugTrace(ce.logger, err)
+			return false, err
+		}
+		errorFree = false
+	}
+	if errorFree {
+		if err := ce.castNextHeightFromPreCommits(rs, pcl); err != nil {
+			var e *errorz.ErrInvalid
+			if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+				utils.DebugTrace(ce.logger, err)
+				return false, err
+			}
+			errorFree = false
+		}
+	}
+	if errorFree {
+		return true, nil
+	}
+
+	// last of all count next round messages from this round only
+	_, nrl, err := rs.GetCurrentNext()
+	if err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+
+	// form a new round cert if we have enough
+	if len(nrl) >= rs.GetCurrentThreshold() {
+		if err := ce.castNextRoundRCert(rs, nrl); err != nil {
+			utils.DebugTrace(ce.logger, err)
+			return false, err
+		}
+	}
+	// if we do not have enough yet,
+	// do nothing and wait for more votes
+	return true, nil
+}
+
+type doNrsCastNextRoundHandler struct {
+	rs       *RoundStates
+	rcert    *objs.RCert
+	pcl      objs.PreCommitList
+	nrl      objs.NextRoundList
+	external func(*RoundStates, *objs.RCert, objs.NextRoundList) (bool, error)
+}
+
+func (dnrh *doNrsCastNextRoundHandler) evalCriteria() bool {
+	cond1 := len(dnrh.pcl) < dnrh.rs.GetCurrentThreshold()
+	cond2 := len(dnrh.nrl) >= dnrh.rs.GetCurrentThreshold()
+	if cond1 && cond2 {
+		if dnrh.rs.OwnRoundState().NextRound != nil {
+			if dnrh.rs.OwnRoundState().NRCurrent(dnrh.rcert) {
+				return dnrh.rcert.RClaims.Round == constants.DEADBLOCKROUNDNR
+			}
+		}
+	}
+	return false
+}
+
+func (dnrh *doNrsCastNextRoundHandler) evalLogic() (bool, error) {
+	return dnrh.external(dnrh.rs, dnrh.rcert, dnrh.nrl)
+}
+
+func (ce *Engine) doNrsCastNextRoundHandlerFunc(rs *RoundStates, rcert *objs.RCert, nrl objs.NextRoundList) (bool, error) {
+	if err := ce.castNextRoundRCert(rs, nrl); err != nil {
+		utils.DebugTrace(ce.logger, err)
+		return false, err
+	}
+	return true, nil
+}
+
 type castNhHandler struct {
-	ce        *Engine
 	rs        *RoundStates
 	NHs       objs.NextHeightList
 	NHCurrent bool
+	external  func(*RoundStates, objs.NextHeightList) (bool, error)
 }
 
 func (cnhh *castNhHandler) evalCriteria() bool {
@@ -443,10 +701,11 @@ func (cnhh *castNhHandler) evalCriteria() bool {
 }
 
 func (cnhh *castNhHandler) evalLogic() (bool, error) {
-	return cnhh.ce.castNhFunc(cnhh.rs, cnhh.NHs)
+	return cnhh.external(cnhh.rs, cnhh.NHs)
 }
 
 func (ce *Engine) castNhFunc(rs *RoundStates, NHs objs.NextHeightList) (bool, error) {
+	// seems to be good already
 	err := ce.castNextHeightFromNextHeight(rs, NHs[0])
 	if err != nil {
 		utils.DebugTrace(ce.logger, err)
@@ -456,10 +715,10 @@ func (ce *Engine) castNhFunc(rs *RoundStates, NHs objs.NextHeightList) (bool, er
 }
 
 type doNextHeightHandler struct {
-	ce        *Engine
 	rs        *RoundStates
 	NHs       objs.NextHeightList
 	NHCurrent bool
+	external  func(*RoundStates, objs.NextHeightList) (bool, error)
 }
 
 func (dnhh *doNextHeightHandler) evalCriteria() bool {
@@ -467,7 +726,7 @@ func (dnhh *doNextHeightHandler) evalCriteria() bool {
 }
 
 func (dnhh *doNextHeightHandler) evalLogic() (bool, error) {
-	return dnhh.ce.doNextHeightFunc(dnhh.rs, dnhh.NHs)
+	return dnhh.external(dnhh.rs, dnhh.NHs)
 }
 
 func (ce *Engine) doNextHeightFunc(rs *RoundStates, NHs objs.NextHeightList) (bool, error) {
@@ -479,10 +738,37 @@ func (ce *Engine) doNextHeightFunc(rs *RoundStates, NHs objs.NextHeightList) (bo
 	return true, nil
 }
 
+type castBlockHeaderHandler struct {
+	rs        *RoundStates
+	NHs       objs.NextHeightList
+	NHCurrent bool
+	external  func(*RoundStates, objs.NextHeightList) (bool, error)
+}
+
+func (dnhh *castBlockHeaderHandler) evalCriteria() bool {
+	cond := len(dnhh.NHs) >= dnhh.rs.GetCurrentThreshold()
+	return len(dnhh.NHs) > 0 && dnhh.NHCurrent && cond
+}
+
+func (dnhh *castBlockHeaderHandler) evalLogic() (bool, error) {
+	return dnhh.external(dnhh.rs, dnhh.NHs)
+}
+
+func (ce *Engine) castBlockHeaderHandlerFunc(rs *RoundStates, nhl objs.NextHeightList) (bool, error) {
+	if err := ce.castNewCommittedBlockHeader(rs, nhl); err != nil {
+		utils.DebugTrace(ce.logger, err)
+		var e *errorz.ErrInvalid
+		if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
 type doRoundJumpHandler struct {
-	ce   *Engine
-	rs   *RoundStates
-	ChFr []*objs.RoundState
+	rs       *RoundStates
+	ChFr     []*objs.RoundState
+	external func(*RoundStates, []*objs.RoundState) (bool, error)
 }
 
 func (drjh *doRoundJumpHandler) evalCriteria() bool {
@@ -490,7 +776,7 @@ func (drjh *doRoundJumpHandler) evalCriteria() bool {
 }
 
 func (drjh *doRoundJumpHandler) evalLogic() (bool, error) {
-	return drjh.ce.doRoundJumpFunc(drjh.rs, drjh.ChFr)
+	return drjh.external(drjh.rs, drjh.ChFr)
 }
 
 func (ce *Engine) doRoundJumpFunc(rs *RoundStates, ChFr []*objs.RoundState) (bool, error) {
@@ -514,10 +800,66 @@ func (ce *Engine) doRoundJumpFunc(rs *RoundStates, ChFr []*objs.RoundState) (boo
 	return true, nil
 }
 
+type doRoundJumpUpdateValidValueHandler struct {
+	rs       *RoundStates
+	ChFr     []*objs.RoundState
+	pcl      objs.PreCommitList
+	external func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (drjh *doRoundJumpUpdateValidValueHandler) evalCriteria() bool {
+	cond := len(drjh.pcl) > drjh.rs.GetCurrentThreshold()
+	return len(drjh.ChFr) > 0 && cond
+}
+
+func (drjh *doRoundJumpUpdateValidValueHandler) evalLogic() (bool, error) {
+	var maxRCert *objs.RCert
+	var vroundState *objs.RoundState
+	for i := 0; i < len(drjh.ChFr); i++ {
+		vroundState = drjh.ChFr[i]
+		if maxRCert == nil {
+			maxRCert = vroundState.RCert
+			continue
+		}
+		if vroundState.RCert.RClaims.Round > maxRCert.RClaims.Round {
+			maxRCert = vroundState.RCert
+		}
+	}
+	return drjh.external(drjh.rs, maxRCert, drjh.pcl)
+}
+
+type doRoundJumpSetRCertHandler struct {
+	rs       *RoundStates
+	ChFr     []*objs.RoundState
+	pcl      objs.PreCommitList
+	external func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (drjh *doRoundJumpSetRCertHandler) evalCriteria() bool {
+	cond := len(drjh.pcl) <= drjh.rs.GetCurrentThreshold()
+	return len(drjh.ChFr) > 0 && cond
+}
+
+func (drjh *doRoundJumpSetRCertHandler) evalLogic() (bool, error) {
+	var maxRCert *objs.RCert
+	var vroundState *objs.RoundState
+	for i := 0; i < len(drjh.ChFr); i++ {
+		vroundState = drjh.ChFr[i]
+		if maxRCert == nil {
+			maxRCert = vroundState.RCert
+			continue
+		}
+		if vroundState.RCert.RClaims.Round > maxRCert.RClaims.Round {
+			maxRCert = vroundState.RCert
+		}
+	}
+	return drjh.external(drjh.rs, maxRCert, drjh.pcl)
+}
+
 type nrCurrentHandler struct {
-	ce        *Engine
 	rs        *RoundStates
 	NRCurrent bool
+	external  func(*RoundStates) (bool, error)
 }
 
 func (nrch *nrCurrentHandler) evalCriteria() bool {
@@ -525,10 +867,11 @@ func (nrch *nrCurrentHandler) evalCriteria() bool {
 }
 
 func (nrch *nrCurrentHandler) evalLogic() (bool, error) {
-	return nrch.ce.nrCurrentFunc(nrch.rs)
+	return nrch.external(nrch.rs)
 }
 
 func (ce *Engine) nrCurrentFunc(rs *RoundStates) (bool, error) {
+	// seems to have two sub handlers
 	err := ce.doNextRoundStep(rs)
 	if err != nil {
 		utils.DebugTrace(ce.logger, err)
@@ -537,10 +880,46 @@ func (ce *Engine) nrCurrentFunc(rs *RoundStates) (bool, error) {
 	return true, nil
 }
 
+type nrCurrentCnhHandler struct {
+	rs        *RoundStates
+	NRCurrent bool
+	rcert     *objs.RCert
+	pcl       objs.PreCommitList
+	external  func(*RoundStates, *objs.RCert, objs.PreCommitList) (bool, error)
+}
+
+func (nrch *nrCurrentCnhHandler) evalCriteria() bool {
+	cond := len(nrch.pcl) >= nrch.rs.GetCurrentThreshold()
+	return nrch.NRCurrent && cond
+}
+
+func (nrch *nrCurrentCnhHandler) evalLogic() (bool, error) {
+	return nrch.external(nrch.rs, nrch.rcert, nrch.pcl)
+}
+
+type nrCurrentCnrHandler struct {
+	rs        *RoundStates
+	NRCurrent bool
+	rcert     *objs.RCert
+	pcl       objs.PreCommitList
+	nrl       objs.NextRoundList
+	external  func(*RoundStates, *objs.RCert, objs.NextRoundList) (bool, error)
+}
+
+func (nrch *nrCurrentCnrHandler) evalCriteria() bool {
+	cond1 := len(nrch.pcl) < nrch.rs.GetCurrentThreshold()
+	cond2 := len(nrch.nrl) >= nrch.rs.GetCurrentThreshold()
+	return nrch.NRCurrent && cond1 && cond2
+}
+
+func (nrch *nrCurrentCnrHandler) evalLogic() (bool, error) {
+	return nrch.external(nrch.rs, nrch.rcert, nrch.nrl)
+}
+
 type pcCurrentHandler struct {
-	ce        *Engine
 	rs        *RoundStates
 	PCCurrent bool
+	external  func(*RoundStates, bool) (bool, error)
 }
 
 func (pcch *pcCurrentHandler) evalCriteria() bool {
@@ -549,7 +928,7 @@ func (pcch *pcCurrentHandler) evalCriteria() bool {
 
 func (pcch *pcCurrentHandler) evalLogic() (bool, error) {
 	PCTOExpired := pcch.rs.OwnValidatingState.PCTOExpired()
-	return pcch.ce.pcCurrentFunc(pcch.rs, PCTOExpired)
+	return pcch.external(pcch.rs, PCTOExpired)
 }
 
 func (ce *Engine) pcCurrentFunc(rs *RoundStates, PCTOExpired bool) (bool, error) {
@@ -570,9 +949,9 @@ func (ce *Engine) pcCurrentFunc(rs *RoundStates, PCTOExpired bool) (bool, error)
 }
 
 type pcnCurrentHandler struct {
-	ce         *Engine
 	rs         *RoundStates
 	PCNCurrent bool
+	external   func(*RoundStates, bool) (bool, error)
 }
 
 func (pcnch *pcnCurrentHandler) evalCriteria() bool {
@@ -581,7 +960,7 @@ func (pcnch *pcnCurrentHandler) evalCriteria() bool {
 
 func (pcnch *pcnCurrentHandler) evalLogic() (bool, error) {
 	PCTOExpired := pcnch.rs.OwnValidatingState.PCTOExpired()
-	return pcnch.ce.pcnCurrentFunc(pcnch.rs, PCTOExpired)
+	return pcnch.external(pcnch.rs, PCTOExpired)
 }
 
 func (ce *Engine) pcnCurrentFunc(rs *RoundStates, PCTOExpired bool) (bool, error) {
@@ -602,9 +981,9 @@ func (ce *Engine) pcnCurrentFunc(rs *RoundStates, PCTOExpired bool) (bool, error
 }
 
 type pvCurrentHandler struct {
-	ce        *Engine
 	rs        *RoundStates
 	PVCurrent bool
+	external  func(*RoundStates, bool) (bool, error)
 }
 
 func (pvch *pvCurrentHandler) evalCriteria() bool {
@@ -613,7 +992,7 @@ func (pvch *pvCurrentHandler) evalCriteria() bool {
 
 func (pvch *pvCurrentHandler) evalLogic() (bool, error) {
 	PVTOExpired := pvch.rs.OwnValidatingState.PVTOExpired()
-	return pvch.ce.pvCurrentFunc(pvch.rs, PVTOExpired)
+	return pvch.external(pvch.rs, PVTOExpired)
 }
 
 func (ce *Engine) pvCurrentFunc(rs *RoundStates, PVTOExpired bool) (bool, error) {
@@ -634,9 +1013,9 @@ func (ce *Engine) pvCurrentFunc(rs *RoundStates, PVTOExpired bool) (bool, error)
 }
 
 type pvnCurrentHandler struct {
-	ce         *Engine
 	rs         *RoundStates
 	PVNCurrent bool
+	external   func(*RoundStates, bool) (bool, error)
 }
 
 func (pvnch *pvnCurrentHandler) evalCriteria() bool {
@@ -645,7 +1024,7 @@ func (pvnch *pvnCurrentHandler) evalCriteria() bool {
 
 func (pvnch *pvnCurrentHandler) evalLogic() (bool, error) {
 	PVTOExpired := pvnch.rs.OwnValidatingState.PVTOExpired()
-	return pvnch.ce.pvnCurrentFunc(pvnch.rs, PVTOExpired)
+	return pvnch.external(pvnch.rs, PVTOExpired)
 }
 
 func (ce *Engine) pvnCurrentFunc(rs *RoundStates, PVTOExpired bool) (bool, error) {
@@ -666,8 +1045,8 @@ func (ce *Engine) pvnCurrentFunc(rs *RoundStates, PVTOExpired bool) (bool, error
 }
 
 type ptoExpiredHandler struct {
-	ce *Engine
-	rs *RoundStates
+	rs       *RoundStates
+	external func(*RoundStates) (bool, error)
 }
 
 func (ptoeh *ptoExpiredHandler) evalCriteria() bool {
@@ -676,7 +1055,7 @@ func (ptoeh *ptoExpiredHandler) evalCriteria() bool {
 }
 
 func (ptoeh *ptoExpiredHandler) evalLogic() (bool, error) {
-	return ptoeh.ce.ptoExpiredFunc(ptoeh.rs)
+	return ptoeh.external(ptoeh.rs)
 }
 
 func (ce *Engine) ptoExpiredFunc(rs *RoundStates) (bool, error) {
@@ -689,9 +1068,9 @@ func (ce *Engine) ptoExpiredFunc(rs *RoundStates) (bool, error) {
 }
 
 type validPropHandler struct {
-	ce       *Engine
 	rs       *RoundStates
 	PCurrent bool
+	external func(*RoundStates) (bool, error)
 }
 
 func (vph *validPropHandler) evalCriteria() bool {
@@ -700,7 +1079,7 @@ func (vph *validPropHandler) evalCriteria() bool {
 }
 
 func (vph *validPropHandler) evalLogic() (bool, error) {
-	return vph.ce.validPropFunc(vph.rs)
+	return vph.external(vph.rs)
 }
 
 func (ce *Engine) validPropFunc(rs *RoundStates) (bool, error) {

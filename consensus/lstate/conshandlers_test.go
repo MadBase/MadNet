@@ -115,16 +115,16 @@ func TestFhFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		msg, err := pClaims.BClaims.BlockHash()
-		if err != nil {
-			return err
-		}
-		grpSig, _, _, _ := getGroupSig(msg)
+		// msg, err := pClaims.BClaims.BlockHash()
+		// if err != nil {
+		// 	return err
+		// }
+		// grpSig, _, _, _ := getGroupSig(msg)
 
-		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
-			SigGroup: grpSig}}
+		// rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
+		// 	SigGroup: grpSig}}
 
-		booleanValue, err := stateHandler.fhFunc(roundStates, rs)
+		booleanValue, err := stateHandler.fhFunc(roundStates)
 		if err != nil {
 			fmt.Println("err is", err)
 		}
@@ -176,16 +176,16 @@ func TestFhFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		msg, err := pClaims.BClaims.BlockHash()
-		if err != nil {
-			return err
-		}
-		grpSig, _, _, _ := getGroupSig(msg)
+		// msg, err := pClaims.BClaims.BlockHash()
+		// if err != nil {
+		// 	return err
+		// }
+		// grpSig, _, _, _ := getGroupSig(msg)
 
-		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
-			SigGroup: grpSig}}
+		// rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
+		// 	SigGroup: grpSig}}
 
-		booleanValue, err := stateHandler.fhFunc(roundStates, rs)
+		booleanValue, err := stateHandler.fhFunc(roundStates)
 		if err != nil {
 			fmt.Println("err is", err)
 		}
