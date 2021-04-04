@@ -3,6 +3,7 @@ package lstate
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
@@ -50,6 +51,39 @@ type changeHandler interface {
 	evalLogic() error
 }
 
+type dPPSProposeNewHandler2 struct {
+	rs                *RoundStates
+	isProposer        bool
+	pCurrent          bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (pn *dPPSProposeNewHandler2) evalCriteria() bool {
+	pn.subCond = !pn.rs.LockedValueCurrent() && !pn.rs.ValidValueCurrent()
+	cond := pn.isProposer && !pn.pCurrent && pn.rs.OwnRoundState().RCert.RClaims.Round < constants.DEADBLOCKROUND
+	if pn.subCond && !cond {
+		pn.breakOut = true
+	}
+	return pn.subCond && cond // 00 case
+
+}
+
+func (pn *dPPSProposeNewHandler2) evalLogic() (bool, error) {
+	if !pn.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pn.external(pn.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pn *dPPSProposeNewHandler2) shouldBreakOut() bool {
+	return pn.breakOut
+}
+
 type dPPSProposeNewHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -72,6 +106,44 @@ func (ce *Engine) dPPSProposeNewFunc(rs *RoundStates) error {
 	return nil
 }
 
+type dPPSProposeValidHandler2 struct {
+	rs                *RoundStates
+	isProposer        bool
+	pCurrent          bool
+	breakOut, subCond bool
+	external          func(*RoundStates, *objs.Proposal) error
+}
+
+func (pv *dPPSProposeValidHandler2) evalCriteria() bool {
+	pv.subCond = !pv.rs.LockedValueCurrent() && pv.rs.ValidValueCurrent()
+	cond := pv.isProposer && !pv.pCurrent && pv.rs.OwnRoundState().RCert.RClaims.Round < constants.DEADBLOCKROUND
+	if pv.subCond && !cond {
+		pv.breakOut = true
+	}
+	return pv.subCond && cond // 01 case
+
+}
+
+func (pv *dPPSProposeValidHandler2) evalLogic() (bool, error) {
+	if !pv.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pv.external(pv.rs, pv.rs.ValidValue())
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+	// if err := pv.external(pv.rs, pv.rs.ValidValue()); err != nil {
+	// 	utils.DebugTrace(pv.ce.logger, err)
+	// 	return err
+	// }
+	// return nil
+}
+
+func (pv *dPPSProposeValidHandler2) shouldBreakOut() bool {
+	return pv.breakOut
+}
+
 type dPPSProposeValidHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -88,6 +160,44 @@ func (pv *dPPSProposeValidHandler) evalLogic() error {
 		return err
 	}
 	return nil
+}
+
+type dPPSProposeLockedHandler2 struct {
+	rs                *RoundStates
+	isProposer        bool
+	pCurrent          bool
+	breakOut, subCond bool
+	external          func(*RoundStates, *objs.Proposal) error
+}
+
+func (pl *dPPSProposeLockedHandler2) evalCriteria() bool {
+	pl.subCond = pl.rs.LockedValueCurrent()
+	cond := pl.isProposer && !pl.pCurrent && pl.rs.OwnRoundState().RCert.RClaims.Round < constants.DEADBLOCKROUND
+	if pl.subCond && !cond {
+		pl.breakOut = true
+	}
+	return pl.subCond && cond // 10 or 11 case
+
+}
+
+func (pl *dPPSProposeLockedHandler2) evalLogic() (bool, error) {
+	if !pl.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pl.external(pl.rs, pl.rs.LockedValue())
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+	// if err := pl.external(pl.rs, pl.rs.LockedValue()); err != nil {
+	// 	utils.DebugTrace(pl.ce.logger, err)
+	// 	return err
+	// }
+	// return nil
+}
+
+func (pl *dPPSProposeLockedHandler2) shouldBreakOut() bool {
+	return pl.breakOut
 }
 
 type dPPSProposeLockedHandler struct {
@@ -161,6 +271,39 @@ func (ce *Engine) doPendingPreVoteStep(rs *RoundStates) error {
 	return nil
 }
 
+type dPPVSDeadBlockRoundHandler2 struct {
+	rs                *RoundStates
+	PTOExpired        bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (dbrh *dPPVSDeadBlockRoundHandler2) evalCriteria() bool {
+	dbrh.subCond = dbrh.PTOExpired
+	os := dbrh.rs.OwnRoundState()
+	rcert := os.RCert
+	cond := rcert.RClaims.Round == constants.DEADBLOCKROUND
+	if dbrh.subCond && !cond {
+		dbrh.breakOut = true
+	}
+	return dbrh.subCond && cond
+}
+
+func (dbrh *dPPVSDeadBlockRoundHandler2) evalLogic() (bool, error) {
+	if !dbrh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := dbrh.external(dbrh.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (dbrh *dPPVSDeadBlockRoundHandler2) shouldBreakOut() bool {
+	return dbrh.breakOut
+}
+
 type dPPVSDeadBlockRoundHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -220,6 +363,41 @@ func (ce *Engine) dPPVSDeadBlockRoundFunc(rs *RoundStates) error {
 	return nil
 }
 
+type dPPVSPreVoteNewHandler2 struct {
+	rs                *RoundStates
+	p                 *objs.Proposal
+	PTOExpired        bool
+	breakOut, subCond bool
+	external          func(*RoundStates, *objs.Proposal) error
+}
+
+func (pvnewh *dPPVSPreVoteNewHandler2) evalCriteria() bool {
+	pvnewh.subCond = pvnewh.PTOExpired
+	cond1 := pvnewh.p != nil
+	c2a := !pvnewh.rs.LockedValueCurrent()
+	c2b := !pvnewh.rs.ValidValueCurrent()
+	cond2 := c2a && c2b
+	if pvnewh.subCond && !(cond1 && cond2) {
+		pvnewh.breakOut = true
+	}
+	return pvnewh.subCond && cond1 && cond2
+}
+
+func (pvnewh *dPPVSPreVoteNewHandler2) evalLogic() (bool, error) {
+	if !pvnewh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvnewh.external(pvnewh.rs, pvnewh.p)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvnewh *dPPVSPreVoteNewHandler2) shouldBreakOut() bool {
+	return pvnewh.breakOut
+}
+
 type dPPVSPreVoteNewHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -265,6 +443,39 @@ func (ce *Engine) dPPVSPreVoteNewFunc(rs *RoundStates, p *objs.Proposal) error {
 	return nil
 }
 
+type dPPVSPreVoteValidHandler2 struct {
+	rs                *RoundStates
+	p                 *objs.Proposal
+	PTOExpired        bool
+	breakOut, subCond bool
+	external          func(*RoundStates, *objs.Proposal) error
+}
+
+func (pvvh *dPPVSPreVoteValidHandler2) evalCriteria() bool {
+	pvvh.subCond = pvvh.PTOExpired
+	cond1 := pvvh.p != nil
+	cond2 := !pvvh.rs.LockedValueCurrent() && pvvh.rs.ValidValueCurrent()
+	if pvvh.subCond && !(cond1 && cond2) {
+		pvvh.breakOut = true
+	}
+	return pvvh.subCond && cond1 && cond2
+}
+
+func (pvvh *dPPVSPreVoteValidHandler2) evalLogic() (bool, error) {
+	if !pvvh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvvh.external(pvvh.rs, pvvh.p)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvvh *dPPVSPreVoteValidHandler2) shouldBreakOut() bool {
+	return pvvh.breakOut
+}
+
 type dPPVSPreVoteValidHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -290,6 +501,39 @@ func (ce *Engine) dPPVSPreVoteValidFunc(rs *RoundStates, p *objs.Proposal) error
 	return nil
 }
 
+type dPPVSPreVoteLockedHandler2 struct {
+	rs                *RoundStates
+	p                 *objs.Proposal
+	PTOExpired        bool
+	breakOut, subCond bool
+	external          func(*RoundStates, *objs.Proposal) error
+}
+
+func (pvlh *dPPVSPreVoteLockedHandler2) evalCriteria() bool {
+	pvlh.subCond = pvlh.PTOExpired
+	cond1 := pvlh.p != nil
+	cond2 := pvlh.rs.LockedValueCurrent()
+	if pvlh.subCond && !(cond1 && cond2) {
+		pvlh.breakOut = true
+	}
+	return pvlh.subCond && cond1 && cond2
+}
+
+func (pvlh *dPPVSPreVoteLockedHandler2) evalLogic() (bool, error) {
+	if !pvlh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvlh.external(pvlh.rs, pvlh.p)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvlh *dPPVSPreVoteLockedHandler2) shouldBreakOut() bool {
+	return pvlh.breakOut
+}
+
 type dPPVSPreVoteLockedHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -313,6 +557,38 @@ func (ce *Engine) dPPVSPreVoteLockedFunc(rs *RoundStates, p *objs.Proposal) erro
 		return err
 	}
 	return nil
+}
+
+type dPPVSPreVoteNilHandler2 struct {
+	rs                *RoundStates
+	p                 *objs.Proposal
+	PTOExpired        bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (pvnh *dPPVSPreVoteNilHandler2) evalCriteria() bool {
+	pvnh.subCond = pvnh.PTOExpired
+	cond := pvnh.p == nil
+	if pvnh.subCond && !cond {
+		pvnh.breakOut = true
+	}
+	return pvnh.subCond && cond
+}
+
+func (pvnh *dPPVSPreVoteNilHandler2) evalLogic() (bool, error) {
+	if !pvnh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvnh.external(pvnh.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvnh *dPPVSPreVoteNilHandler2) shouldBreakOut() bool {
+	return pvnh.breakOut
 }
 
 type dPPVSPreVoteNilHandler struct {
@@ -363,6 +639,38 @@ func (ce *Engine) doPreVoteStep(rs *RoundStates) error {
 	}
 	// no thresholds met, so do nothing
 	return nil
+}
+
+type dPVSCastPCHandler2 struct {
+	rs                *RoundStates
+	pvl               []*objs.PreVote
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, []*objs.PreVote) error
+}
+
+func (pvcpc *dPVSCastPCHandler2) evalCriteria() bool {
+	pvcpc.subCond = pvcpc.extra
+	cond := len(pvcpc.pvl) >= pvcpc.rs.GetCurrentThreshold()
+	if pvcpc.subCond && !cond {
+		pvcpc.breakOut = true
+	}
+	return pvcpc.subCond && cond
+}
+
+func (pvcpc *dPVSCastPCHandler2) evalLogic() (bool, error) {
+	if !pvcpc.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvcpc.external(pvcpc.rs, pvcpc.pvl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvcpc *dPVSCastPCHandler2) shouldBreakOut() bool {
+	return pvcpc.breakOut
 }
 
 type dPVSCastPCHandler struct {
@@ -417,6 +725,39 @@ func (ce *Engine) doPreVoteNilStep(rs *RoundStates) error {
 	return nil
 }
 
+type dPVNSUpdateVVHandler2 struct {
+	rs                *RoundStates
+	pvl               objs.PreVoteList
+	pvnl              objs.PreVoteNilList
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreVoteList) error
+}
+
+func (pvnu *dPVNSUpdateVVHandler2) evalCriteria() bool {
+	pvnu.subCond = pvnu.extra
+	cond := len(pvnu.pvl) >= pvnu.rs.GetCurrentThreshold()
+	if pvnu.subCond && !cond {
+		pvnu.breakOut = true
+	}
+	return pvnu.subCond && cond
+}
+
+func (pvnu *dPVNSUpdateVVHandler2) evalLogic() (bool, error) {
+	if !pvnu.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := pvnu.external(pvnu.rs, pvnu.pvl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (pvnu *dPVNSUpdateVVHandler2) shouldBreakOut() bool {
+	return pvnu.breakOut
+}
+
 type dPVNSUpdateVVHandler struct {
 	ce   *Engine
 	txn  *badger.Txn
@@ -445,6 +786,38 @@ func (ce *Engine) dPVNSUpdateVVFunc(rs *RoundStates, pvl objs.PreVoteList) error
 		return err
 	}
 	return nil
+}
+
+type dPVNSCastPCNHandler2 struct {
+	rs                *RoundStates
+	pvnl              objs.PreVoteNilList
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (cpcn *dPVNSCastPCNHandler2) evalCriteria() bool {
+	cpcn.subCond = cpcn.extra
+	cond := len(cpcn.pvnl) >= cpcn.rs.GetCurrentThreshold()
+	if cpcn.subCond && !cond {
+		cpcn.breakOut = true
+	}
+	return cpcn.subCond && cond
+}
+
+func (cpcn *dPVNSCastPCNHandler2) evalLogic() (bool, error) {
+	if !cpcn.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cpcn.external(cpcn.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cpcn *dPVNSCastPCNHandler2) shouldBreakOut() bool {
+	return cpcn.breakOut
 }
 
 type dPVNSCastPCNHandler struct {
@@ -512,6 +885,40 @@ func (ce *Engine) doPendingPreCommit(rs *RoundStates) error {
 	return nil
 }
 
+type dPPCCastPCHandler2 struct {
+	rs                *RoundStates
+	pvl               objs.PreVoteList
+	PVTOExpired       bool
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreVoteList) error
+}
+
+func (cpc *dPPCCastPCHandler2) evalCriteria() bool {
+	cpc.subCond = cpc.extra
+	cond1 := len(cpc.pvl) >= cpc.rs.GetCurrentThreshold()
+	cond2 := cpc.rs.LocalPreVoteCurrent()
+	if cpc.subCond && !(cond1 && cond2 && cpc.PVTOExpired) {
+		cpc.breakOut = true
+	}
+	return cpc.subCond && cond1 && cond2 && cpc.PVTOExpired
+}
+
+func (cpc *dPPCCastPCHandler2) evalLogic() (bool, error) {
+	if !cpc.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cpc.external(cpc.rs, cpc.pvl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cpc *dPPCCastPCHandler2) shouldBreakOut() bool {
+	return cpc.breakOut
+}
+
 type dPPCCastPCHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -535,6 +942,41 @@ func (ce *Engine) dPPCCastPCFunc(rs *RoundStates, pvl objs.PreVoteList) error {
 		return err
 	}
 	return nil
+}
+
+type dPPCUpdateVVHandler2 struct {
+	rs                *RoundStates
+	pvl               objs.PreVoteList
+	pvnl              objs.PreVoteNilList
+	PVTOExpired       bool
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreVoteList, objs.PreVoteNilList) error
+}
+
+func (uvv *dPPCUpdateVVHandler2) evalCriteria() bool {
+	uvv.subCond = uvv.extra
+	cond1 := len(uvv.pvl) >= uvv.rs.GetCurrentThreshold()
+	cond2 := !uvv.rs.LocalPreVoteCurrent()
+	if uvv.subCond && !(cond1 && cond2 && uvv.PVTOExpired) {
+		uvv.breakOut = true
+	}
+	return uvv.subCond && cond1 && cond2 && uvv.PVTOExpired
+}
+
+func (uvv *dPPCUpdateVVHandler2) evalLogic() (bool, error) {
+	if !uvv.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := uvv.external(uvv.rs, uvv.pvl, uvv.pvnl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (uvv *dPPCUpdateVVHandler2) shouldBreakOut() bool {
+	return uvv.breakOut
 }
 
 type dPPCUpdateVVHandler struct {
@@ -583,6 +1025,43 @@ func (ce *Engine) dPPCUpdateVVFunc(rs *RoundStates, pvl objs.PreVoteList, pvnl o
 		return nil
 	}
 	return nil
+}
+
+type dPPCNotDBRHandler2 struct {
+	rs                *RoundStates
+	pvl               objs.PreVoteList
+	pvnl              objs.PreVoteNilList
+	PVTOExpired       bool
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (ndbr *dPPCNotDBRHandler2) evalCriteria() bool {
+	ndbr.subCond = ndbr.extra
+	os := ndbr.rs.OwnRoundState()
+	rcert := os.RCert
+	cond1 := rcert.RClaims.Round != constants.DEADBLOCKROUND
+	cond2 := len(ndbr.pvl)+len(ndbr.pvnl) >= ndbr.rs.GetCurrentThreshold()
+	if ndbr.subCond && !(cond1 && cond2 && ndbr.PVTOExpired) {
+		ndbr.breakOut = true
+	}
+	return ndbr.subCond && cond1 && cond2 && ndbr.PVTOExpired
+}
+
+func (ndbr *dPPCNotDBRHandler2) evalLogic() (bool, error) {
+	if !ndbr.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := ndbr.external(ndbr.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (ndbr *dPPCNotDBRHandler2) shouldBreakOut() bool {
+	return ndbr.breakOut
 }
 
 type dPPCNotDBRHandler struct {
@@ -638,6 +1117,38 @@ func (ce *Engine) doPreCommitStep(rs *RoundStates) error {
 	}
 	// no consensus, wait for more votes
 	return nil
+}
+
+type dPCSCastNHHandler2 struct {
+	rs                *RoundStates
+	pcl               objs.PreCommitList
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreCommitList) error
+}
+
+func (cnh *dPCSCastNHHandler2) evalCriteria() bool {
+	cnh.subCond = cnh.extra
+	cond := len(cnh.pcl) >= cnh.rs.GetCurrentThreshold()
+	if cnh.subCond && !cond {
+		cnh.breakOut = true
+	}
+	return cnh.subCond && cond
+}
+
+func (cnh *dPCSCastNHHandler2) evalLogic() (bool, error) {
+	if !cnh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cnh.external(cnh.rs, cnh.pcl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cnh *dPCSCastNHHandler2) shouldBreakOut() bool {
+	return cnh.breakOut
 }
 
 type dPCSCastNHHandler struct {
@@ -703,6 +1214,38 @@ func (ce *Engine) doPreCommitNilStep(rs *RoundStates) error {
 	return nil
 }
 
+type dPCNSCastNHHandler2 struct {
+	rs                *RoundStates
+	pcl               objs.PreCommitList
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreCommitList) error
+}
+
+func (cnh *dPCNSCastNHHandler2) evalCriteria() bool {
+	cnh.subCond = cnh.extra
+	cond := len(cnh.pcl) >= cnh.rs.GetCurrentThreshold()
+	if cnh.subCond && !cond {
+		cnh.breakOut = true
+	}
+	return cnh.subCond && cond
+}
+
+func (cnh *dPCNSCastNHHandler2) evalLogic() (bool, error) {
+	if !cnh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cnh.external(cnh.rs, cnh.pcl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cnh *dPCNSCastNHHandler2) shouldBreakOut() bool {
+	return cnh.breakOut
+}
+
 type dPCNSCastNHHandler struct {
 	ce  *Engine
 	txn *badger.Txn
@@ -732,6 +1275,39 @@ func (ce *Engine) dPCNSCastNHFunc(rs *RoundStates, pcl objs.PreCommitList) error
 		return err
 	}
 	return nil
+}
+
+type dPCNSCastNRHandler2 struct {
+	rs                *RoundStates
+	pcnl              objs.PreCommitNilList
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (cnr *dPCNSCastNRHandler2) evalCriteria() bool {
+	cnr.subCond = cnr.extra
+	cond1 := len(cnr.pcnl) >= cnr.rs.GetCurrentThreshold()
+	cond2 := cnr.rs.Round() != constants.DEADBLOCKROUNDNR
+	if cnr.subCond && !(cond1 && cond2) {
+		cnr.breakOut = true
+	}
+	return cnr.subCond && cond1 && cond2
+}
+
+func (cnr *dPCNSCastNRHandler2) evalLogic() (bool, error) {
+	if !cnr.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cnr.external(cnr.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cnr *dPCNSCastNRHandler2) shouldBreakOut() bool {
+	return cnr.breakOut
 }
 
 type dPCNSCastNRHandler struct {
@@ -796,11 +1372,45 @@ func (ce *Engine) doPendingNext(rs *RoundStates) error {
 	return nil
 }
 
+type dPNCastNextHeightHandler2 struct {
+	rs                *RoundStates
+	pcl               objs.PreCommitList
+	PCTOExpired       bool
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates, objs.PreCommitList) error
+}
+
+func (cnh *dPNCastNextHeightHandler2) evalCriteria() bool {
+	cnh.subCond = cnh.extra
+	cond := len(cnh.pcl) >= cnh.rs.GetCurrentThreshold() && cnh.PCTOExpired
+	if cnh.subCond && !cond {
+		cnh.breakOut = true
+	}
+	return cnh.subCond && cond
+}
+
+func (cnh *dPNCastNextHeightHandler2) evalLogic() (bool, error) {
+	if !cnh.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cnh.external(cnh.rs, cnh.pcl)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+	// return cnh.ce.dPNCastNextHeightFunc(cnh.rs, cnh.pcl)
+}
+
+func (cnh *dPNCastNextHeightHandler2) shouldBreakOut() bool {
+	return cnh.breakOut
+}
+
 type dPNCastNextHeightHandler struct {
 	ce  *Engine
-	txn *badger.Txn
 	rs  *RoundStates
 	pcl objs.PreCommitList
+	// external func(*RoundStates, objs.PreCommitList) error
 }
 
 func (cnh *dPNCastNextHeightHandler) evalCriteria() bool {
@@ -808,6 +1418,7 @@ func (cnh *dPNCastNextHeightHandler) evalCriteria() bool {
 }
 
 func (cnh *dPNCastNextHeightHandler) evalLogic() error {
+	// return cnh.external(cnh.rs, cnh.pcl)
 	return cnh.ce.dPNCastNextHeightFunc(cnh.rs, cnh.pcl)
 }
 
@@ -860,6 +1471,45 @@ func (ce *Engine) dPNCastNextHeightFunc(rs *RoundStates, pcl objs.PreCommitList)
 		return nil
 	}
 	return nil
+}
+
+type dPNCastNextRoundHandler2 struct {
+	rs                *RoundStates
+	pcl               objs.PreCommitList
+	pcnl              objs.PreCommitNilList
+	PCTOExpired       bool
+	extra             bool
+	breakOut, subCond bool
+	external          func(*RoundStates) error
+}
+
+func (cnr *dPNCastNextRoundHandler2) evalCriteria() bool {
+	cnr.subCond = cnr.extra
+	os := cnr.rs.OwnRoundState()
+	rcert := os.RCert
+	cond1 := len(cnr.pcl) < cnr.rs.GetCurrentThreshold()
+	cond2 := rcert.RClaims.Round != constants.DEADBLOCKROUND
+	cond3 := len(cnr.pcl)+len(cnr.pcnl) >= cnr.rs.GetCurrentThreshold()
+	cond := cond1 && cond2 && cond3 && cnr.PCTOExpired
+	if cnr.subCond && !cond {
+		cnr.breakOut = true
+	}
+	return cnr.subCond && cond
+}
+
+func (cnr *dPNCastNextRoundHandler2) evalLogic() (bool, error) {
+	if !cnr.rs.IsCurrentValidator() {
+		return true, nil
+	}
+	err := cnr.external(cnr.rs)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (cnr *dPNCastNextRoundHandler2) shouldBreakOut() bool {
+	return cnr.breakOut
 }
 
 type dPNCastNextRoundHandler struct {
@@ -1165,6 +1815,7 @@ func (ce *Engine) dNHSCastBHFunc(rs *RoundStates, nhl objs.NextHeightList) error
 		utils.DebugTrace(ce.logger, err)
 		var e *errorz.ErrInvalid
 		if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
+			fmt.Println("did we make it here")
 			return err
 		}
 	}
