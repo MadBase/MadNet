@@ -79,6 +79,11 @@ func getStateHandler(t *testing.T, mdb db.DatabaseIface) *Engine {
 
 	stateHandler.bnSigner = &hashlib.BNGroupSigner{}
 	stateHandler.bnSigner.SetPrivk([]byte{173, 233, 94, 109, 13, 42, 99, 22})
+	_, _, gpk, _ := getGroupSig([]byte("test msg"))
+	err = stateHandler.bnSigner.SetGroupPubk(gpk)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	return stateHandler
 }

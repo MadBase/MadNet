@@ -3,7 +3,6 @@ package lstate
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
@@ -1815,7 +1814,6 @@ func (ce *Engine) dNHSCastBHFunc(rs *RoundStates, nhl objs.NextHeightList) error
 		utils.DebugTrace(ce.logger, err)
 		var e *errorz.ErrInvalid
 		if err != errorz.ErrMissingTransactions && !errors.As(err, &e) {
-			fmt.Println("did we make it here")
 			return err
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/MadBase/MadNet/consensus/appmock"
 	"github.com/MadBase/MadNet/consensus/db"
 	objs "github.com/MadBase/MadNet/consensus/objs"
 	"github.com/dgraph-io/badger/v2"
@@ -47,8 +48,6 @@ func getBdb(t *testing.T) *badger.DB {
 
 	return bdb
 }
-
-// calls dHJSJumpHandler
 
 func TestFhFunc(t *testing.T) {
 
@@ -93,8 +92,14 @@ func TestFhFunc(t *testing.T) {
 
 	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
 
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+	grpSig, _, _, _ := getGroupSig(msg)
+
 	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}}
+		RClaims: rClaims, SigGroup: grpSig}}
 	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true}}
 
 	updateFunc = func(txn *badger.Txn) error {
@@ -115,11 +120,7 @@ func TestFhFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		// msg, err := pClaims.BClaims.BlockHash()
-		// if err != nil {
-		// 	return err
-		// }
-		// grpSig, _, _, _ := getGroupSig(msg)
+		roundStates.maxHR = roundState
 
 		// rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
 		// 	SigGroup: grpSig}}
@@ -176,14 +177,15 @@ func TestFhFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		// msg, err := pClaims.BClaims.BlockHash()
-		// if err != nil {
-		// 	return err
-		// }
-		// grpSig, _, _, _ := getGroupSig(msg)
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+		grpSig, _, _, _ := getGroupSig(msg)
 
-		// rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
-		// 	SigGroup: grpSig}}
+		roundStates.maxHR = roundState
+
+		roundStates.maxHR.RCert.SigGroup = grpSig
 
 		booleanValue, err := stateHandler.fhFunc(roundStates)
 		if err != nil {
@@ -205,10 +207,7 @@ func TestFhFunc(t *testing.T) {
 	}
 }
 
-// seems to call the same handlers as DoRoundJumpFunc
-// rCertFunc seems to be calling the doRoundJump function
-
-func TestRCertFunc(t *testing.T) {
+func TestRoundJumpUpdateValidValueFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -302,11 +301,12 @@ func TestRCertFunc(t *testing.T) {
 		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
 			SigGroup: grpSig}}
 
-		// stateHandler.database.UpdateHeaderTrieRootFastSync(txn, bhtoUpdateTR)
-		// stateHandler.database.SetHeaderTrieRoot(txn, 1, otherbClaims.HeaderRoot)
+		pcl, _, err := roundStates.GetCurrentPreCommits()
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		// seems to not update things even though there is at least one pre commit
-		booleanValue, err := stateHandler.rCertFunc(roundStates, rs.RCert)
+		booleanValue, err := stateHandler.roundJumpUpdateValidValueFunc(roundStates, rs.RCert, pcl)
 		if err != nil {
 			fmt.Println("err is", err)
 		}
@@ -331,9 +331,7 @@ func TestRCertFunc(t *testing.T) {
 	}
 }
 
-// seems to call the same handlers as nr current func
-
-func TestDoNrFunc(t *testing.T) {
+func TestRoundJumpSetRCertFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -353,11 +351,256 @@ func TestDoNrFunc(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
+	otherrClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{173, 233, 94, 109, 13, 42, 99,
+		22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147},
+		HeaderRoot: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21,
+			229, 112, 18, 48, 147}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims, GroupKey: []byte{3, 5, 4}}
+	otherValidValue := &objs.Proposal{Signature: []byte{3, 3, 8}, PClaims: pClaims, GroupKey: []byte{3, 5, 4}}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: otherValidValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	// shouldn't the validators have different vaddrs ? seems to not allow precommit updates if they do
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{1}}, {VAddr: []byte{2}, GroupShare: []byte{2}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}, {VAddr: []byte{2}, GroupShare: []byte{5}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		roundStates.PeerStateMap[string([]byte{1})].PreCommit = &objs.PreCommit{Proposal: validValue, Voter: []byte{1, 2}}
+		roundStates.PeerStateMap[string([]byte{2})].PreCommit = &objs.PreCommit{Proposal: validValue, Voter: []byte{1, 3}}
+		roundStates.PeerStateMap[string([]byte{3})].PreCommit = &objs.PreCommit{Proposal: validValue, Voter: []byte{1, 4}}
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+		grpSig, _, _, _ := getGroupSig(msg)
+
+		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
+			SigGroup: grpSig}}
+
+		pcl, _, err := roundStates.GetCurrentPreCommits()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		booleanValue, err := stateHandler.roundJumpSetRCertFunc(roundStates, rs.RCert, pcl)
+		if err != nil {
+			fmt.Println("err is", err)
+		}
+
+		if booleanValue != true {
+			t.Fatal("output value for r cert func is not correct")
+		}
+
+		expectedSig := []byte{3, 3, 8}
+		for i := 0; i < len(expectedSig); i++ {
+			if expectedSig[i] != roundStates.OwnValidatingState.ValidValue.Signature[i] {
+				t.Fatal("incorrect value for signature")
+			}
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDoNrsCastNextHeightHandlerFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
 	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
 		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		h := uint32(1)
+		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastNextHeight(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		pcl, _, err := roundStates.GetCurrentPreCommits()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		booleanValue, err := stateHandler.doNrsCastNextHeightHandlerFunc(roundStates, roundState.RCert, pcl)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		if booleanValue != true {
+			t.Fatal("value of the output from do nr func seems to not be correct")
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDoNrsCastNextRoundHandlerFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: txRoot, ChainID: 42}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: txRoot, TxRoot: txRoot, StateRoot: txRoot,
+		HeaderRoot: txRoot}
 	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
 	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
 	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
@@ -427,7 +670,12 @@ func TestDoNrFunc(t *testing.T) {
 		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
 			SigGroup: grpSig}}
 
-		booleanValue, err := stateHandler.doNrFunc(roundStates, rs.RCert)
+		_, nrl, err := roundStates.GetCurrentNext()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		booleanValue, err := stateHandler.doNrsCastNextRoundHandlerFunc(roundStates, rs.RCert, nrl)
 		if err != nil {
 			fmt.Println("err is", err)
 		}
@@ -449,9 +697,7 @@ func TestDoNrFunc(t *testing.T) {
 	}
 }
 
-// seems to call dNHSCastBHHandler
-
-func TestDoNextHeightFunc(t *testing.T) {
+func TestCastBlockHeaderHandlerFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -474,8 +720,8 @@ func TestDoNextHeightFunc(t *testing.T) {
 	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-		HeaderRoot: []byte{3}}
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: txRoot, TxRoot: txRoot, StateRoot: txRoot,
+		HeaderRoot: txRoot}
 	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
 	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
 	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
@@ -494,18 +740,45 @@ func TestDoNextHeightFunc(t *testing.T) {
 
 	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
 
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, sigs := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
 	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
 		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true}}
+	roundState1 := &objs.RoundState{VAddr: []byte{1}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	roundState2 := &objs.RoundState{VAddr: []byte{2}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	roundState3 := &objs.RoundState{VAddr: []byte{3}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
 
 	updateFunc = func(txn *badger.Txn) error {
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState1, nil)
 		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState3, nil)
 		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState1, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState2, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState3, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, gomock.Any()).Return(roundState2, nil)
+
+		mdb.EXPECT().SetCommittedBlockHeader(gomock.Any(), gomock.Any()).Return(nil)
+		mdb.EXPECT().SetBroadcastBlockHeader(gomock.Any(), gomock.Any()).Return(nil)
 
 		roundStates, err := msstore.LoadLocalState(txn)
 		if err != nil {
@@ -513,15 +786,14 @@ func TestDoNextHeightFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		nhs := objs.NextHeightList{&objs.NextHeight{}}
+		nhs := objs.NextHeightList{&objs.NextHeight{NHClaims: &objs.NHClaims{SigShare: sigs[0], Proposal: &objs.Proposal{PClaims: pClaims, GroupKey: gpk}}},
+			&objs.NextHeight{NHClaims: &objs.NHClaims{SigShare: sigs[1], Proposal: &objs.Proposal{PClaims: pClaims, GroupKey: gpk}}},
+			&objs.NextHeight{NHClaims: &objs.NHClaims{SigShare: sigs[2], Proposal: &objs.Proposal{PClaims: pClaims, GroupKey: gpk}}},
+			&objs.NextHeight{NHClaims: &objs.NHClaims{SigShare: sigs[3], Proposal: &objs.Proposal{PClaims: pClaims, GroupKey: gpk}}}}
 
-		booleanValue, err := stateHandler.doNextHeightFunc(roundStates, nhs)
+		_, err = stateHandler.castBlockHeaderHandlerFunc(roundStates, nhs)
 		if err != nil {
 			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("output value for do next height func is not correct")
 		}
 
 		return nil
@@ -533,189 +805,7 @@ func TestDoNextHeightFunc(t *testing.T) {
 	}
 }
 
-// could call one of the following handlers - dRJUpdateVVHandler, dRJSetRCertHandler
-
-func TestDoRoundJumpFunc(t *testing.T) {
-
-	bdb := getBdb(t)
-	defer bdb.Close()
-
-	ctr := gomock.NewController(t)
-	defer ctr.Finish()
-	mdb := db.NewMockDatabaseIface(ctr)
-
-	var updateFunc db.TxnFunc
-
-	stateHandler := getStateHandler(t, mdb)
-
-	msstore := NewMockStore(mdb)
-
-	txRoot, err := objs.MakeTxRoot([][]byte{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
-	rCert := &objs.RCert{RClaims: otherrClaims}
-
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-		HeaderRoot: []byte{3}}
-	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
-	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
-	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
-
-	bhsh, err := pClaims.BClaims.BlockHash()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
-
-	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
-
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 5, PrevBlock: bhsh}
-
-	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true}}
-
-	updateFunc = func(txn *badger.Txn) error {
-
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
-
-		roundStates, err := msstore.LoadLocalState(txn)
-		if err != nil {
-			return err
-		}
-		roundStates.txn = txn
-
-		msg, err := pClaims.BClaims.BlockHash()
-		if err != nil {
-			return err
-		}
-		grpSig, _, _, _ := getGroupSig(msg)
-
-		rss := []*objs.RoundState{{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
-			SigGroup: grpSig}}}
-
-		booleanValue, err := stateHandler.doRoundJumpFunc(roundStates, rss)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("output value for do round jump func is not correct")
-		}
-
-		updatedRound := roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert.RClaims.Round
-		expectedRound := 5
-		if updatedRound != uint32(expectedRound) {
-			t.Fatal("value for round after updating is not correct")
-		}
-
-		return nil
-	}
-
-	err = bdb.Update(updateFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// could call one of the following - dNRSCastNextHeightHandler, dNRSCastNextRoundHandler
-// both of these handlers call the same function, except cnhh calls other things as well
-
-func TestNrCurrentFunc(t *testing.T) {
-
-	bdb := getBdb(t)
-	defer bdb.Close()
-
-	ctr := gomock.NewController(t)
-	defer ctr.Finish()
-	mdb := db.NewMockDatabaseIface(ctr)
-
-	var updateFunc db.TxnFunc
-
-	stateHandler := getStateHandler(t, mdb)
-
-	msstore := NewMockStore(mdb)
-
-	txRoot, err := objs.MakeTxRoot([][]byte{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
-	rCert := &objs.RCert{RClaims: otherrClaims}
-
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-		HeaderRoot: []byte{3}}
-	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
-	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
-	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
-
-	bhsh, err := pClaims.BClaims.BlockHash()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
-
-	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
-
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
-
-	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true}}
-
-	updateFunc = func(txn *badger.Txn) error {
-
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
-
-		roundStates, err := msstore.LoadLocalState(txn)
-		if err != nil {
-			return err
-		}
-		roundStates.txn = txn
-
-		booleanValue, err := stateHandler.nrCurrentFunc(roundStates)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from nr current func seems to not be correct")
-		}
-
-		return nil
-	}
-
-	err = bdb.Update(updateFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// same as test below this one for the boolean argument
-
-func TestPcCurrentFunc(t *testing.T) {
+func TestDPNCastNextHeightFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -817,15 +907,14 @@ func TestPcCurrentFunc(t *testing.T) {
 
 		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{Height: 1, Round: 1, PrevBlock: bhsh}}
 
-		pctoExpired := false
-
-		booleanValue, err := stateHandler.pcCurrentFunc(roundStates, pctoExpired)
+		pcl, _, err := roundStates.GetCurrentPreCommits()
 		if err != nil {
-			fmt.Println("err is", err)
+			log.Fatal(err)
 		}
 
-		if booleanValue != true {
-			t.Fatal("value of the output from pc current func seems to not be correct")
+		err = stateHandler.dPNCastNextHeightFunc(roundStates, pcl)
+		if err != nil {
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -837,9 +926,7 @@ func TestPcCurrentFunc(t *testing.T) {
 	}
 }
 
-// calls pcnCurrentFunc with a true boolean flag
-
-func TestDoPendingNext(t *testing.T) {
+func TestDPNCastNextRoundFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -859,7 +946,7 @@ func TestDoPendingNext(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
 	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
@@ -882,11 +969,21 @@ func TestDoPendingNext(t *testing.T) {
 
 	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
 
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
 	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
 		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
 
 	updateFunc = func(txn *badger.Txn) error {
 
@@ -916,21 +1013,20 @@ func TestDoPendingNext(t *testing.T) {
 			return err
 		}
 
-		roundStates.PeerStateMap[string([]byte{1})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{2})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{3})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
 
 		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
 
-		pctoExpired := true
-
-		booleanValue, err := stateHandler.pcnCurrentFunc(roundStates, pctoExpired)
+		err = stateHandler.dPNCastNextRoundFunc(roundStates)
 		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pcn current func seems to not be correct")
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -942,9 +1038,7 @@ func TestDoPendingNext(t *testing.T) {
 	}
 }
 
-// calls pcnCurrentFunc with a not true boolean flag
-
-func TestPcnCurrentFunc(t *testing.T) {
+func TestDPCSCastNHFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -964,7 +1058,7 @@ func TestPcnCurrentFunc(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
 	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
@@ -987,11 +1081,142 @@ func TestPcnCurrentFunc(t *testing.T) {
 
 	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
 
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
 	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
 		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		h := uint32(1)
+		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastNextHeight(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		pcl, _, err := roundStates.GetCurrentPreCommits()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = stateHandler.dPCSCastNHFunc(roundStates, pcl)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPCNSCastNRFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
 
 	updateFunc = func(txn *badger.Txn) error {
 
@@ -1021,21 +1246,20 @@ func TestPcnCurrentFunc(t *testing.T) {
 			return err
 		}
 
-		roundStates.PeerStateMap[string([]byte{1})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{2})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{3})].PreCommitNil = &objs.PreCommitNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: msg, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
 
 		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
 
-		pctoExpired := false
-
-		booleanValue, err := stateHandler.pcnCurrentFunc(roundStates, pctoExpired)
+		err = stateHandler.dPCNSCastNRFunc(roundStates)
 		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pcn current func seems to not be correct")
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1047,9 +1271,7 @@ func TestPcnCurrentFunc(t *testing.T) {
 	}
 }
 
-// calls pvCurrentFunc with a not true boolean flag
-
-func TestPvCurrentFunc(t *testing.T) {
+func TestDPPCCastPCFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -1113,7 +1335,6 @@ func TestPvCurrentFunc(t *testing.T) {
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
 		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
 
-		// mdb.EXPECT().SetBroadcastNextHeight(txn, gomock.Any()).Return(nil)
 		mdb.EXPECT().SetBroadcastPreCommit(txn, gomock.Any()).Return(nil)
 
 		roundStates, err := msstore.LoadLocalState(txn)
@@ -1128,7 +1349,9 @@ func TestPvCurrentFunc(t *testing.T) {
 		}
 
 		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
-		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229,
+			123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127,
+			177, 247, 214, 0}
 		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
 			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
 		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
@@ -1138,15 +1361,14 @@ func TestPvCurrentFunc(t *testing.T) {
 
 		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{Height: 1, Round: 1, PrevBlock: bhsh}}
 
-		pvtoExpired := false
-
-		booleanValue, err := stateHandler.pvCurrentFunc(roundStates, pvtoExpired)
+		pvl, _, err := roundStates.GetCurrentPreVotes()
 		if err != nil {
-			fmt.Println("err is", err)
+			log.Fatal(err)
 		}
 
-		if booleanValue != true {
-			t.Fatal("value of the output from pv current func seems to not be correct")
+		err = stateHandler.dPPCCastPCFunc(roundStates, pvl)
+		if err != nil {
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1158,9 +1380,7 @@ func TestPvCurrentFunc(t *testing.T) {
 	}
 }
 
-// calls pvCurrentFunc with a true boolean flag
-
-func TestDoPendingPreCommit(t *testing.T) {
+func TestDPPCUpdateVVFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -1180,123 +1400,7 @@ func TestDoPendingPreCommit(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
-	rCert := &objs.RCert{RClaims: otherrClaims}
-
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{2},
-		HeaderRoot: []byte{3}}
-	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
-	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
-	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
-
-	bhsh, err := pClaims.BClaims.BlockHash()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
-
-	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
-
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
-
-	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
-
-	updateFunc = func(txn *badger.Txn) error {
-
-		// h := uint32(1)
-		// stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
-		// 	194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
-
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-
-		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
-
-		// mdb.EXPECT().SetBroadcastNextHeight(txn, gomock.Any()).Return(nil)
-		mdb.EXPECT().SetBroadcastPreCommit(txn, gomock.Any()).Return(nil)
-
-		roundStates, err := msstore.LoadLocalState(txn)
-		if err != nil {
-			return err
-		}
-		roundStates.txn = txn
-
-		msg, err := pClaims.BClaims.BlockHash()
-		if err != nil {
-			return err
-		}
-
-		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
-		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
-		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
-			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
-		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
-			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
-		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
-			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
-		// roundStates.PeerStateMap[string([]byte{4})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{PClaims: &objs.PClaims{}}}
-
-		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{Height: 1, Round: 1, PrevBlock: bhsh}}
-
-		pvtoExpired := true
-
-		booleanValue, err := stateHandler.pvCurrentFunc(roundStates, pvtoExpired)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pv current func seems to not be correct")
-		}
-
-		return nil
-	}
-
-	err = bdb.Update(updateFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// calls pvCurrentFunc with a not true boolean flag
-
-func TestPvnCurrentFunc(t *testing.T) {
-
-	bdb := getBdb(t)
-	defer bdb.Close()
-
-	ctr := gomock.NewController(t)
-	defer ctr.Finish()
-	mdb := db.NewMockDatabaseIface(ctr)
-
-	var updateFunc db.TxnFunc
-
-	stateHandler := getStateHandler(t, mdb)
-
-	msstore := NewMockStore(mdb)
-
-	txRoot, err := objs.MakeTxRoot([][]byte{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
 	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
@@ -1319,17 +1423,27 @@ func TestPvnCurrentFunc(t *testing.T) {
 
 	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
 
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
 	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
 		RClaims: rClaims}}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
 
 	updateFunc = func(txn *badger.Txn) error {
 
-		// h := uint32(1)
-		// stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
-		// 	194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
+		h := uint32(1)
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
@@ -1344,7 +1458,6 @@ func TestPvnCurrentFunc(t *testing.T) {
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
 		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
 
-		// mdb.EXPECT().SetBroadcastNextHeight(txn, gomock.Any()).Return(nil)
 		mdb.EXPECT().SetBroadcastPreCommitNil(txn, gomock.Any()).Return(nil)
 
 		roundStates, err := msstore.LoadLocalState(txn)
@@ -1358,24 +1471,25 @@ func TestPvnCurrentFunc(t *testing.T) {
 			return err
 		}
 
-		// txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
-		// bs := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112, 55}
-		roundStates.PeerStateMap[string([]byte{1})].PreVoteNil = &objs.PreVoteNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{2})].PreVoteNil = &objs.PreVoteNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		roundStates.PeerStateMap[string([]byte{3})].PreVoteNil = &objs.PreVoteNil{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}, Signature: msg}
-		// roundStates.PeerStateMap[string([]byte{4})].PreCommit = &objs.PreCommit{Proposal: &objs.Proposal{PClaims: &objs.PClaims{}}}
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
 
 		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
 
-		pvtoExpired := false
-
-		booleanValue, err := stateHandler.pvnCurrentFunc(roundStates, pvtoExpired)
+		pvl, pvnl, err := roundStates.GetCurrentPreVotes()
 		if err != nil {
-			fmt.Println("err is", err)
+			log.Fatal(err)
 		}
 
-		if booleanValue != true {
-			t.Fatal("value of the output from pvn current func seems to not be correct")
+		err = stateHandler.dPPCUpdateVVFunc(roundStates, pvl, pvnl)
+		if err != nil {
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1387,9 +1501,437 @@ func TestPvnCurrentFunc(t *testing.T) {
 	}
 }
 
-// the next four tests call ptoExpiredFunc with different states to test the four different possible further handlers
+func TestDPPCNotDBRFunc(t *testing.T) {
 
-func TestDPPVSPreVoteNil(t *testing.T) {
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreCommitNil(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		err = stateHandler.dPPCNotDBRFunc(roundStates)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPVSCastPCFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreCommit(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		pvl, _, err := roundStates.GetCurrentPreVotes()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = stateHandler.dPVSCastPCFunc(roundStates, pvl)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPVNSUpdateVVFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, ChainID: 42}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	msg, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gs, gpk, _ := getGroupSig(msg)
+
+	stateHandler.bnSigner.SetGroupPubk(gpk)
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{
+		GroupKey:          gpk,
+		ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		h := uint32(1)
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		pvl, _, err := roundStates.GetCurrentPreVotes()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = stateHandler.dPVNSUpdateVVFunc(roundStates, pvl)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPVNSCastPCNFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreCommitNil(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		msg, err := pClaims.BClaims.BlockHash()
+		if err != nil {
+			return err
+		}
+
+		txr := []byte{197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+		roundStates.PeerStateMap[string([]byte{1})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{2})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+		roundStates.PeerStateMap[string([]byte{3})].PreVote = &objs.PreVote{Proposal: &objs.Proposal{Signature: bs, PClaims: &objs.PClaims{BClaims: &objs.BClaims{ChainID: 42, Height: 1, PrevBlock: bhsh, StateRoot: msg, TxRoot: txr, HeaderRoot: msg},
+			RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}}}, Signature: bs}
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}}
+
+		err = stateHandler.dPVNSCastPCNFunc(roundStates)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPPVSDeadBlockRoundFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -1412,8 +1954,8 @@ func TestDPPVSPreVoteNil(t *testing.T) {
 	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
 	rCert := &objs.RCert{RClaims: otherrClaims}
 
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-		HeaderRoot: []byte{3}}
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: txRoot, TxRoot: txRoot, StateRoot: txRoot,
+		HeaderRoot: txRoot}
 
 	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
 	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
@@ -1426,7 +1968,7 @@ func TestDPPVSPreVoteNil(t *testing.T) {
 
 	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
 	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1, StateRoot: txRoot}
 	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
 
 	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
@@ -1442,107 +1984,9 @@ func TestDPPVSPreVoteNil(t *testing.T) {
 
 	updateFunc = func(txn *badger.Txn) error {
 
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-
-		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
-
-		mdb.EXPECT().SetBroadcastPreVoteNil(txn, gomock.Any()).Return(nil)
-
-		roundStates, err := msstore.LoadLocalState(txn)
-		if err != nil {
-			return err
-		}
-		roundStates.txn = txn
-
-		booleanValue, err := stateHandler.ptoExpiredFunc(roundStates)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pto expired func seems to not be correct")
-		}
-
-		return nil
-	}
-
-	err = bdb.Update(updateFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestDPPVSPreVoteValid(t *testing.T) {
-
-	bdb := getBdb(t)
-	defer bdb.Close()
-
-	ctr := gomock.NewController(t)
-	defer ctr.Finish()
-	mdb := db.NewMockDatabaseIface(ctr)
-
-	var updateFunc db.TxnFunc
-
-	stateHandler := getStateHandler(t, mdb)
-
-	msstore := NewMockStore(mdb)
-
-	txRoot, err := objs.MakeTxRoot([][]byte{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, ChainID: 42}
-	rCert := &objs.RCert{RClaims: otherrClaims}
-
-	// otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-	// 	HeaderRoot: []byte{3}}
-
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{173, 233, 94, 109, 13, 42, 99,
-		22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147},
-		HeaderRoot: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21,
-			229, 112, 18, 48, 147}}
-
-	bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
-
-	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
-	validValue := &objs.Proposal{Signature: bs, PClaims: pClaims}
-	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
-
-	// bhsh, err := pClaims.BClaims.BlockHash()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
-
-	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
-
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
-
-	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}, Proposal: validValue}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		ValidatorVAddrMap: map[string]int{string(ownState.VAddr): 1},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
-
-	updateFunc = func(txn *badger.Txn) error {
+		h := uint32(1)
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
@@ -1565,119 +2009,9 @@ func TestDPPVSPreVoteValid(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		roundStates.PeerStateMap["1"] = roundState
-
-		booleanValue, err := stateHandler.ptoExpiredFunc(roundStates)
+		err = stateHandler.dPPVSDeadBlockRoundFunc(roundStates)
 		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pto expired func seems to not be correct")
-		}
-
-		return nil
-	}
-
-	err = bdb.Update(updateFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestDPPVSPreVoteLocked(t *testing.T) {
-
-	bdb := getBdb(t)
-	defer bdb.Close()
-
-	ctr := gomock.NewController(t)
-	defer ctr.Finish()
-	mdb := db.NewMockDatabaseIface(ctr)
-
-	var updateFunc db.TxnFunc
-
-	stateHandler := getStateHandler(t, mdb)
-
-	msstore := NewMockStore(mdb)
-
-	txRoot, err := objs.MakeTxRoot([][]byte{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, ChainID: 42}
-	rCert := &objs.RCert{RClaims: otherrClaims}
-
-	// otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
-	// 	HeaderRoot: []byte{3}}
-
-	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{173, 233, 94, 109, 13, 42, 99,
-		22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147},
-		HeaderRoot: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21,
-			229, 112, 18, 48, 147}}
-
-	bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
-
-	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
-	validValue := &objs.Proposal{Signature: bs, PClaims: pClaims}
-	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, LockedValue: validValue}
-
-	// bhsh, err := pClaims.BClaims.BlockHash()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
-	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
-
-	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
-
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
-		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
-
-	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
-		RClaims: rClaims}, Proposal: validValue}
-	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
-		ValidatorVAddrMap: map[string]int{string(ownState.VAddr): 1},
-		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
-			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
-
-	updateFunc = func(txn *badger.Txn) error {
-
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-
-		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
-		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
-		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
-
-		mdb.EXPECT().SetBroadcastPreVote(txn, gomock.Any()).Return(nil)
-
-		roundStates, err := msstore.LoadLocalState(txn)
-		if err != nil {
-			return err
-		}
-		roundStates.txn = txn
-
-		roundStates.PeerStateMap["1"] = roundState
-
-		booleanValue, err := stateHandler.ptoExpiredFunc(roundStates)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("value of the output from pto expired func seems to not be correct")
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1794,13 +2128,9 @@ func TestDPPVSPreVoteNewHandler(t *testing.T) {
 		roundStates.PeerStateMap[string(tempVAddr)] = roundState2
 		roundStates.PeerStateMap[string(tempVAddr)].Proposal = validValue2
 
-		booleanValue, err := stateHandler.ptoExpiredFunc(roundStates)
+		err = stateHandler.dPPVSPreVoteNewFunc(roundStates, validValue2)
 		if err != nil {
-			fmt.Println("err is", err)
-		}
-
-		if booleanValue != true {
-			t.Fatal("output from pto expired func has an incorrect value")
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1812,9 +2142,285 @@ func TestDPPVSPreVoteNewHandler(t *testing.T) {
 	}
 }
 
-// seems to call dPPSProposeValidHandler, there is also dPPSProposeNewHandler, dPPSProposeLockedHandler
+func TestDPPVSPreVoteValid(t *testing.T) {
 
-func TestValidPropFunc(t *testing.T) {
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, ChainID: 42}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	// otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
+	// 	HeaderRoot: []byte{3}}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{173, 233, 94, 109, 13, 42, 99,
+		22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147},
+		HeaderRoot: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21,
+			229, 112, 18, 48, 147}}
+
+	bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: bs, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}, Proposal: validValue}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		ValidatorVAddrMap: map[string]int{string(ownState.VAddr): 1},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreVote(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		roundStates.PeerStateMap["1"] = roundState
+
+		err = stateHandler.dPPVSPreVoteValidFunc(roundStates, validValue)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPPVSPreVoteLocked(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, ChainID: 42}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	// otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
+	// 	HeaderRoot: []byte{3}}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, TxRoot: txRoot, StateRoot: []byte{173, 233, 94, 109, 13, 42, 99,
+		22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147},
+		HeaderRoot: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21,
+			229, 112, 18, 48, 147}}
+
+	bs := []byte{137, 158, 164, 26, 219, 131, 151, 198, 183, 30, 184, 92, 126, 36, 84, 26, 33, 2, 95, 173, 235, 114, 104, 193, 225, 73, 193, 104, 229, 123, 61, 37, 111, 25, 109, 229, 148, 232, 96, 32, 23, 29, 116, 208, 88, 123, 82, 228, 215, 71, 195, 127, 104, 209, 148, 7, 41, 209, 77, 220, 127, 177, 247, 214, 0}
+
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: bs, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, LockedValue: validValue}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: []byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120, 194, 241, 137,
+		98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}, Proposal: validValue}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		ValidatorVAddrMap: map[string]int{string(ownState.VAddr): 1},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreVote(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		roundStates.PeerStateMap["1"] = roundState
+
+		err = stateHandler.dPPVSPreVoteLockedFunc(roundStates, validValue)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPPVSPreVoteNilFunc(t *testing.T) {
+
+	bdb := getBdb(t)
+	defer bdb.Close()
+
+	ctr := gomock.NewController(t)
+	defer ctr.Finish()
+	mdb := db.NewMockDatabaseIface(ctr)
+
+	var updateFunc db.TxnFunc
+
+	stateHandler := getStateHandler(t, mdb)
+
+	msstore := NewMockStore(mdb)
+
+	txRoot, err := objs.MakeTxRoot([][]byte{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	otherrClaims := &objs.RClaims{Height: 1, Round: 1}
+	rCert := &objs.RCert{RClaims: otherrClaims}
+
+	otherbClaims := &objs.BClaims{ChainID: 42, Height: 1, TxCount: 53, PrevBlock: []byte{2, 3}, TxRoot: txRoot, StateRoot: []byte{2},
+		HeaderRoot: []byte{3}}
+
+	pClaims := &objs.PClaims{RCert: rCert, BClaims: otherbClaims}
+	validValue := &objs.Proposal{Signature: []byte{3, 3, 3}, PClaims: pClaims}
+	ownValState := &objs.OwnValidatingState{VAddr: []byte{5, 5, 5}, ValidValue: validValue}
+
+	bhsh, err := pClaims.BClaims.BlockHash()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
+	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
+	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+
+	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
+
+	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+
+	roundState := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+		RClaims: rClaims}}
+	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
+		ValidatorVAddrMap: map[string]int{string(ownState.VAddr): 1},
+		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: []byte{2}}, {VAddr: []byte{2}, GroupShare: []byte{1}},
+			{VAddr: []byte{3}, GroupShare: []byte{3}}, {VAddr: []byte{1}, GroupShare: []byte{4}}}}
+
+	updateFunc = func(txn *badger.Txn) error {
+
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
+
+		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
+		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
+		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		mdb.EXPECT().SetBroadcastPreVoteNil(txn, gomock.Any()).Return(nil)
+
+		roundStates, err := msstore.LoadLocalState(txn)
+		if err != nil {
+			return err
+		}
+		roundStates.txn = txn
+
+		err = stateHandler.dPPVSPreVoteNilFunc(roundStates)
+		if err != nil {
+			t.Fatal("err is", err)
+		}
+
+		return nil
+	}
+
+	err = bdb.Update(updateFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDPPSProposeNewFunc(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -1856,7 +2462,7 @@ func TestValidPropFunc(t *testing.T) {
 	bClaims := &objs.BClaims{ChainID: 42, Height: 1}
 	maxBlockHeightSeen := &objs.BlockHeader{BClaims: bClaims}
 	nextbClaims := &objs.BClaims{ChainID: 42, Height: 1}
-	syncToBH := &objs.BlockHeader{BClaims: nextbClaims}
+	syncToBH := &objs.BlockHeader{SigGroup: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, BClaims: nextbClaims}
 
 	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
 
@@ -1867,6 +2473,12 @@ func TestValidPropFunc(t *testing.T) {
 	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true}}
 
 	updateFunc = func(txn *badger.Txn) error {
+
+		h := uint32(1)
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
@@ -1883,13 +2495,15 @@ func TestValidPropFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		booleanValue, err := stateHandler.validPropFunc(roundStates)
-		if err != nil {
-			fmt.Println("err is", err)
-		}
+		// had to do this because otherwise the valid value was nil and was causing a nil error type thing
+		stateHandler.appHandler.(*appmock.MockApplication).SetNextValidValue(validValue)
 
-		if booleanValue != true || roundStates.OwnState.MaxBHSeen.BClaims.Height != 1 {
-			t.Fatal("incorrect value for one of the output values")
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{SigGroup: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+			RClaims: &objs.RClaims{Height: 1, Round: 1}}
+
+		err = stateHandler.dPPSProposeNewFunc(roundStates)
+		if err != nil {
+			t.Fatal("err is", err)
 		}
 
 		return nil
@@ -1901,7 +2515,7 @@ func TestValidPropFunc(t *testing.T) {
 	}
 }
 
-func TestDPPSProposeLocked(t *testing.T) {
+func TestCastProposalFromValue(t *testing.T) {
 
 	bdb := getBdb(t)
 	defer bdb.Close()
@@ -1970,12 +2584,12 @@ func TestDPPSProposeLocked(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		booleanValue, err := stateHandler.validPropFunc(roundStates)
+		err = stateHandler.castProposalFromValue(roundStates, validValue)
 		if err != nil {
-			fmt.Println("err is", err)
+			t.Fatal("err is", err)
 		}
 
-		if booleanValue != true || roundStates.OwnState.MaxBHSeen.BClaims.Height != 1 {
+		if roundStates.OwnState.MaxBHSeen.BClaims.Height != 1 {
 			t.Fatal("incorrect value for one of the output values")
 		}
 
