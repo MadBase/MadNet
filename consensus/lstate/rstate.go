@@ -106,19 +106,19 @@ func (r *RoundStates) GetCurrentPreCommits() (objs.PreCommitList, objs.PreCommit
 }
 
 func (r *RoundStates) GetCurrentNext() (objs.NextHeightList, objs.NextRoundList, error) {
-	pvl := objs.NextHeightList{}
-	pvnl := objs.NextRoundList{}
+	nhl := objs.NextHeightList{}
+	nrl := objs.NextRoundList{}
 	rcert := r.OwnRoundState().RCert
 	for _, valObj := range r.ValidatorSet.Validators {
 		peerState := r.PeerStateMap[string(valObj.VAddr)]
 		if peerState.NHCurrent(rcert) {
-			pvl = append(pvl, peerState.NextHeight)
+			nhl = append(nhl, peerState.NextHeight)
 		}
 		if peerState.NRCurrent(rcert) {
-			pvnl = append(pvnl, peerState.NextRound)
+			nrl = append(nrl, peerState.NextRound)
 		}
 	}
-	return pvl, pvnl, nil
+	return nhl, nrl, nil
 }
 
 func (r *RoundStates) SetProposal(p *objs.Proposal) error {

@@ -122,9 +122,6 @@ func TestFhFunc(t *testing.T) {
 
 		roundStates.maxHR = roundState
 
-		// rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
-		// 	SigGroup: grpSig}}
-
 		booleanValue, err := stateHandler.fhFunc(roundStates)
 		if err != nil {
 			fmt.Println("err is", err)
@@ -265,7 +262,7 @@ func TestRoundJumpUpdateValidValueFunc(t *testing.T) {
 	updateFunc = func(txn *badger.Txn) error {
 
 		h := uint32(1)
-		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
 			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
@@ -513,7 +510,7 @@ func TestDoNrsCastNextHeightHandlerFunc(t *testing.T) {
 	updateFunc = func(txn *badger.Txn) error {
 
 		h := uint32(1)
-		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
 			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
@@ -617,12 +614,13 @@ func TestDoNrsCastNextRoundHandlerFunc(t *testing.T) {
 
 	ownState := &objs.OwnState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, MaxBHSeen: maxBlockHeightSeen, SyncToBH: syncToBH}
 
-	rClaims := &objs.RClaims{ChainID: 42, Height: 1, Round: 1, PrevBlock: bhsh}
+	rClaims := &objs.RClaims{ChainID: 42, Height: 2, Round: 2, PrevBlock: bhsh}
 
-	msg, err := pClaims.BClaims.BlockHash()
+	msg, err := rClaims.MarshalBinary()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	grpSig, gs, gpk, ss := getGroupSig(msg)
 
 	stateHandler.bnSigner.SetGroupPubk(gpk)
@@ -631,22 +629,38 @@ func TestDoNrsCastNextRoundHandlerFunc(t *testing.T) {
 		RClaims: rClaims}}
 	valSet := &objs.ValidatorSet{GroupKey: []byte{5, 4, 3}, ValidatorVAddrSet: map[string]bool{string(ownState.VAddr): true},
 		Validators: []*objs.Validator{{VAddr: []byte{1}, GroupShare: gs[0]}, {VAddr: []byte{2}, GroupShare: gs[1]},
-			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{1}, GroupShare: gs[3]}}}
+			{VAddr: []byte{3}, GroupShare: gs[2]}, {VAddr: []byte{5, 5, 5}, GroupShare: gs[3]}}}
 
 	updateFunc = func(txn *badger.Txn) error {
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
 
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState, nil)
-		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState, nil)
-
 		mdb.EXPECT().GetValidatorSet(txn, roundState.RCert.RClaims.Height).Return(valSet, nil)
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
 		mdb.EXPECT().GetCurrentRoundState(txn, ownState.VAddr).Return(roundState, nil)
 		mdb.EXPECT().GetOwnValidatingState(txn).Return(ownValState, nil)
+
+		roundState1 := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+			RClaims: rClaims}}
+		roundState1.NextRound = &objs.NextRound{Signature: ss[0],
+			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}},
+				RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}, SigShare: ss[0]}}
+		roundState2 := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+			RClaims: rClaims}}
+		roundState2.NextRound = &objs.NextRound{Signature: ss[1],
+			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}},
+				RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}, SigShare: ss[1]}}
+		roundState3 := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 1, 1},
+			RClaims: rClaims}}
+		roundState3.NextRound = &objs.NextRound{Signature: ss[2],
+			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}},
+				RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}, SigShare: ss[2]}}
+
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{1}).Return(roundState1, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{2}).Return(roundState2, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{3}).Return(roundState3, nil)
+		mdb.EXPECT().GetCurrentRoundState(txn, []byte{5, 5, 5}).Return(roundState, nil)
 
 		mdb.EXPECT().SetBroadcastRCert(txn, gomock.Any()).Return(nil)
 
@@ -656,16 +670,14 @@ func TestDoNrsCastNextRoundHandlerFunc(t *testing.T) {
 		}
 		roundStates.txn = txn
 
-		roundStates.PeerStateMap[string([]byte{1})].NextRound = &objs.NextRound{Signature: ss[0],
-			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}},
-				RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}, SigShare: ss[0]}}
-		roundStates.PeerStateMap[string([]byte{2})].NextRound = &objs.NextRound{Signature: ss[1],
-			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}},
-				RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}, SigShare: ss[1]}}
-		roundStates.PeerStateMap[string([]byte{3})].NextRound = &objs.NextRound{Signature: ss[2],
-			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}},
-				RClaims: &objs.RClaims{Round: 1, Height: 1, PrevBlock: msg}, SigShare: ss[2]}}
-		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{Height: 1, Round: 1}}
+		roundStates.PeerStateMap[string([]byte{1})].NextRound = roundState1.NextRound
+		roundStates.PeerStateMap[string([]byte{2})].NextRound = roundState2.NextRound
+		roundStates.PeerStateMap[string([]byte{3})].NextRound = roundState3.NextRound
+
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert = &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Height: 2, Round: 2, PrevBlock: bhsh}}
+		roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].NextRound = &objs.NextRound{Signature: ss[3],
+			NRClaims: &objs.NRClaims{RCert: &objs.RCert{RClaims: &objs.RClaims{ChainID: 42, Round: 2, Height: 2, PrevBlock: bhsh}},
+				RClaims: &objs.RClaims{ChainID: 42, Round: 1, Height: 2, PrevBlock: bhsh}, SigShare: ss[3]}}
 
 		rs := &objs.RoundState{VAddr: []byte{5, 5, 5}, GroupKey: []byte{4, 4, 4}, RCert: &objs.RCert{GroupKey: []byte{1, 2, 3}, RClaims: rClaims,
 			SigGroup: grpSig}}
@@ -684,7 +696,7 @@ func TestDoNrsCastNextRoundHandlerFunc(t *testing.T) {
 			t.Fatal("value of the output from do nr func seems to not be correct")
 		}
 
-		if roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert.RClaims.Round != 1 {
+		if roundStates.PeerStateMap[string(roundStates.OwnState.VAddr)].RCert.RClaims.Round != 2 {
 			t.Fatal("value for the round is probably not correct")
 		}
 
@@ -867,7 +879,7 @@ func TestDPNCastNextHeightFunc(t *testing.T) {
 	updateFunc = func(txn *badger.Txn) error {
 
 		h := uint32(1)
-		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
 			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
@@ -1100,7 +1112,7 @@ func TestDPCSCastNHFunc(t *testing.T) {
 	updateFunc = func(txn *badger.Txn) error {
 
 		h := uint32(1)
-		stateHandler.database.(*db.MockDatabaseIface).EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
+		mdb.EXPECT().GetHeaderTrieRoot(txn, h).Return([]byte{173, 233, 94, 109, 13, 42, 99, 22, 95, 251, 120,
 			194, 241, 137, 98, 59, 27, 223, 219, 43, 28, 200, 41, 191, 114, 27, 21, 229, 112, 18, 48, 147}, nil)
 
 		mdb.EXPECT().GetOwnState(txn).Return(ownState, nil)
