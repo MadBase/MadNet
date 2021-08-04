@@ -623,17 +623,10 @@ func (eth *ethereum) TransferEther(from common.Address, to common.Address, wei *
 		block.GasUsed(),
 		block.GasLimit())
 
-	// var data []byte
 	gasLimit := uint64(21000)
 	eth.logger.Infof("gasLimit:%v SuggestGasPrice(): %v", gasLimit, gasPrice.String())
-	// tx := types.NewTransaction(nonce, to, wei, gasLimit, gasPrice, data)
 
 	baseFee := big.NewInt(block.BaseFee().Int64())
-
-	// baseFee.Div(baseFee, big.NewInt(8))
-	// baseFee.Mul(baseFee, big.NewInt(7))
-
-	// baseFee.Add(baseFee, big.NewInt(14595))
 
 	txRough := &types.DynamicFeeTx{}
 	txRough.ChainID = eth.chainID
