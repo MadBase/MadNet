@@ -118,6 +118,9 @@ type GethClient interface {
 	// -- bind.ContractFilterer
 	FilterLogs(ctx context.Context, query geth.FilterQuery) ([]types.Log, error)
 	SubscribeFilterLogs(ctx context.Context, query geth.FilterQuery, ch chan<- types.Log) (geth.Subscription, error)
+
+	// -- EIP1559 aka London
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
 type ethereum struct {
