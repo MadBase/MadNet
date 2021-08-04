@@ -46,7 +46,7 @@ type Ethereum interface {
 
 	UnlockAccount(accounts.Account) error
 
-	TransferEther(common.Address, common.Address, *big.Int) error
+	TransferEther(common.Address, common.Address, *big.Int) (*types.Transaction, error)
 
 	GetAccount(common.Address) (accounts.Account, error)
 	GetAccountKeys(addr common.Address) (*keystore.Key, error)
@@ -575,7 +575,7 @@ func (eth *ethereum) Timeout() time.Duration {
 }
 
 func (eth *ethereum) GetTransactionOpts(ctx context.Context, account accounts.Account) (*bind.TransactOpts, error) {
-	opts, err := bind.NewKeyStoreTransactor(eth.keystore, account)
+	opts, err := bind.NewKeyStoreTransactorWithChainID(eth.keystore, account, eth.chainID)
 	if err != nil {
 		eth.logger.Errorf("could not create transactor for %v: %v", account.Address.Hex(), err)
 	} else {
@@ -702,7 +702,7 @@ func (eth *ethereum) GetValidators() ([]common.Address, error) {
 	return validatorAddresses, nil
 }
 
-func (eth *ethereum) Clone(defaultAccount accounts.Account) Ethereum {
+func (eth *ethereum) Clone(defaultAccount accounts.Account) *ethereum {
 	nEth := *eth
 
 	nEth.defaultAccount = defaultAccount
@@ -817,7 +817,7 @@ func (c *Contracts) DeployContracts(ctx context.Context, account accounts.Accoun
 	var txn *types.Transaction
 	c.RegistryAddress, txn, c.Registry, err = bindings.DeployRegistry(txnOpts, eth.client)
 	if err != nil {
-		logger.Errorf("Failed to deploy registry...")
+		logger.Errorf("Failed to deploy registry...: %v", err)
 		return nil, common.Address{}, err
 	}
 	q(txn)
