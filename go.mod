@@ -3,8 +3,7 @@ module github.com/MadBase/MadNet
 go 1.15
 
 require (
-	// github.com/MadBase/bridge v0.6.0
-	github.com/MadBase/bridge v0.6.0
+	github.com/MadBase/bridge v0.7.0
 	github.com/dgraph-io/badger/v2 v2.0.3
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1
@@ -35,4 +34,4 @@ require (
 	zombiezen.com/go/capnproto2 v2.18.0+incompatible
 )
 
-replace github.com/MadBase/bridge => ../bridge
+// replace github.com/MadBase/bridge => ../bridge
