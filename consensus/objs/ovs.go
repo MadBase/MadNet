@@ -132,24 +132,24 @@ func (b *OwnValidatingState) MarshalCapn(seg *capnp.Segment) (mdefs.OwnValidatin
 	return bh, nil
 }
 
-func (b *OwnValidatingState) PTOExpired() bool {
+func (b *OwnValidatingState) PTOExpired(proposalStepTO time.Duration) bool {
 	rs := b.RoundStarted
-	return rs+int64(constants.ProposalStepTO)/constants.OneBillion < time.Now().Unix()
+	return rs+int64(proposalStepTO)/constants.OneBillion < time.Now().Unix()
 }
 
-func (b *OwnValidatingState) PVTOExpired() bool {
+func (b *OwnValidatingState) PVTOExpired(preVoteStepTO time.Duration) bool {
 	rs := b.PreVoteStepStarted
-	return rs+int64(constants.PreVoteStepTO)/constants.OneBillion < time.Now().Unix()
+	return rs+int64(preVoteStepTO)/constants.OneBillion < time.Now().Unix()
 }
 
-func (b *OwnValidatingState) PCTOExpired() bool {
+func (b *OwnValidatingState) PCTOExpired(preCommitStepTO time.Duration) bool {
 	rs := b.PreCommitStepStarted
-	return rs+int64(constants.PreCommitStepTO)/constants.OneBillion < time.Now().Unix()
+	return rs+int64(preCommitStepTO)/constants.OneBillion < time.Now().Unix()
 }
 
-func (b *OwnValidatingState) DBRNRExpired() bool {
+func (b *OwnValidatingState) DBRNRExpired(dbrnrTO time.Duration) bool {
 	rs := b.PreCommitStepStarted
-	return rs+int64(constants.DBRNRTO)/constants.OneBillion < time.Now().Unix()
+	return rs+int64(dbrnrTO)/constants.OneBillion < time.Now().Unix()
 }
 
 func (b *OwnValidatingState) SetRoundStarted() {

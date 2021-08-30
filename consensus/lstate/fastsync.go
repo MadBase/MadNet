@@ -13,6 +13,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/consensus/request"
 	"github.com/MadBase/MadNet/constants"
+	"github.com/MadBase/MadNet/dynamics"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/middleware"
@@ -412,10 +413,10 @@ type workFunc func()
 type SnapShotManager struct {
 	appHandler appmock.Application
 	requestBus *request.Client
-
 	database       *db.Database
 	logger         *logrus.Logger
 	snapShotHeight *atomicU32
+	storage                  dynamics.StorageGetter
 
 	hdrNodeCache   *bhNodeCache
 	hdrLeafCache   *bhCache
@@ -447,7 +448,7 @@ type SnapShotManager struct {
 }
 
 // Init initializes the SnapShotManager
-func (ndm *SnapShotManager) Init(database *db.Database) error {
+func (ndm *SnapShotManager) Init(database *db.Database, storage dynamics.StorageGetter) error {
 	ndm.snapShotHeight = new(atomicU32)
 	ndm.logger = logging.GetLogger(constants.LoggerConsensus)
 	ndm.database = database
@@ -471,6 +472,7 @@ func (ndm *SnapShotManager) Init(database *db.Database) error {
 		utils.DebugTrace(ndm.logger, err)
 		return err
 	}
+	ndm.storage = storage
 	ndm.hdrNodeDLs = &downloadTracker{
 		sync.RWMutex{},
 		make(map[nodeKey]bool),

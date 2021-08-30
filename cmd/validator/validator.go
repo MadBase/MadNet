@@ -27,6 +27,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/request"
 	"github.com/MadBase/MadNet/constants"
 	hashlib "github.com/MadBase/MadNet/crypto"
+	"github.com/MadBase/MadNet/dynamics"
 	"github.com/MadBase/MadNet/localrpc"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/peering"
@@ -220,6 +221,7 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	dph := &deposit.Handler{}
 	sync := &consensus.Synchronizer{}
 	stateRPCHandler := &localrpc.Handlers{}
+	storage := &dynamics.Storage{}
 
 	//////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////
@@ -263,7 +265,7 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize the request bus client
-	if err := rbusClient.Init(peerManager.P2PClient()); err != nil {
+	if err := rbusClient.Init(peerManager.P2PClient(), storage); err != nil {
 		panic(err)
 	}
 
@@ -278,12 +280,12 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize the app logic
-	if err := app.Init(conDB, txnDb, dph); err != nil {
+	if err := app.Init(conDB, txnDb, dph, storage); err != nil {
 		panic(err)
 	}
 
 	// Initialize the request bus handler
-	if err := rbusHandlers.Init(conDB, app); err != nil {
+	if err := rbusHandlers.Init(conDB, app, storage); err != nil {
 		panic(err)
 	}
 
@@ -298,22 +300,27 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize the gossip bus handler
-	if err := gh.Init(conDB, peerManager.P2PClient(), app, lstateHandlers); err != nil {
+	if err := gh.Init(conDB, peerManager.P2PClient(), app, lstateHandlers, storage); err != nil {
 		panic(err)
 	}
 
 	// Initialize the gossip bus client
-	if err := gc.Init(conDB, peerManager.P2PClient(), app); err != nil {
+	if err := gc.Init(conDB, peerManager.P2PClient(), app, storage); err != nil {
+		panic(err)
+	}
+
+	// Initialize storage
+	if err := storage.Init(conDB, logger); err != nil {
 		panic(err)
 	}
 
 	// Initialize admin handler
-	if err := ah.Init(chainID, conDB, symK, app, publicKey); err != nil {
+	if err := ah.Init(chainID, conDB, symK, app, publicKey, storage); err != nil {
 		panic(err)
 	}
 
 	// Initialize the consensus engine
-	if err := stateHandler.Init(conDB, dman, app, cesigner, ah, publicKey, rbusClient); err != nil {
+	if err := stateHandler.Init(conDB, dman, app, cesigner, ah, publicKey, rbusClient, storage); err != nil {
 		panic(err)
 	}
 
@@ -345,7 +352,7 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	} else {
 		mDB = nil
 	}
-	if err := sync.Init(conDB, mDB, tDB, gc, gh, pool, stateHandler, app, ah, peerManager); err != nil {
+	if err := sync.Init(conDB, mDB, tDB, gc, gh, pool, stateHandler, app, ah, peerManager, storage); err != nil {
 		panic(err)
 	}
 
@@ -399,6 +406,8 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	//////////////////////////////////////////////////////////////////////////////
 	defer func() { os.Exit(0) }()
 	defer func() { logger.Warning("Graceful unwind of core process complete.") }()
+
+	go storage.Start()
 
 	go statusLogger.Run()
 	defer statusLogger.Close()

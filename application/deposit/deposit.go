@@ -87,6 +87,7 @@ func (dp *Handler) Add(txn *badger.Txn, chainID uint32, utxoID []byte, biValue *
 			Value:    value,
 			ChainID:  chainID,
 			Owner:    vso,
+			Fee:      new(uint256.Uint256).SetZero(),
 		},
 		TxHash: n2,
 	}

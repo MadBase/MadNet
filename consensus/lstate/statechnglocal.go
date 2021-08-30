@@ -432,7 +432,8 @@ func (ce *Engine) doPendingNext(txn *badger.Txn, rs *RoundStates) error {
 	// cast a next round
 	if rcert.RClaims.Round != constants.DEADBLOCKROUND {
 		if rcert.RClaims.Round == constants.DEADBLOCKROUNDNR {
-			if rs.OwnValidatingState.DBRNRExpired() {
+			dbrnrTO := ce.storage.GetDeadBlockRoundNextRoundTimeout()
+			if rs.OwnValidatingState.DBRNRExpired(dbrnrTO) {
 				// Wait a long time before moving into Dead Block Round
 				if len(pcl)+len(pcnl) >= rs.GetCurrentThreshold() {
 					if err := ce.castNextRound(txn, rs); err != nil {
@@ -714,6 +715,8 @@ func (ce *Engine) doHeightJumpStep(txn *badger.Txn, rs *RoundStates, rcert *objs
 			rs.OwnValidatingState.LockedValue = nil
 			return true, nil
 		}
+		// TODO: handle case (else case) in which the ValidValue does not match
+		//		 with local ValidValue; may or may not be possible.
 	}
 	// could not use valid value - only option left is to check if the block
 	// had no tx's in it - if so we can build it with no additional information

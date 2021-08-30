@@ -279,7 +279,7 @@ func (f *funder) setupTransaction(signer aobjs.Signer, ownerAcct []byte, consume
 		Vin:  aobjs.Vin{},
 		Vout: aobjs.Vout{},
 	}
-	chainID := uint32(0)
+	chainID := uint32(42)
 	for _, utxo := range consumedUtxos {
 		consumedVS, err := utxo.ValueStore()
 		if err != nil {
@@ -306,6 +306,7 @@ func (f *funder) setupTransaction(signer aobjs.Signer, ownerAcct []byte, consume
 				Value:    uint256.One(),
 				Owner:    newOwner,
 				TXOutIdx: 0,
+				Fee:      new(uint256.Uint256).SetZero(),
 			},
 			TxHash: make([]byte, constants.HashLen),
 		}
@@ -327,6 +328,7 @@ func (f *funder) setupTransaction(signer aobjs.Signer, ownerAcct []byte, consume
 				Value:    diff,
 				Owner:    newOwner,
 				TXOutIdx: 0,
+				Fee:      new(uint256.Uint256).SetZero(),
 			},
 			TxHash: make([]byte, constants.HashLen),
 		}
@@ -479,7 +481,7 @@ func (f *funder) setupDataStoreTransaction(ctx context.Context, signer aobjs.Sig
 		Vin:  aobjs.Vin{},
 		Vout: aobjs.Vout{},
 	}
-	chainID := uint32(0)
+	chainID := uint32(42)
 	for _, utxo := range consumedUtxos {
 		consumedVS, err := utxo.ValueStore()
 		if err != nil {
@@ -518,6 +520,7 @@ func (f *funder) setupDataStoreTransaction(ctx context.Context, signer aobjs.Sig
 					RawData:  []byte(msg),
 					TXOutIdx: 0,
 					Owner:    newOwner,
+					Fee:      new(uint256.Uint256).SetZero(),
 				},
 				TxHash: make([]byte, constants.HashLen),
 			},
@@ -529,7 +532,10 @@ func (f *funder) setupDataStoreTransaction(ctx context.Context, signer aobjs.Sig
 		fmt.Printf("Consumed Next:%v    ValueOut:%v\n", consumedValue, valueOut)
 		fmt.Printf("DS:  index:%x    deposit:%v    EpochOfExpire:%v    msg:%s\n", index, deposit, eoe, msg)
 		newUTXO := &aobjs.TXOut{}
-		newUTXO.NewDataStore(newDataStore)
+		err = newUTXO.NewDataStore(newDataStore)
+		if err != nil {
+			panic(err)
+		}
 		tx.Vout = append(tx.Vout, newUTXO)
 	}
 	fmt.Printf("Consumed Next:%v    ValueOut:%v\n", consumedValue, valueOut)
@@ -546,19 +552,29 @@ func (f *funder) setupDataStoreTransaction(ctx context.Context, signer aobjs.Sig
 				Value:    diff,
 				Owner:    newOwner,
 				TXOutIdx: 0,
+				Fee:      new(uint256.Uint256).SetZero(),
 			},
 			TxHash: make([]byte, constants.HashLen),
 		}
 		newUTXO := &aobjs.TXOut{}
-		newUTXO.NewValueStore(newValueStore)
+		err = newUTXO.NewValueStore(newValueStore)
+		if err != nil {
+			panic(err)
+		}
 		tx.Vout = append(tx.Vout, newUTXO)
 		//valueOut += diff
 		valueOut.Add(valueOut, diff)
 	}
 	fmt.Printf("Consumed Next:%v    ValueOut:%v\n", consumedValue, valueOut)
-	tx.Vout.SetTxOutIdx()
+	err = tx.Vout.SetTxOutIdx()
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Consumed Next:%v    ValueOut:%v\n", consumedValue, valueOut)
-	tx.SetTxHash()
+	err = tx.SetTxHash()
+	if err != nil {
+		panic(err)
+	}
 	for _, newUtxo := range tx.Vout {
 		switch {
 		case newUtxo.HasDataStore():
@@ -581,14 +597,20 @@ func (f *funder) setupDataStoreTransaction(ctx context.Context, signer aobjs.Sig
 				return nil, err
 			}
 			txIn := tx.Vin[idx]
-			consumedVS.Sign(txIn, signer)
+			err = consumedVS.Sign(txIn, signer)
+			if err != nil {
+				panic(err)
+			}
 		case consumedUtxo.HasDataStore():
 			consumedDS, err := consumedUtxo.DataStore()
 			if err != nil {
 				return nil, err
 			}
 			txIn := tx.Vin[idx]
-			consumedDS.Sign(txIn, signer)
+			err = consumedDS.Sign(txIn, signer)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 	fmt.Printf("Consumed Next:%v    ValueOut:%v\n", consumedValue, valueOut)
@@ -665,7 +687,7 @@ func (f *funder) setupDataStoreTransaction2(ctx context.Context, signer aobjs.Si
 		Vin:  aobjs.Vin{},
 		Vout: aobjs.Vout{},
 	}
-	chainID := uint32(0)
+	chainID := uint32(42)
 	for _, utxo := range consumedUtxos {
 		consumedVS, err := utxo.ValueStore()
 		if err != nil {
@@ -713,6 +735,7 @@ func (f *funder) setupDataStoreTransaction2(ctx context.Context, signer aobjs.Si
 					RawData:  []byte(msg),
 					TXOutIdx: 0,
 					Owner:    newOwner,
+					Fee:      new(uint256.Uint256).SetZero(),
 				},
 				TxHash: make([]byte, constants.HashLen),
 			},
@@ -741,6 +764,7 @@ func (f *funder) setupDataStoreTransaction2(ctx context.Context, signer aobjs.Si
 				Value:    diff,
 				Owner:    newOwner,
 				TXOutIdx: 0,
+				Fee:      new(uint256.Uint256).SetZero(),
 			},
 			TxHash: make([]byte, constants.HashLen),
 		}
@@ -864,7 +888,7 @@ func (f *funder) setupDataStoreTransaction3(ctx context.Context, signer aobjs.Si
 		Vin:  aobjs.Vin{},
 		Vout: aobjs.Vout{},
 	}
-	chainID := uint32(0)
+	chainID := uint32(42)
 	for _, utxo := range consumedUtxos {
 		consumedVS, err := utxo.ValueStore()
 		if err != nil {
@@ -912,6 +936,7 @@ func (f *funder) setupDataStoreTransaction3(ctx context.Context, signer aobjs.Si
 					RawData:  []byte(msg),
 					TXOutIdx: 0,
 					Owner:    newOwner,
+					Fee:      new(uint256.Uint256).SetZero(),
 				},
 				TxHash: make([]byte, constants.HashLen),
 			},
@@ -940,6 +965,7 @@ func (f *funder) setupDataStoreTransaction3(ctx context.Context, signer aobjs.Si
 				Value:    diff,
 				Owner:    newOwner,
 				TXOutIdx: 0,
+				Fee:      new(uint256.Uint256).SetZero(),
 			},
 			TxHash: make([]byte, constants.HashLen),
 		}

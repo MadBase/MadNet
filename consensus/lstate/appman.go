@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/MadBase/MadNet/consensus/objs"
-	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
 
@@ -33,7 +32,7 @@ func (ce *Engine) AddPendingTx(txn *badger.Txn, d []interfaces.Transaction) erro
 
 func (ce *Engine) getValidValue(txn *badger.Txn, rs *RoundStates) ([][]byte, []byte, []byte, []byte, error) {
 	chainID := rs.OwnState.SyncToBH.BClaims.ChainID
-	txs, stateRoot, err := ce.appHandler.GetValidProposal(txn, chainID, rs.OwnState.SyncToBH.BClaims.Height+1, constants.MaxProposalSize)
+	txs, stateRoot, err := ce.appHandler.GetValidProposal(txn, chainID, rs.OwnState.SyncToBH.BClaims.Height+1, ce.storage.GetMaxProposalSize())
 	if err != nil {
 		utils.DebugTrace(ce.logger, err)
 		return nil, nil, nil, nil, err

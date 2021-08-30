@@ -227,7 +227,6 @@ func (dm *DMan) SyncOneBH(txn *badger.Txn, syncToBH *objs.BlockHeader, maxBHSeen
 	}
 
 	return txs, bhCache, true, nil
-
 }
 
 func (dm *DMan) DownloadTxs(height, round uint32, txHshLst [][]byte) {
