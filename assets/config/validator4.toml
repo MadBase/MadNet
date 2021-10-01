@@ -1,13 +1,13 @@
-#logging = "localRPC=info,gossipbus=info,utils=info,services=info,ethereum=info,main=warn,validator=info,monitor=info,deploy=info,consensus=debug,peerMan=info,muxHandler=info,p2pmux=info,app=info,transport=info,dman=info,status=info,db=info,yamux=error,badger=error,monitor_bus=error"
+logging = "localRPC=info,gossipbus=info,utils=info,services=info,ethereum=info,main=warn,validator=info,monitor=debug,deploy=info,consensus=debug,peerMan=info,muxHandler=info,p2pmux=info,app=info,transport=info,dman=info,status=info,db=info,yamux=error,badger=error"
 
 [chain]
 id = 42
-stateDB = "~/validator4/"
+stateDB = "~/validator4/state/"
 stateDBInMemory = false
 transactionDB = ""
 transactionDBInMemory = true
-monitorDB = ""
-monitorDBInMemory = true
+monitorDB = "~/validator4/mon/"
+monitorDBInMemory = false
 
 [bootnode]
 listeningAddress = "0.0.0.0:4242"

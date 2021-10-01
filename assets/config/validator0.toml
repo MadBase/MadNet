@@ -1,13 +1,13 @@
-logging = "ethereum=debug"
+logging = "ethereum=info,monitor=debug"
 
 [chain]
 id = 42
-stateDB = "~/validator0/"
+stateDB = "~/validator0/state/"
 stateDBInMemory = false
 transactionDB = ""
 transactionDBInMemory = true
-monitorDB = ""
-monitorDBInMemory = true
+monitorDB = "~/validator0/mon/"
+monitorDBInMemory = false
 
 [bootnode]
 listeningAddress = "0.0.0.0:4242"
@@ -41,7 +41,7 @@ testEther = "f000000000000000000"
 finalityDelay = 2
 retryCount = 3
 retryDelay = "5s"
-startingBlock = 1
+startingBlock = 50
 registryAddress = "0x0b1f9c2b7bed6db83295c7b5158e3806d67ec5bc"
 
 [edge]

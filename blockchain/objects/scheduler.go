@@ -1,4 +1,4 @@
-package monitor
+package objects
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
-	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -26,20 +25,20 @@ type Block struct {
 type innerBlock struct {
 	Start       uint64
 	End         uint64
-	WrappedTask *objects.InstanceWrapper
+	WrappedTask *InstanceWrapper
 }
 
 type SequentialSchedule struct {
 	Ranges       map[string]*Block
 	adminHandler interfaces.AdminHandler
-	marshaller   *objects.TypeRegistry
+	marshaller   *TypeRegistry
 }
 
 type innerSequentialSchedule struct {
 	Ranges map[string]*innerBlock
 }
 
-func NewSequentialSchedule(m *objects.TypeRegistry, adminHandler interfaces.AdminHandler) *SequentialSchedule {
+func NewSequentialSchedule(m *TypeRegistry, adminHandler interfaces.AdminHandler) *SequentialSchedule {
 	return &SequentialSchedule{Ranges: make(map[string]*Block), adminHandler: adminHandler, marshaller: m}
 }
 
@@ -110,7 +109,7 @@ func (s *SequentialSchedule) Remove(taskId uuid.UUID) error {
 
 func (s *SequentialSchedule) Status(logger *logrus.Entry) {
 	for _, block := range s.Ranges {
-		name, _ := objects.GetNameType(block.Task)
+		name, _ := GetNameType(block.Task)
 		logger.Infof("Schedule %p Task %v Range %v and %v", s, name, block.Start, block.End)
 	}
 }

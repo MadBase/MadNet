@@ -4,6 +4,7 @@ import (
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
+	"github.com/MadBase/bridge/bindings"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 )
@@ -18,11 +19,17 @@ func ProcessOpenRegistration(eth interfaces.Ethereum, logger *logrus.Entry, stat
 		return err
 	}
 
+	// TODO abort if we can't participate, e.g. block timing
+
+	state.RLock()
+	defer state.RUnlock()
+
 	dkgState := state.EthDKG
 
 	state.Schedule.Purge()
 
-	state.EthDKG.PopulateSchedule(event)
+	// TODO Combine the state.EthDKG scheduling information with the actual state.Schedule. This is redundant.
+	PopulateSchedule(state.EthDKG, event)
 
 	state.Schedule.Schedule(dkgState.RegistrationStart, dkgState.RegistrationEnd, dkgtasks.NewRegisterTask(dkgState))                        // Registration
 	state.Schedule.Schedule(dkgState.ShareDistributionStart, dkgState.ShareDistributionEnd, dkgtasks.NewShareDistributionTask(dkgState))     // ShareDistribution
@@ -79,4 +86,29 @@ func ProcessShareDistribution(eth interfaces.Ethereum, logger *logrus.Entry, sta
 	state.EthDKG.EncryptedShares[event.Issuer] = event.EncryptedShares
 
 	return nil
+}
+func PopulateSchedule(state *objects.DkgState, event *bindings.ETHDKGRegistrationOpen) {
+	state.RegistrationStart = event.DkgStarts.Uint64()
+	state.RegistrationEnd = event.RegistrationEnds.Uint64()
+
+	state.ShareDistributionStart = state.RegistrationEnd + 1
+	state.ShareDistributionEnd = event.ShareDistributionEnds.Uint64()
+
+	state.DisputeStart = state.ShareDistributionEnd + 1
+	state.DisputeEnd = event.DisputeEnds.Uint64()
+
+	state.KeyShareSubmissionStart = state.DisputeEnd + 1
+	state.KeyShareSubmissionEnd = event.KeyShareSubmissionEnds.Uint64()
+
+	state.MPKSubmissionStart = state.KeyShareSubmissionEnd + 1
+	state.MPKSubmissionEnd = event.MpkSubmissionEnds.Uint64()
+
+	state.GPKJSubmissionStart = state.MPKSubmissionEnd + 1
+	state.GPKJSubmissionEnd = event.GpkjSubmissionEnds.Uint64()
+
+	state.GPKJGroupAccusationStart = state.GPKJSubmissionEnd + 1
+	state.GPKJGroupAccusationEnd = event.GpkjDisputeEnds.Uint64()
+
+	state.CompleteStart = state.GPKJGroupAccusationEnd + 1
+	state.CompleteEnd = event.DkgComplete.Uint64()
 }
