@@ -36,7 +36,6 @@ var (
 type Monitor interface {
 	Start() error
 	Close()
-	// Start(accounts.Account) (chan<- bool, error)
 	GetStatus() <-chan string
 }
 
@@ -52,7 +51,7 @@ type monitor struct {
 	logger         *logrus.Entry
 	cancelChan     chan bool
 	statusChan     chan string
-	typeRegistry   *objects.TypeRegistry
+	TypeRegistry   *objects.TypeRegistry
 	State          *objects.MonitorState
 	wg             sync.WaitGroup
 	batchSize      uint64
@@ -117,7 +116,7 @@ func NewMonitor(db *db.Database,
 		eth:            eth,
 		eventMap:       eventMap,
 		db:             db,
-		typeRegistry:   tr,
+		TypeRegistry:   tr,
 		logger:         logger,
 		tickInterval:   tickInterval,
 		timeout:        timeout,
@@ -166,6 +165,8 @@ func (mon *monitor) PersistState() error {
 	if err != nil {
 		return err
 	}
+
+	mon.logger.Infof("Persisting state: %v", string(rawData))
 
 	err = mon.db.Update(func(txn *badger.Txn) error {
 		keyLabel := fmt.Sprintf("%x", stateKey)
@@ -241,6 +242,12 @@ func (mon *monitor) Start() error {
 	logger.Infof("...Highest block processed: %v", mon.State.HighestBlockProcessed)
 	logger.Infof("...Monitor tick interval: %v", mon.tickInterval.String())
 	logger.Info(strings.Repeat("-", 80))
+	logger.Infof("Current Tasks: %v", len(mon.State.Schedule.Ranges))
+	for id, block := range mon.State.Schedule.Ranges {
+		taskName, _ := objects.GetNameType(block.Task)
+		logger.Infof("...ID: %v Name: %v Between: %v and %v", id, taskName, block.Start, block.End)
+	}
+	logger.Info(strings.Repeat("-", 80))
 
 	mon.cancelChan = make(chan bool)
 	mon.wg.Add(1)
@@ -288,19 +295,31 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 }
 
 func (m *monitor) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.State)
+	rawData, err := json.Marshal(m.State)
+
+	if err != nil {
+		fmt.Errorf("Could not marshal state: %v", err)
+	}
+
+	return rawData, err
 }
 
 func (m *monitor) UnmarshalJSON(raw []byte) error {
-	return json.Unmarshal(raw, m.State)
+	err := json.Unmarshal(raw, m.State)
+	if err != nil && m.State.Schedule != nil {
+		m.State.Schedule.Initialize(m.TypeRegistry, m.adminHandler)
+	}
+	return err
 }
 
 // MonitorTick using existing monitorState and incrementally updates it based on current State of Ethereum endpoint
 func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereum, monitorState *objects.MonitorState, logger *logrus.Entry,
 	eventMap *objects.EventMap, adminHandler interfaces.AdminHandler, batchSize uint64) error {
 
-	logger = logger.WithField("Method", "MonitorTick")
-	logger.Debugf("State %+v", monitorState)
+	logger = logger.WithFields(logrus.Fields{
+		"Method":         "MonitorTick",
+		"EndpointInSync": &monitorState.EndpointInSync,
+		"EthereumInSync": &monitorState.EthereumInSync})
 
 	c := eth.Contracts()
 	schedule := monitorState.Schedule
@@ -326,11 +345,6 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 	monitorState.PeerCount = peerCount
 	monitorState.EndpointInSync = inSync
 
-	synchronized := monitorState.HighestBlockProcessed == monitorState.HighestBlockFinalized
-	adminHandler.SetSynchronized(synchronized)
-
-	logger = logger.WithField("Synchronized", synchronized)
-
 	if peerCount < uint32(config.Configuration.Ethereum.EndpointMinimumPeers) {
 		return nil
 	}
@@ -340,6 +354,7 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 	if err != nil {
 		return err
 	}
+	monitorState.HighestBlockFinalized = finalized
 
 	// 3. Grab up to the next _batch size_ unprocessed block(s)
 	processed := monitorState.HighestBlockProcessed
@@ -414,8 +429,11 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 	}
 
 	// Only after batch is processed do we update monitor State
-	monitorState.HighestBlockFinalized = finalized
 	monitorState.HighestBlockProcessed = processed
+
+	// If we caught up processing, let consensus engine know we're synchronized
+	synchronized := monitorState.HighestBlockProcessed == monitorState.HighestBlockFinalized
+	adminHandler.SetSynchronized(synchronized)
 
 	return nil
 }

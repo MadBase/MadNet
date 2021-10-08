@@ -72,7 +72,7 @@ func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum
 		}
 
 		if err != nil {
-			logger.Error("Failed to execute task", err)
+			logger.Error("Failed to execute task ", err)
 			return
 		}
 	}()

@@ -1,6 +1,8 @@
 package dkgevents
 
 import (
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
@@ -13,13 +15,18 @@ func ProcessOpenRegistration(eth interfaces.Ethereum, logger *logrus.Entry, stat
 	adminHandler interfaces.AdminHandler) error {
 
 	logger.Info("ProcessOpenRegistration() ...")
-
 	event, err := eth.Contracts().Ethdkg().ParseRegistrationOpen(log)
 	if err != nil {
 		return err
 	}
 
-	// TODO abort if we can't participate, e.g. block timing
+	// If we're already finalized before registration ends, there's no point in continuing
+	finalizedBig := (&big.Int{}).SetUint64(state.HighestBlockFinalized)
+	if event.RegistrationEnds.Cmp(finalizedBig) < 1 {
+		logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("Skipping EthDKG")
+		return nil
+	}
+	logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("Participating in EthDKG")
 
 	state.RLock()
 	defer state.RUnlock()

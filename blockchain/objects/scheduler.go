@@ -29,9 +29,9 @@ type innerBlock struct {
 }
 
 type SequentialSchedule struct {
-	Ranges       map[string]*Block
-	adminHandler interfaces.AdminHandler
-	marshaller   *TypeRegistry
+	Ranges       map[string]*Block       `json:"ranges"`
+	adminHandler interfaces.AdminHandler `json:"-"`
+	marshaller   *TypeRegistry           `json:"-"`
 }
 
 type innerSequentialSchedule struct {
@@ -40,6 +40,11 @@ type innerSequentialSchedule struct {
 
 func NewSequentialSchedule(m *TypeRegistry, adminHandler interfaces.AdminHandler) *SequentialSchedule {
 	return &SequentialSchedule{Ranges: make(map[string]*Block), adminHandler: adminHandler, marshaller: m}
+}
+
+func (s *SequentialSchedule) Initialize(typeRegistry *TypeRegistry, adminHandler interfaces.AdminHandler) {
+	s.adminHandler = adminHandler
+	s.marshaller = typeRegistry
 }
 
 func (s *SequentialSchedule) Schedule(start uint64, end uint64, thing interfaces.Task) (uuid.UUID, error) {

@@ -14,9 +14,11 @@ import (
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/monitor"
 	"github.com/MadBase/MadNet/blockchain/objects"
+	"github.com/MadBase/MadNet/blockchain/tasks"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
+	"github.com/MadBase/MadNet/logging"
 	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -24,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -107,6 +111,33 @@ func createValidator(t *testing.T, addrHex string, idx uint8) objects.Validator 
 		Index:     idx,
 		SharedKey: createSharedKey(t, addr),
 	}
+}
+
+//
+// Mock implementation of interfaces.Task
+//
+type mockTask struct {
+	DoneCalled bool
+}
+
+func (mt *mockTask) DoDone(logger *logrus.Entry) {
+	mt.DoneCalled = true
+}
+
+func (mt *mockTask) DoRetry(context.Context, *logrus.Entry, interfaces.Ethereum) error {
+	return nil
+}
+
+func (mt *mockTask) DoWork(context.Context, *logrus.Entry, interfaces.Ethereum) error {
+	return nil
+}
+
+func (mt *mockTask) Initialize(context.Context, *logrus.Entry, interfaces.Ethereum) error {
+	return nil
+}
+
+func (mt *mockTask) ShouldRetry(context.Context, *logrus.Entry, interfaces.Ethereum) bool {
+	return false
 }
 
 //
@@ -307,6 +338,7 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	adminHandler := &mockAdminHandler{}
 	depositHandler := &mockDepositHandler{}
 	eth := &mockEthereum{}
+	logger := logging.GetLogger("test")
 
 	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
 
@@ -325,6 +357,9 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	mon.State.EthDKG.SecretValue = big.NewInt(512)
 	mon.State.EthDKG.GroupPublicKeys[addr0] = [4]*big.Int{
 		big.NewInt(44), big.NewInt(33), big.NewInt(22), big.NewInt(11)}
+	mon.State.EthDKG.Commitments[addr0] = make([][2]*big.Int, 3)
+	mon.State.EthDKG.Commitments[addr0][0][0] = big.NewInt(5)
+	mon.State.EthDKG.Commitments[addr0][0][1] = big.NewInt(2)
 
 	mon.State.ValidatorSets[EPOCH] = objects.ValidatorSet{
 		ValidatorCount:        4,
@@ -337,7 +372,10 @@ func TestBidirectionalMarshaling(t *testing.T) {
 		createValidator(t, "0x26D3D8Ab74D62C26f1ACc220dA1646411c9880Ac", 3),
 		createValidator(t, "0x615695C4a4D6a60830e5fca4901FbA099DF26271", 4)}
 
+	mon.State.Schedule.Schedule(5, 10, &mockTask{})
+
 	// Marshal
+	mon.TypeRegistry.RegisterInstanceType(&mockTask{})
 	raw, err := json.Marshal(mon)
 	assert.Nil(t, err)
 	t.Logf("RawData:%v", string(raw))
@@ -346,12 +384,48 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	newMon, err := monitor.NewMonitor(&db.Database{}, adminHandler, depositHandler, eth, 2*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
+	newMon.TypeRegistry.RegisterInstanceType(&mockTask{})
 	err = json.Unmarshal(raw, newMon)
 	assert.Nil(t, err)
+
+	// Compare raw data for mon and newMon
+	newRaw, err := json.Marshal(newMon)
+	assert.Nil(t, err)
+	assert.Equal(t, len(raw), len(newRaw))
+	t.Logf("Len(RawData): %v", len(raw))
 
 	// Do comparisons
 	validator0 := createValidator(t, "0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1)
 
 	assert.Equal(t, 0, validator0.SharedKey[0].Cmp(newMon.State.Validators[EPOCH][0].SharedKey[0]))
 	assert.Equal(t, 0, big.NewInt(44).Cmp(newMon.State.EthDKG.GroupPublicKeys[addr0][0]))
+
+	// Compare the schedules
+	_, err = newMon.State.Schedule.Find(2)
+	assert.Equal(t, objects.ErrNothingScheduled, err)
+
+	taskID, err := newMon.State.Schedule.Find(6)
+	assert.Nil(t, err)
+
+	task, err := newMon.State.Schedule.Retrieve(taskID)
+	assert.Nil(t, err)
+
+	taskStruct := task.(*mockTask)
+	assert.False(t, taskStruct.DoneCalled)
+
+	wg := &sync.WaitGroup{}
+	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task)
+
+	wg.Wait()
+	assert.True(t, taskStruct.DoneCalled)
+}
+
+func TestDoNotContinue(t *testing.T) {
+	err := objects.ErrCanNotContinue
+
+	cause := errors.New("Something broke")
+
+	foo := errors.Wrapf(err, "Cause: %v", cause)
+
+	t.Logf("err:%p foo:%p", err, foo)
 }
