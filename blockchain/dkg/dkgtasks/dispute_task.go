@@ -2,6 +2,7 @@ package dkgtasks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
@@ -29,7 +30,7 @@ func (t *DisputeTask) Initialize(ctx context.Context, logger *logrus.Entry, eth 
 	defer t.State.Unlock()
 
 	if !t.State.ShareDistribution {
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because share distribution not successful", objects.ErrCanNotContinue)
 	}
 
 	return nil

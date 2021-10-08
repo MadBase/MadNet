@@ -2,8 +2,9 @@ package dkgtasks
 
 import (
 	"context"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -62,7 +63,7 @@ func (t *RegisterTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 	}
 
 	if block >= t.State.RegistrationEnd {
-		return fmt.Errorf("at block %v but registration ends at %v", block, t.State.RegistrationEnd)
+		return errors.Wrapf(objects.ErrCanNotContinue, "At block %v but registration ends at %v", block, t.State.RegistrationEnd)
 	}
 
 	// Setup

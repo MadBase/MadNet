@@ -420,12 +420,17 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.True(t, taskStruct.DoneCalled)
 }
 
-func TestDoNotContinue(t *testing.T) {
-	err := objects.ErrCanNotContinue
+func TestWrapDoNotContinue(t *testing.T) {
+	genErr := objects.ErrCanNotContinue
+	specErr := errors.New("neutrinos")
 
-	cause := errors.New("Something broke")
+	niceErr := errors.Wrapf(genErr, "Caused by %v", specErr)
+	assert.True(t, errors.Is(niceErr, genErr))
 
-	foo := errors.Wrapf(err, "Cause: %v", cause)
+	t.Logf("NiceErr: %v", niceErr)
 
-	t.Logf("err:%p foo:%p", err, foo)
+	nice2Err := fmt.Errorf("%w because %v", genErr, specErr)
+	assert.True(t, errors.Is(nice2Err, genErr))
+
+	t.Logf("Nice2Err: %v", nice2Err)
 }

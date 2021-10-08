@@ -2,6 +2,7 @@ package dkgtasks
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/MadBase/MadNet/blockchain/dkg"
@@ -36,7 +37,7 @@ func (t *GPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 	defer t.State.Unlock()
 
 	if !t.State.MPKSubmission {
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because mpk submission not successful", objects.ErrCanNotContinue)
 	}
 
 	// TODO Guard
@@ -73,8 +74,7 @@ func (t *GPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 	logger.Infof("Adding private bn256eth key... using %p", t.adminHandler)
 	err = t.adminHandler.AddPrivateKey(groupPrivateKey.Bytes(), constants.CurveBN256Eth)
 	if err != nil {
-		logger.Errorf("Error adding private key: %v", err)
-		return objects.ErrCanNotContinue // TODO this is seriously bad, any better actions possible?
+		return fmt.Errorf("%w because error adding private key: %v", objects.ErrCanNotContinue, err) // TODO this is seriously bad, any better actions possible?
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package dkgtasks
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/MadBase/MadNet/blockchain/dkg"
@@ -32,7 +33,7 @@ func (t *GPKJDisputeTask) Initialize(ctx context.Context, logger *logrus.Entry, 
 	defer t.State.Unlock()
 
 	if !t.State.GPKJSubmission {
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because gpk submission phase not successful", objects.ErrCanNotContinue)
 	}
 
 	var (

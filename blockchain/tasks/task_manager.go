@@ -42,8 +42,8 @@ func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum
 		initializationLogger := logger.WithField("Method", "Initialize")
 		err = task.Initialize(ctx, initializationLogger, eth)
 		for err != nil && count < retryCount {
-			if err == objects.ErrCanNotContinue {
-				initializationLogger.Error("Can not continue")
+			if errors.Is(err, objects.ErrCanNotContinue) {
+				initializationLogger.Error(err)
 				return
 			}
 			time.Sleep(retryDelay)
@@ -62,8 +62,8 @@ func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum
 
 		retryLogger := logger.WithField("Method", "DoRetry")
 		for err != nil && count < retryCount && task.ShouldRetry(ctx, logger.WithField("Method", "ShouldRetry"), eth) {
-			if err == objects.ErrCanNotContinue {
-				logger.Error("Can not continue")
+			if errors.Is(err, objects.ErrCanNotContinue) {
+				initializationLogger.Error(err)
 				return
 			}
 			time.Sleep(retryDelay)

@@ -2,6 +2,7 @@ package dkgtasks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
@@ -32,8 +33,7 @@ func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.
 	defer t.State.Unlock()
 
 	if !t.State.Dispute {
-		logger.Error("Dispute phase did not complete successfully")
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because dispute phase not successful", objects.ErrCanNotContinue)
 	}
 
 	// Generate the key shares

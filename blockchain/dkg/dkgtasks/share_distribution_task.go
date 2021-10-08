@@ -36,7 +36,7 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 	callOpts := eth.GetCallOpts(ctx, me)
 
 	if !t.State.Registration {
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because registration not successful", objects.ErrCanNotContinue)
 	}
 
 	// Retrieve information about other participants from smart contracts

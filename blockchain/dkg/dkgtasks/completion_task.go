@@ -2,6 +2,7 @@ package dkgtasks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -30,7 +31,7 @@ func (t *CompletionTask) Initialize(ctx context.Context, logger *logrus.Entry, e
 	defer t.State.Unlock()
 
 	if !t.State.GPKJGroupAccusation {
-		return objects.ErrCanNotContinue
+		return fmt.Errorf("%w because gpkj dispute phase not successful", objects.ErrCanNotContinue)
 	}
 
 	return nil
