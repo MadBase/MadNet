@@ -318,8 +318,8 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 
 	logger = logger.WithFields(logrus.Fields{
 		"Method":         "MonitorTick",
-		"EndpointInSync": &monitorState.EndpointInSync,
-		"EthereumInSync": &monitorState.EthereumInSync})
+		"EndpointInSync": monitorState.EndpointInSync,
+		"EthereumInSync": monitorState.EthereumInSync})
 
 	c := eth.Contracts()
 	schedule := monitorState.Schedule
