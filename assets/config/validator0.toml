@@ -3,11 +3,11 @@ ethereum = "info"
 
 [chain]
 id = 42
-stateDB = "~/validator0/state/"
+stateDB = "~/validator0/"
 stateDBInMemory = false
 transactionDB = ""
 transactionDBInMemory = true
-monitorDB = "~/validator0/mon/"
+monitorDB = "~/validator0mon/"
 monitorDBInMemory = false
 
 [bootnode]
