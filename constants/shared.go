@@ -69,6 +69,8 @@ const (
 	LoggerBadger    = "badger"
 	LoggerPeerMan   = "peerMan"
 	LoggerLocalRPC  = "localRPC"
+	LoggerIPC       = "ipc"
+	LoggerFirewalld = "firewalld"
 	LoggerDMan      = "dman"
 	LoggerPeer      = "peer"
 	LoggerYamux     = "yamux"
@@ -82,7 +84,7 @@ const (
 
 // TODO Find a way to store this list that feels right
 var ValidLoggers []string = []string{"madnet", "consensus", "transport", "app", "db",
-	"gossipbus", "badger", "peerMan", "localRPC", "dman", "peer", "yamux",
+	"gossipbus", "badger", "peerman", "localrpc", "dman", "peer", "yamux",
 	"ethereum", "main", "deploy", "utils", "monitor", "dkg",
-	"services", "settings", "validator", "muxHandler", "bootnode", "p2pmux",
-	"status", "test"}
+	"services", "settings", "validator", "muxhandler", "bootnode", "p2pmux",
+	"status", "test", "ipc", "firewalld"}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/MadBase/MadNet/cmd/bootnode"
 	"github.com/MadBase/MadNet/cmd/deploy"
+	"github.com/MadBase/MadNet/cmd/firewalld"
 	"github.com/MadBase/MadNet/cmd/utils"
 	"github.com/MadBase/MadNet/cmd/validator"
 	"github.com/MadBase/MadNet/config"
@@ -28,40 +29,50 @@ type option struct {
 }
 
 // Runner wraps a cobra command's Run() and sets up loggers first
-// It assumes 'logging' flag uses the format "pkg1=debug,pkg2=error"
 func runner(commandRun func(*cobra.Command, []string)) func(*cobra.Command, []string) {
 	logger := logging.GetLogger("main")
 	return func(a *cobra.Command, b []string) {
-		loggingLevels := config.Configuration.LoggingLevels
-		if len(loggingLevels) == 0 {
-			commandRun(a, b)
-		} else {
-			loggers := strings.Split(loggingLevels, ",")
+		loggingLevels := config.Configuration.Logging
+		llr := reflect.ValueOf(loggingLevels)
+		for i := 0; i < llr.NumField(); i++ {
+			logName := strings.ToLower(llr.Type().Field(i).Name)
+			logLevel := strings.ToLower(llr.Field(i).String())
+			if logLevel == "" {
+				logLevel = "info"
+			}
+			logger.Infof("Setting log level for '%v' to '%v'", logName, logLevel)
+			setLogger(logName, logLevel)
+		}
+		// backwards compatibility
+		if len(config.Configuration.LoggingLevels) > 0 {
+			loggers := strings.Split(config.Configuration.LoggingLevels, ",")
 			for _, levelSetting := range loggers {
 				settingComponent := strings.Split(levelSetting, "=")
 				if len(settingComponent) != 2 {
 					logger.Fatalf("Malformed log level setting %q", levelSetting)
 				}
-
-				loggerName := settingComponent[0]
-				loggerLevel := strings.ToLower(settingComponent[1])
-
-				logger.Infof("Setting log level for '%v' to '%v'", loggerName, loggerLevel)
-				lgr := logging.GetLogger(loggerName)
-
-				switch loggerLevel {
-				case "debug":
-					lgr.SetLevel(logrus.DebugLevel)
-				case "info":
-					lgr.SetLevel(logrus.InfoLevel)
-				case "warn":
-					lgr.SetLevel(logrus.WarnLevel)
-				case "error":
-					lgr.SetLevel(logrus.ErrorLevel)
-				}
+				logger.Infof("Overwriting log level for '%v' to '%v'", settingComponent[0], settingComponent[1])
+				setLogger(settingComponent[0], settingComponent[1])
 			}
-			commandRun(a, b)
 		}
+		commandRun(a, b)
+
+	}
+}
+
+func setLogger(name string, level string) {
+	lgr := logging.GetLogger(name)
+	switch level {
+	case "debug":
+		lgr.SetLevel(logrus.DebugLevel)
+	case "info":
+		lgr.SetLevel(logrus.InfoLevel)
+	case "warn":
+		lgr.SetLevel(logrus.WarnLevel)
+	case "error":
+		lgr.SetLevel(logrus.ErrorLevel)
+	default:
+		lgr.SetLevel(logrus.InfoLevel)
 	}
 }
 
@@ -80,6 +91,32 @@ func main() {
 		&rootCommand: {
 			{"config", "c", "Name of config file", &config.Configuration.ConfigurationFileName},
 			{"logging", "", "", &config.Configuration.LoggingLevels},
+			{"loglevel.madnet", "", "", &config.Configuration.Logging.Madnet},
+			{"loglevel.consensus", "", "", &config.Configuration.Logging.Consensus},
+			{"loglevel.transport", "", "", &config.Configuration.Logging.Transport},
+			{"loglevel.app", "", "", &config.Configuration.Logging.App},
+			{"loglevel.db", "", "", &config.Configuration.Logging.Db},
+			{"loglevel.gossipbus", "", "", &config.Configuration.Logging.Gossipbus},
+			{"loglevel.badger", "", "", &config.Configuration.Logging.Badger},
+			{"loglevel.peerMan", "", "", &config.Configuration.Logging.PeerMan},
+			{"loglevel.localRPC", "", "", &config.Configuration.Logging.LocalRPC},
+			{"loglevel.dman", "", "", &config.Configuration.Logging.Dman},
+			{"loglevel.peer", "", "", &config.Configuration.Logging.Peer},
+			{"loglevel.yamux", "", "", &config.Configuration.Logging.Yamux},
+			{"loglevel.ethereum", "", "", &config.Configuration.Logging.Ethereum},
+			{"loglevel.main", "", "", &config.Configuration.Logging.Main},
+			{"loglevel.deploy", "", "", &config.Configuration.Logging.Deploy},
+			{"loglevel.utils", "", "", &config.Configuration.Logging.Utils},
+			{"loglevel.monitor", "", "", &config.Configuration.Logging.Monitor},
+			{"loglevel.dkg", "", "", &config.Configuration.Logging.Dkg},
+			{"loglevel.services", "", "", &config.Configuration.Logging.Services},
+			{"loglevel.settings", "", "", &config.Configuration.Logging.Settings},
+			{"loglevel.validator", "", "", &config.Configuration.Logging.Validator},
+			{"loglevel.muxHandler", "", "", &config.Configuration.Logging.MuxHandler},
+			{"loglevel.bootnode", "", "", &config.Configuration.Logging.Bootnode},
+			{"loglevel.p2pmux", "", "", &config.Configuration.Logging.P2pmux},
+			{"loglevel.status", "", "", &config.Configuration.Logging.Status},
+			{"loglevel.test", "", "", &config.Configuration.Logging.Test},
 			{"chain.id", "", "", &config.Configuration.Chain.ID},
 			{"chain.stateDB", "", "", &config.Configuration.Chain.StateDbPath},
 			{"chain.stateDBInMemory", "", "", &config.Configuration.Chain.StateDbInMemory},
@@ -115,7 +152,10 @@ func main() {
 			{"transport.localStateListeningAddress", "", "", &config.Configuration.Transport.LocalStateListeningAddress},
 			{"transport.timeout", "", "", &config.Configuration.Transport.Timeout},
 			{"transport.firewallMode", "", "", &config.Configuration.Transport.FirewallMode},
-			{"transport.firewallHost", "", "", &config.Configuration.Transport.FirewallHost}},
+			{"transport.firewallHost", "", "", &config.Configuration.Transport.FirewallHost},
+			{"firewalld.enabled", "", "", &config.Configuration.Firewalld.Enabled},
+			{"firewalld.socketFile", "", "", &config.Configuration.Firewalld.SocketFile},
+		},
 
 		&utils.Command: {
 			{"utils.status", "", "", &config.Configuration.Utils.Status}},
@@ -133,6 +173,8 @@ func main() {
 			{"bootnode.listeningAddress", "", "", &config.Configuration.BootNode.ListeningAddress},
 			{"bootnode.cacheSize", "", "", &config.Configuration.BootNode.CacheSize}},
 
+		&firewalld.Command: {},
+
 		&validator.Command: {
 			{"validator.rewardAccount", "", "", &config.Configuration.Validator.RewardAccount},
 			{"validator.rewardCurveSpec", "", "", &config.Configuration.Validator.RewardCurveSpec}},
@@ -144,6 +186,7 @@ func main() {
 
 	// Establish command hierarchy
 	hierarchy := map[*cobra.Command]*cobra.Command{
+		&firewalld.Command:           &rootCommand,
 		&bootnode.Command:            &rootCommand,
 		&validator.Command:           &rootCommand,
 		&deploy.Command:              &rootCommand,
