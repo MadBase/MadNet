@@ -25,9 +25,19 @@ func NewDisputeTask(state *objects.DkgState) *DisputeTask {
 }
 
 // This is not exported and does not lock so can only be called from within task. Return value indicates whether task has been initialized.
-func (t *DisputeTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+func (t *DisputeTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgState, validState := state.(*objects.DkgState)
+	if !validState {
+		return fmt.Errorf("%w invalid state type", objects.ErrCanNotContinue)
+	}
+
+	t.State = dkgState
+
 	t.State.Lock()
 	defer t.State.Unlock()
+
+	logger.WithField("StateLocation", fmt.Sprintf("%p", t.State)).Info("Initialize()...")
 
 	if !t.State.ShareDistribution {
 		return fmt.Errorf("%w because share distribution not successful", objects.ErrCanNotContinue)
@@ -73,6 +83,7 @@ func (t *DisputeTask) DoDone(logger *logrus.Entry) {
 	t.State.Lock()
 	defer t.State.Unlock()
 
-	logger.WithField("Success", t.Success).Info("Dispute phase done")
+	logger.WithField("Success", t.Success).Info("done")
+
 	t.State.Dispute = t.Success
 }

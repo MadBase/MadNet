@@ -9,7 +9,6 @@ import (
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
-	"github.com/MadBase/MadNet/consensus/admin"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/sirupsen/logrus"
 )
@@ -31,10 +30,19 @@ func NewGPKSubmissionTask(state *objects.DkgState, adminHandler interfaces.Admin
 	}
 }
 
-func (t *GPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+func (t *GPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgState, validState := state.(*objects.DkgState)
+	if !validState {
+		return fmt.Errorf("%w invalid state type", objects.ErrCanNotContinue)
+	}
+
+	t.State = dkgState
 
 	t.State.Lock()
 	defer t.State.Unlock()
+
+	logger.WithField("StateLocation", fmt.Sprintf("%p", t.State)).Info("Initialize()...")
 
 	if !t.State.MPKSubmission {
 		return fmt.Errorf("%w because mpk submission not successful", objects.ErrCanNotContinue)
@@ -136,14 +144,14 @@ func (t *GPKSubmissionTask) ShouldRetry(ctx context.Context, logger *logrus.Entr
 
 // DoDone creates a log entry saying task is complete
 func (t *GPKSubmissionTask) DoDone(logger *logrus.Entry) {
-	logger.Infof("done")
-
 	t.State.Lock()
 	defer t.State.Unlock()
+
+	logger.WithField("Success", t.Success).Infof("done")
 
 	t.State.GPKJSubmission = t.Success
 }
 
-func (t *GPKSubmissionTask) SetAdminHandler(adminHandler *admin.Handlers) {
+func (t *GPKSubmissionTask) SetAdminHandler(adminHandler interfaces.AdminHandler) {
 	t.adminHandler = adminHandler
 }

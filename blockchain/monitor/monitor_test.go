@@ -19,6 +19,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/logging"
+	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -93,7 +94,7 @@ func setupEthereum(t *testing.T, mineInterval time.Duration) interfaces.Ethereum
 //
 //
 //
-func createSharedKey(t *testing.T, addr common.Address) [4]*big.Int {
+func createSharedKey(addr common.Address) [4]*big.Int {
 
 	b := addr.Bytes()
 
@@ -104,13 +105,40 @@ func createSharedKey(t *testing.T, addr common.Address) [4]*big.Int {
 		(&big.Int{}).SetBytes(b)}
 }
 
-func createValidator(t *testing.T, addrHex string, idx uint8) objects.Validator {
+func createValidator(addrHex string, idx uint8) objects.Validator {
 	addr := common.HexToAddress(addrHex)
 	return objects.Validator{
 		Account:   addr,
 		Index:     idx,
-		SharedKey: createSharedKey(t, addr),
+		SharedKey: createSharedKey(addr),
 	}
+}
+
+func populateMonitor(state *objects.MonitorState, addr0 common.Address, EPOCH uint32) {
+	state.EthDKG.Account = accounts.Account{
+		Address: addr0,
+		URL: accounts.URL{
+			Scheme: "keystore",
+			Path:   "/home/agdean/Projects/MadNet/assets/test/keys/UTC--2020-03-24T13-41-44.886736400Z--26d3d8ab74d62c26f1acc220da1646411c9880ac"}}
+	state.EthDKG.Index = 1
+	state.EthDKG.SecretValue = big.NewInt(512)
+	state.EthDKG.GroupPublicKeys[addr0] = [4]*big.Int{
+		big.NewInt(44), big.NewInt(33), big.NewInt(22), big.NewInt(11)}
+	state.EthDKG.Commitments[addr0] = make([][2]*big.Int, 3)
+	state.EthDKG.Commitments[addr0][0][0] = big.NewInt(5)
+	state.EthDKG.Commitments[addr0][0][1] = big.NewInt(2)
+
+	state.ValidatorSets[EPOCH] = objects.ValidatorSet{
+		ValidatorCount:        4,
+		NotBeforeMadNetHeight: 321,
+		GroupKey:              [4]*big.Int{big.NewInt(3), big.NewInt(2), big.NewInt(1), big.NewInt(5)}}
+
+	state.Validators[EPOCH] = []objects.Validator{
+		createValidator("0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1),
+		createValidator("0x9AC1c9afBAec85278679fF75Ef109217f26b1417", 2),
+		createValidator("0x26D3D8Ab74D62C26f1ACc220dA1646411c9880Ac", 3),
+		createValidator("0x615695C4a4D6a60830e5fca4901FbA099DF26271", 4)}
+
 }
 
 //
@@ -118,6 +146,7 @@ func createValidator(t *testing.T, addrHex string, idx uint8) objects.Validator 
 //
 type mockTask struct {
 	DoneCalled bool
+	State      *objects.DkgState
 }
 
 func (mt *mockTask) DoDone(logger *logrus.Entry) {
@@ -132,7 +161,7 @@ func (mt *mockTask) DoWork(context.Context, *logrus.Entry, interfaces.Ethereum) 
 	return nil
 }
 
-func (mt *mockTask) Initialize(context.Context, *logrus.Entry, interfaces.Ethereum) error {
+func (mt *mockTask) Initialize(context.Context, *logrus.Entry, interfaces.Ethereum, interface{}) error {
 	return nil
 }
 
@@ -311,25 +340,34 @@ func TestMonitor(t *testing.T) {
 	eth.Commit()
 }
 
-func TestWTF(t *testing.T) {
-	type foo struct {
-		sync.Mutex
-		count int
-	}
+func TestMonitorPersist(t *testing.T) {
+	rawDb, err := utils.OpenBadger(context.Background().Done(), "", true)
+	assert.Nil(t, err)
 
-	f := foo{}
-	for {
-		f.Lock()
-		f.count++
-		fmt.Printf("Count:%v\n", f.count)
-		time.Sleep(1 * time.Second)
+	database := &db.Database{}
+	database.Init(rawDb)
 
-		if f.count > 10 {
-			f.Unlock()
-			break
-		}
-		f.Unlock()
-	}
+	mon, err := monitor.NewMonitor(database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	assert.Nil(t, err)
+
+	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
+	EPOCH := uint32(1)
+	populateMonitor(mon.State, addr0, EPOCH)
+	raw, err := json.Marshal(mon)
+	assert.Nil(t, err)
+	t.Logf("Raw: %v", string(raw))
+
+	mon.PersistState()
+
+	//
+	newMon, err := monitor.NewMonitor(database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	assert.Nil(t, err)
+
+	newMon.LoadState()
+
+	newRaw, err := json.Marshal(mon)
+	assert.Nil(t, err)
+	t.Logf("NewRaw: %v", string(newRaw))
 }
 
 func TestBidirectionalMarshaling(t *testing.T) {
@@ -347,32 +385,20 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	// Setup monitor state
 	mon, err := monitor.NewMonitor(&db.Database{}, adminHandler, depositHandler, eth, 2*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
+	populateMonitor(mon.State, addr0, EPOCH)
 
-	mon.State.EthDKG.Account = accounts.Account{
-		Address: addr0,
-		URL: accounts.URL{
-			Scheme: "keystore",
-			Path:   "/home/agdean/Projects/MadNet/assets/test/keys/UTC--2020-03-24T13-41-44.886736400Z--26d3d8ab74d62c26f1acc220da1646411c9880ac"}}
-	mon.State.EthDKG.Index = 1
-	mon.State.EthDKG.SecretValue = big.NewInt(512)
-	mon.State.EthDKG.GroupPublicKeys[addr0] = [4]*big.Int{
-		big.NewInt(44), big.NewInt(33), big.NewInt(22), big.NewInt(11)}
-	mon.State.EthDKG.Commitments[addr0] = make([][2]*big.Int, 3)
-	mon.State.EthDKG.Commitments[addr0][0][0] = big.NewInt(5)
-	mon.State.EthDKG.Commitments[addr0][0][1] = big.NewInt(2)
+	// Schedule some tasks
+	_, err = mon.State.Schedule.Schedule(1, 2, &mockTask{})
+	assert.Nil(t, err)
 
-	mon.State.ValidatorSets[EPOCH] = objects.ValidatorSet{
-		ValidatorCount:        4,
-		NotBeforeMadNetHeight: 321,
-		GroupKey:              [4]*big.Int{big.NewInt(3), big.NewInt(2), big.NewInt(1), big.NewInt(5)}}
+	_, err = mon.State.Schedule.Schedule(3, 4, &mockTask{})
+	assert.Nil(t, err)
 
-	mon.State.Validators[EPOCH] = []objects.Validator{
-		createValidator(t, "0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1),
-		createValidator(t, "0x9AC1c9afBAec85278679fF75Ef109217f26b1417", 2),
-		createValidator(t, "0x26D3D8Ab74D62C26f1ACc220dA1646411c9880Ac", 3),
-		createValidator(t, "0x615695C4a4D6a60830e5fca4901FbA099DF26271", 4)}
+	_, err = mon.State.Schedule.Schedule(5, 6, &mockTask{})
+	assert.Nil(t, err)
 
-	mon.State.Schedule.Schedule(5, 10, &mockTask{})
+	_, err = mon.State.Schedule.Schedule(7, 8, &mockTask{})
+	assert.Nil(t, err)
 
 	// Marshal
 	mon.TypeRegistry.RegisterInstanceType(&mockTask{})
@@ -395,28 +421,42 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	t.Logf("Len(RawData): %v", len(raw))
 
 	// Do comparisons
-	validator0 := createValidator(t, "0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1)
+	validator0 := createValidator("0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1)
 
 	assert.Equal(t, 0, validator0.SharedKey[0].Cmp(newMon.State.Validators[EPOCH][0].SharedKey[0]))
 	assert.Equal(t, 0, big.NewInt(44).Cmp(newMon.State.EthDKG.GroupPublicKeys[addr0][0]))
 
 	// Compare the schedules
-	_, err = newMon.State.Schedule.Find(2)
+	_, err = newMon.State.Schedule.Find(9)
 	assert.Equal(t, objects.ErrNothingScheduled, err)
 
-	taskID, err := newMon.State.Schedule.Find(6)
+	//
+	taskID, err := newMon.State.Schedule.Find(1)
 	assert.Nil(t, err)
 
 	task, err := newMon.State.Schedule.Retrieve(taskID)
 	assert.Nil(t, err)
 
+	//
+	taskID2, err := newMon.State.Schedule.Find(3)
+	assert.Nil(t, err)
+
+	task2, err := newMon.State.Schedule.Retrieve(taskID2)
+	assert.Nil(t, err)
+
 	taskStruct := task.(*mockTask)
 	assert.False(t, taskStruct.DoneCalled)
 
-	wg := &sync.WaitGroup{}
-	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task)
+	taskStruct2 := task2.(*mockTask)
+	assert.False(t, taskStruct2.DoneCalled)
 
+	t.Logf("State:%p State2:%p", taskStruct.State, taskStruct2.State)
+	assert.Equal(t, taskStruct.State, taskStruct2.State)
+
+	wg := &sync.WaitGroup{}
+	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil)
 	wg.Wait()
+
 	assert.True(t, taskStruct.DoneCalled)
 }
 

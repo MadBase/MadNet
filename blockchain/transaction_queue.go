@@ -101,7 +101,7 @@ func (b *Behind) Loop() {
 }
 
 func (b *Behind) collectReceipts() {
-	ctx, cf := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cf := context.WithTimeout(context.Background(), 1*time.Hour)
 	defer cf()
 
 	b.Lock()

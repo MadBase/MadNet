@@ -27,7 +27,14 @@ func NewShareDistributionTask(state *objects.DkgState) *ShareDistributionTask {
 	}
 }
 
-func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgState, validState := state.(*objects.DkgState)
+	if !validState {
+		return fmt.Errorf("%w invalid state type", objects.ErrCanNotContinue)
+	}
+
+	t.State = dkgState
 
 	t.State.Lock()
 	defer t.State.Unlock()
@@ -155,19 +162,15 @@ func (t *ShareDistributionTask) ShouldRetry(ctx context.Context, logger *logrus.
 		logger.Infof("DistributionHash: %x", distributionHash)
 	}
 
-	if logger.Logger.IsLevelEnabled(logrus.DebugLevel) {
-		logger.Info("Logging at Info because Debug is enabled.")
-	}
-
 	return false
 }
 
 // DoDone creates a log entry saying task is complete
 func (t *ShareDistributionTask) DoDone(logger *logrus.Entry) {
-	logger.Infof("done")
-
 	t.State.Lock()
 	defer t.State.Unlock()
+
+	logger.WithField("Success", t.Success).Infof("done")
 
 	t.State.ShareDistribution = t.Success
 }

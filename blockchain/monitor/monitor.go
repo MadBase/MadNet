@@ -166,7 +166,7 @@ func (mon *monitor) PersistState() error {
 		return err
 	}
 
-	mon.logger.Infof("Persisting state: %v", string(rawData))
+	//mon.logger.WithField("StateLocation", fmt.Sprintf("%p", mon.State)).Infof("Persisting state: %v", string(rawData))
 
 	err = mon.db.Update(func(txn *badger.Txn) error {
 		keyLabel := fmt.Sprintf("%x", stateKey)
@@ -322,7 +322,6 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 		"EthereumInSync": monitorState.EthereumInSync})
 
 	c := eth.Contracts()
-	schedule := monitorState.Schedule
 
 	addresses := []common.Address{c.ValidatorsAddress(), c.DepositAddress(), c.EthdkgAddress(), c.GovernorAddress()}
 
@@ -341,9 +340,6 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 		}
 		return nil
 	}
-	monitorState.CommunicationFailures = 0
-	monitorState.PeerCount = peerCount
-	monitorState.EndpointInSync = inSync
 
 	if peerCount < uint32(config.Configuration.Ethereum.EndpointMinimumPeers) {
 		return nil
@@ -354,6 +350,10 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 	if err != nil {
 		return err
 	}
+
+	monitorState.CommunicationFailures = 0
+	monitorState.PeerCount = peerCount
+	monitorState.EndpointInSync = inSync
 	monitorState.HighestBlockFinalized = finalized
 
 	// 3. Grab up to the next _batch size_ unprocessed block(s)
@@ -406,9 +406,9 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 
 		// Check if any tasks are scheduled
 		logEntry.Debug("Looking for scheduled task")
-		uuid, err := schedule.Find(currentBlock)
+		uuid, err := monitorState.Schedule.Find(currentBlock)
 		if err == nil {
-			task, _ := schedule.Retrieve(uuid)
+			task, _ := monitorState.Schedule.Retrieve(uuid)
 
 			taskName, _ := objects.GetNameType(task)
 
@@ -416,9 +416,9 @@ func MonitorTick(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereu
 				"TaskID":   uuid.String(),
 				"TaskName": taskName})
 
-			tasks.StartTask(log, wg, eth, task)
+			tasks.StartTask(log, wg, eth, task, monitorState.EthDKG)
 
-			schedule.Remove(uuid)
+			monitorState.Schedule.Remove(uuid)
 		} else if err == objects.ErrNothingScheduled {
 			logEntry.Debug("No tasks scheduled")
 		} else {
@@ -444,13 +444,7 @@ func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Eth
 	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
 	task.BlockHeader = bh
 
-	err := task.Initialize(ctx, logger, eth)
-	if err != nil {
-		logger.Errorf("Failed to initialize snapshot task: %v", err)
-		return nil
-	}
-
-	tasks.StartTask(logger, wg, eth, task)
+	tasks.StartTask(logger, wg, eth, task, nil)
 
 	return nil
 }

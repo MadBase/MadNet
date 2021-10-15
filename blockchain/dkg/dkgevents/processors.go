@@ -23,19 +23,24 @@ func ProcessOpenRegistration(eth interfaces.Ethereum, logger *logrus.Entry, stat
 	// If we're already finalized before registration ends, there's no point in continuing
 	finalizedBig := (&big.Int{}).SetUint64(state.HighestBlockFinalized)
 	if event.RegistrationEnds.Cmp(finalizedBig) < 1 {
-		logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("Skipping EthDKG")
+		logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("Too late to participate in EthDKG")
 		return nil
 	}
+
+	if state.EthDKG != nil && state.EthDKG.RegistrationEnd >= event.RegistrationEnds.Uint64() {
+		logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("EthDKG already in progress")
+		return nil
+	}
+
 	logger.WithField("RegistrationEnd", event.RegistrationEnds.String()).Info("Participating in EthDKG")
 
-	state.RLock()
-	defer state.RUnlock()
+	state.Lock()
+	defer state.Unlock()
 
 	dkgState := state.EthDKG
 
 	state.Schedule.Purge()
 
-	// TODO Combine the state.EthDKG scheduling information with the actual state.Schedule. This is redundant.
 	PopulateSchedule(state.EthDKG, event)
 
 	state.Schedule.Schedule(dkgState.RegistrationStart, dkgState.RegistrationEnd, dkgtasks.NewRegisterTask(dkgState))                        // Registration
@@ -67,9 +72,11 @@ func ProcessKeyShareSubmission(eth interfaces.Ethereum, logger *logrus.Entry, st
 		"KeyShareG2": event.KeyShareG2,
 	}).Info("Received key shares")
 
+	state.Lock()
 	state.EthDKG.KeyShareG1s[event.Issuer] = event.KeyShareG1
 	state.EthDKG.KeyShareG1CorrectnessProofs[event.Issuer] = event.KeyShareG1CorrectnessProof
 	state.EthDKG.KeyShareG2s[event.Issuer] = event.KeyShareG2
+	state.Unlock()
 
 	return nil
 }
@@ -89,12 +96,15 @@ func ProcessShareDistribution(eth interfaces.Ethereum, logger *logrus.Entry, sta
 		"EncryptedShares": event.EncryptedShares,
 	}).Info("Received share distribution")
 
+	state.Lock()
 	state.EthDKG.Commitments[event.Issuer] = event.Commitments
 	state.EthDKG.EncryptedShares[event.Issuer] = event.EncryptedShares
+	state.Unlock()
 
 	return nil
 }
 func PopulateSchedule(state *objects.DkgState, event *bindings.ETHDKGRegistrationOpen) {
+
 	state.RegistrationStart = event.DkgStarts.Uint64()
 	state.RegistrationEnd = event.RegistrationEnds.Uint64()
 

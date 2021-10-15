@@ -16,7 +16,7 @@ var (
 	ErrUnknownTaskType = errors.New("unkonwn task type")
 )
 
-func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task) interfaces.TaskHandler {
+func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}) error {
 
 	wg.Add(1)
 	go func() {
@@ -40,14 +40,14 @@ func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum
 		var err error
 
 		initializationLogger := logger.WithField("Method", "Initialize")
-		err = task.Initialize(ctx, initializationLogger, eth)
+		err = task.Initialize(ctx, initializationLogger, eth, state)
 		for err != nil && count < retryCount {
 			if errors.Is(err, objects.ErrCanNotContinue) {
 				initializationLogger.Error(err)
 				return
 			}
 			time.Sleep(retryDelay)
-			err = task.Initialize(ctx, initializationLogger, eth)
+			err = task.Initialize(ctx, initializationLogger, eth, state)
 			count++
 		}
 		if err != nil {
