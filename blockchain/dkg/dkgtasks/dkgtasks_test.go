@@ -247,7 +247,7 @@ func TestDkgSuccess(t *testing.T) {
 	assert.Nil(t, err)
 	eth.Queue().QueueAndWait(ctx, txn)
 
-	// Now we know ethdkg is running, let's find out when registration has to happeno
+	// Now we know ethdkg is running, let's find out when registration has to happen
 	// TODO this should be based on an OpenRegistration event
 	currentHeight, err := eth.GetCurrentHeight(ctx)
 	assert.Nil(t, err)
