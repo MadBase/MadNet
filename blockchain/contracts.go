@@ -639,15 +639,15 @@ func (c *ContractDetails) DeployContracts(ctx context.Context, account accounts.
 	//		return nil, common.Address{}, err
 	//	}
 
-	eth.commit()
+	// eth.commit()
 
-	rcpt, err = eth.Queue().QueueAndWait(ctx, tx)
-	if err != nil {
-		logger.Errorf("Failed to get receipt for ethdkg update: %v", err)
-		return nil, common.Address{}, err
-	} else if rcpt != nil {
-		logger.Infof("ethdkg update status: %v", rcpt.Status)
-	}
+	// rcpt, err = eth.Queue().QueueAndWait(ctx, tx)
+	// if err != nil {
+	//		logger.Errorf("Failed to get receipt for ethdkg update: %v", err)
+	//		return nil, common.Address{}, err
+	//	} else if rcpt != nil {
+	//		logger.Infof("ethdkg update status: %v", rcpt.Status)
+	//	}
 
 	return c.registry, c.registryAddress, nil
 }
