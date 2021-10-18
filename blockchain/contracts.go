@@ -632,11 +632,12 @@ func (c *ContractDetails) DeployContracts(ctx context.Context, account accounts.
 		logger.Infof("ethdkg update status: %v", rcpt.Status)
 	}
 
-	tx, err = c.ethdkg.UpdatePhaseLength(txnOpts, big.NewInt(10)) // TODO DO NOT COMMIT THIS!!
-	if err != nil {
-		logger.Errorf("Failed to update ethdkg phase length references: %v", err)
-		return nil, common.Address{}, err
-	}
+	// If we want to change the phase length, this is how:
+	//  tx, err = c.ethdkg.UpdatePhaseLength(txnOpts, big.NewInt(40))
+	//	if err != nil {
+	//		logger.Errorf("Failed to update ethdkg phase length references: %v", err)
+	//		return nil, common.Address{}, err
+	//	}
 
 	eth.commit()
 

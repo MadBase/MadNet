@@ -45,7 +45,7 @@ type monitor struct {
 	depositHandler interfaces.DepositHandler
 	eth            interfaces.Ethereum
 	eventMap       *objects.EventMap
-	db             Database
+	db             *db.Database
 	cdb            *db.Database
 	tickInterval   time.Duration
 	timeout        time.Duration
@@ -74,8 +74,6 @@ func NewMonitor(cdb *db.Database,
 	})
 
 	rand.Seed(time.Now().UnixNano())
-
-	// monitorDB := NewDatabase(db)
 
 	// Type registry is used to bidirectionally map a type name string to it's reflect.Type
 	// -- This lets us use a wrapper class and unmarshal something where we don't know its type
@@ -118,8 +116,8 @@ func NewMonitor(cdb *db.Database,
 		eth:            eth,
 		eventMap:       eventMap,
 		cdb:            cdb,
-		db:             monitorDB,
-		typeRegistry:   tr,
+		db:             db,
+		TypeRegistry:   tr,
 		logger:         logger,
 		tickInterval:   tickInterval,
 		timeout:        timeout,
