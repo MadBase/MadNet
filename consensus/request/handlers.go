@@ -79,7 +79,9 @@ func (rb *Handler) HandleP2PStatus(ctx context.Context, r *pb.StatusRequest) (*p
 		defer rb.wg.Done()
 	}
 
-	var resp pb.StatusResponse
+	resp := pb.StatusResponse{
+		ProtocolVersion: 1,
+	}
 
 	err := rb.database.View(func(txn *badger.Txn) error {
 		os, err := rb.database.GetOwnState(txn)

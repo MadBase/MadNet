@@ -35,6 +35,17 @@ func (rb *Client) Init(client pb.P2PClient, storage dynamics.StorageGetter) {
 	rb.storage = storage
 }
 
+func (rb *Client) RequestP2PStatus(ctx context.Context, opts ...grpc.CallOption) (*pb.StatusResponse, error) {
+	req := &pb.StatusRequest{}
+	peerOpt := middleware.NewPeerInterceptor()
+	newOpts := append(opts, peerOpt)
+	resp, err := rb.client.Status(ctx, req, newOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // RequestP2PGetSnapShotNode implements the client for the P2P method
 // GetSnapShotNode
 func (rb *Client) RequestP2PGetSnapShotNode(ctx context.Context, height uint32, key []byte, opts ...grpc.CallOption) ([]byte, error) {

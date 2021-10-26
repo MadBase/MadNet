@@ -45,6 +45,7 @@ message GetPeersResponse {
 
 message StatusRequest {}
 message StatusResponse {
+  uint32 ProtocolVersion = 3;
   uint32 SyncToBlockHeight = 1;
   uint32 MaxBlockHeightSeen = 2;
 }

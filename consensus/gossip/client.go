@@ -21,9 +21,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-const maxRetryCount = 12
-const backOffAmount = 1
-const backOffJitter = float64(.1)
+const (
+	maxRetryCount = 12
+	backOffAmount = 1
+	backOffJitter = float64(.1)
+
+	cuckooFilterCapacity  = 1000000
+	cuckooFilterErrorRate = 0.01
+)
 
 type appClient interface {
 	GetTxsForGossip(txnState *badger.Txn, currentHeight uint32) ([]interfaces.Transaction, error)
@@ -62,6 +67,12 @@ func (mb *mutexUint32) Get() uint32 {
 	return mb.value
 }
 
+type Filter interface {
+	Insert(input []byte) error
+	Delete(needle []byte)
+	Lookup(needle []byte) bool
+}
+
 // Client handles outbound gossip
 type Client struct {
 	sync.Mutex
@@ -82,6 +93,8 @@ type Client struct {
 
 	inSync      *mutexBool
 	isValidator *mutexBool
+
+	filter Filter
 }
 
 // Init sets ups all subscriptions. This MUST be run at least once.
@@ -102,6 +115,7 @@ func (mb *Client) Init(database *db.Database, client pb.P2PClient, app appClient
 	mb.storage = storage
 	mb.sstore.Init(database)
 	mb.gossipTimeout = constants.MsgTimeout
+	mb.filter = NewCuckoo(cuckooFilterCapacity, cuckooFilterErrorRate, nil)
 }
 
 // Close will stop the gossip bus such that it can not be started again
@@ -202,20 +216,20 @@ func (mb *Client) Start() error {
 	return nil
 }
 
-func (mb *Client) getReGossipTxs(txn *badger.Txn, height uint32) ([][]byte, error) {
+func (mb *Client) getReGossipTxs(txn *badger.Txn, height uint32) ([]interfaces.Transaction, error) {
 	txns, err := mb.app.GetTxsForGossip(txn, height)
 	if err != nil {
 		return nil, err
 	}
-	txout := [][]byte{}
-	for i := 0; i < len(txns); i++ {
-		tx := txns[i]
-		txb, err := tx.MarshalBinary()
-		if err != nil {
-			return nil, err
+	txout := make([]interfaces.Transaction, 0, len(txns))
+	for _, tx := range txns {
+		txHash, err := tx.TxHash()
+		if err == nil && mb.filter.Lookup(txHash) {
+			continue
 		}
-		txout = append(txout, txb)
+		txout = append(txout, tx)
 	}
+
 	return txout, nil
 }
 
@@ -224,6 +238,7 @@ func (mb *Client) ReGossip() error {
 	var isValidator bool
 	var height uint32
 	var round uint32
+
 	ok := func() bool {
 		mb.Lock()
 		defer mb.Unlock()
@@ -237,7 +252,8 @@ func (mb *Client) ReGossip() error {
 	if !ok {
 		return nil
 	}
-	txs := [][]byte{}
+
+	txs := []interfaces.Transaction{}
 	var bh *objs.BlockHeader
 	var p *objs.Proposal
 	var pv *objs.PreVote
@@ -246,6 +262,7 @@ func (mb *Client) ReGossip() error {
 	var pcn *objs.PreCommitNil
 	var nr *objs.NextRound
 	var nh *objs.NextHeight
+
 	err := mb.database.View(func(txn *badger.Txn) error {
 		var err error
 		var isSync bool
@@ -291,196 +308,257 @@ func (mb *Client) ReGossip() error {
 		}
 	}
 
-	if bh != nil {
-		bhBytes, err := bh.MarshalBinary()
+	mb.reGossipBlockHeader(bh)
+	mb.reGossipProposal(p)
+	mb.reGossipPreVote(pv, pc)
+	mb.reGossipPreVoteNil(pvn)
+	mb.reGossipPreCommit(pc, pcn)
+	mb.reGossipPreCommitNil(pcn)
+	mb.reGossipNextRound(nr)
+	mb.reGossipNextHeight(nh)
+	if isValidator {
+		mb.reGossipTxs(txs)
+	}
+
+	return nil
+}
+
+func (mb *Client) reGossipBlockHeader(bh *objs.BlockHeader) {
+	if bh == nil {
+		return
+	}
+
+	bhBytes, err := bh.MarshalBinary()
+	if err != nil {
+		utils.DebugTrace(mb.logger, err)
+	} else {
+		opts := []grpc.CallOption{
+			middleware.WithNoBlocking(),
+		}
+		go mb.gossipBlockHeader(bhBytes, opts...)
+	}
+}
+
+func (mb *Client) reGossipProposal(p *objs.Proposal) {
+	if p == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > p.PClaims.RCert.RClaims.Height {
+		skip = true
+	}
+	if mb.lastHeight == p.PClaims.RCert.RClaims.Height {
+		if mb.lastRound > p.PClaims.RCert.RClaims.Round {
+			skip = true
+		}
+	}
+	if !skip {
+		b, err := p.MarshalBinary()
 		if err != nil {
 			utils.DebugTrace(mb.logger, err)
 		} else {
 			opts := []grpc.CallOption{
 				middleware.WithNoBlocking(),
 			}
-			go mb.gossipBlockHeader(bhBytes, opts...)
+			mb.logger.Debugf("GossipProposal: H:%v R:%v LH:%v LR:%v", p.PClaims.BClaims.Height, p.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipProposal(b, opts...)
 		}
+	}
+}
+
+func (mb *Client) reGossipPreVote(pv *objs.PreVote, pc *objs.PreCommit) {
+	if pv == nil {
+		return
 	}
 
-	if p != nil {
-		skip := false
-		if mb.lastHeight > p.PClaims.RCert.RClaims.Height {
-			skip = true
-		}
-		if mb.lastHeight == p.PClaims.RCert.RClaims.Height {
-			if mb.lastRound > p.PClaims.RCert.RClaims.Round {
-				skip = true
-			}
-		}
-		if !skip {
-			b, err := p.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipProposal: H:%v R:%v LH:%v LR:%v", p.PClaims.BClaims.Height, p.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipProposal(b, opts...)
-			}
-		}
+	skip := false
+	if mb.lastHeight > pv.Proposal.PClaims.RCert.RClaims.Height {
+		skip = true
 	}
-	if pv != nil {
-		skip := false
-		if mb.lastHeight > pv.Proposal.PClaims.RCert.RClaims.Height {
+	if mb.lastHeight == pv.Proposal.PClaims.RCert.RClaims.Height {
+		if mb.lastRound > pv.Proposal.PClaims.RCert.RClaims.Round {
 			skip = true
-		}
-		if mb.lastHeight == pv.Proposal.PClaims.RCert.RClaims.Height {
-			if mb.lastRound > pv.Proposal.PClaims.RCert.RClaims.Round {
-				skip = true
-			}
-		}
-		if pc != nil {
-			if pc.Proposal.PClaims.RCert.RClaims.Height == pv.Proposal.PClaims.RCert.RClaims.Height {
-				if pc.Proposal.PClaims.RCert.RClaims.Round == pv.Proposal.PClaims.RCert.RClaims.Round {
-					skip = true
-				}
-			}
-		}
-		if !skip {
-			b, err := pv.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipPreVote: H:%v R:%v LH:%v LR:%v", pv.Proposal.PClaims.BClaims.Height, pv.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipPreVote(b, opts...)
-			}
-		}
-	}
-	if pvn != nil {
-		skip := false
-		if mb.lastHeight > pvn.RCert.RClaims.Height {
-			skip = true
-		}
-		if mb.lastHeight == pvn.RCert.RClaims.Height {
-			if mb.lastRound > pvn.RCert.RClaims.Round {
-				skip = true
-			}
-		}
-		if !skip {
-			b, err := pvn.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipPreVoteNil: H:%v R:%v LH:%v LR:%v", pvn.RCert.RClaims.Height, pvn.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipPreVoteNil(b, opts...)
-			}
 		}
 	}
 	if pc != nil {
-		skip := false
-		if mb.lastHeight > pc.Proposal.PClaims.RCert.RClaims.Height {
-			skip = true
-		}
-		if pcn != nil {
-			if pcn.RCert.RClaims.Height == pc.Proposal.PClaims.RCert.RClaims.Height {
-				if pcn.RCert.RClaims.Round > pc.Proposal.PClaims.RCert.RClaims.Round {
-					skip = true
-				}
-			}
-		}
-		if !skip {
-			b, err := pc.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipPreCommit: H:%v R:%v LH:%v LR:%v", pc.Proposal.PClaims.BClaims.Height, pc.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipPreCommit(b, opts...)
-			}
-		}
-	}
-	if pcn != nil {
-		skip := false
-		if mb.lastHeight > pcn.RCert.RClaims.Height {
-			skip = true
-		}
-		if mb.lastHeight == pcn.RCert.RClaims.Height {
-			if mb.lastRound > pcn.RCert.RClaims.Round {
+		if pc.Proposal.PClaims.RCert.RClaims.Height == pv.Proposal.PClaims.RCert.RClaims.Height {
+			if pc.Proposal.PClaims.RCert.RClaims.Round == pv.Proposal.PClaims.RCert.RClaims.Round {
 				skip = true
 			}
 		}
-		if !skip {
-			b, err := pcn.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipPreCommitNil: H:%v R:%v LH:%v LR:%v", pcn.RCert.RClaims.Height, pcn.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipPreCommitNil(b, opts...)
+	}
+	if !skip {
+		b, err := pv.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
 			}
+			mb.logger.Debugf("GossipPreVote: H:%v R:%v LH:%v LR:%v", pv.Proposal.PClaims.BClaims.Height, pv.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipPreVote(b, opts...)
 		}
 	}
-	if nr != nil {
-		skip := false
-		if mb.lastHeight > nr.NRClaims.RCert.RClaims.Height {
-			skip = true
-		}
-		if mb.lastHeight == nr.NRClaims.RCert.RClaims.Height {
-			if mb.lastRound > nr.NRClaims.RCert.RClaims.Round+1 {
-				skip = true
-			}
-		}
-		if !skip {
-			b, err := nr.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipNextRound: H:%v R:%v LH:%v LR:%v", nr.NRClaims.RCert.RClaims.Height, nr.NRClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipNextRound(b, opts...)
-			}
-		}
-	}
-	if nh != nil {
-		skip := false
-		if mb.lastHeight > nh.NHClaims.Proposal.PClaims.RCert.RClaims.Height {
-			skip = true
-		}
-		if !skip {
-			b, err := nh.MarshalBinary()
-			if err != nil {
-				utils.DebugTrace(mb.logger, err)
-			} else {
-				opts := []grpc.CallOption{
-					middleware.WithNoBlocking(),
-				}
-				mb.logger.Debugf("GossipNextHeight: H:%v R:%v LH:%v LR:%v", nh.NHClaims.Proposal.PClaims.RCert.RClaims.Height, nh.NHClaims.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
-				go mb.gossipNextHeight(b, opts...)
-			}
-		}
-	}
-
-	if isValidator {
-		for i := 0; i < len(txs); i++ {
-			tx := txs[i]
-			go mb.gossipTransaction(tx)
-		}
-	}
-
-	return nil
 }
 
-func (mb *Client) gossipTransaction(transaction []byte, opts ...grpc.CallOption) {
-	if len(transaction) == 0 {
+func (mb *Client) reGossipPreVoteNil(pvn *objs.PreVoteNil) {
+	if pvn == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > pvn.RCert.RClaims.Height {
+		skip = true
+	}
+	if mb.lastHeight == pvn.RCert.RClaims.Height {
+		if mb.lastRound > pvn.RCert.RClaims.Round {
+			skip = true
+		}
+	}
+	if !skip {
+		b, err := pvn.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
+			}
+			mb.logger.Debugf("GossipPreVoteNil: H:%v R:%v LH:%v LR:%v", pvn.RCert.RClaims.Height, pvn.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipPreVoteNil(b, opts...)
+		}
+	}
+}
+
+func (mb *Client) reGossipPreCommit(pc *objs.PreCommit, pcn *objs.PreCommitNil) {
+	if pc == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > pc.Proposal.PClaims.RCert.RClaims.Height {
+		skip = true
+	}
+	if pcn != nil {
+		if pcn.RCert.RClaims.Height == pc.Proposal.PClaims.RCert.RClaims.Height {
+			if pcn.RCert.RClaims.Round > pc.Proposal.PClaims.RCert.RClaims.Round {
+				skip = true
+			}
+		}
+	}
+	if !skip {
+		b, err := pc.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
+			}
+			mb.logger.Debugf("GossipPreCommit: H:%v R:%v LH:%v LR:%v", pc.Proposal.PClaims.BClaims.Height, pc.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipPreCommit(b, opts...)
+		}
+	}
+}
+
+func (mb *Client) reGossipPreCommitNil(pcn *objs.PreCommitNil) {
+	if pcn == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > pcn.RCert.RClaims.Height {
+		skip = true
+	}
+	if mb.lastHeight == pcn.RCert.RClaims.Height {
+		if mb.lastRound > pcn.RCert.RClaims.Round {
+			skip = true
+		}
+	}
+	if !skip {
+		b, err := pcn.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
+			}
+			mb.logger.Debugf("GossipPreCommitNil: H:%v R:%v LH:%v LR:%v", pcn.RCert.RClaims.Height, pcn.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipPreCommitNil(b, opts...)
+		}
+	}
+}
+
+func (mb *Client) reGossipNextRound(nr *objs.NextRound) {
+	if nr == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > nr.NRClaims.RCert.RClaims.Height {
+		skip = true
+	}
+	if mb.lastHeight == nr.NRClaims.RCert.RClaims.Height {
+		if mb.lastRound > nr.NRClaims.RCert.RClaims.Round+1 {
+			skip = true
+		}
+	}
+	if !skip {
+		b, err := nr.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
+			}
+			mb.logger.Debugf("GossipNextRound: H:%v R:%v LH:%v LR:%v", nr.NRClaims.RCert.RClaims.Height, nr.NRClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipNextRound(b, opts...)
+		}
+	}
+}
+
+func (mb *Client) reGossipNextHeight(nh *objs.NextHeight) {
+	if nh == nil {
+		return
+	}
+
+	skip := false
+	if mb.lastHeight > nh.NHClaims.Proposal.PClaims.RCert.RClaims.Height {
+		skip = true
+	}
+	if !skip {
+		b, err := nh.MarshalBinary()
+		if err != nil {
+			utils.DebugTrace(mb.logger, err)
+		} else {
+			opts := []grpc.CallOption{
+				middleware.WithNoBlocking(),
+			}
+			mb.logger.Debugf("GossipNextHeight: H:%v R:%v LH:%v LR:%v", nh.NHClaims.Proposal.PClaims.RCert.RClaims.Height, nh.NHClaims.Proposal.PClaims.RCert.RClaims.Round, mb.lastHeight, mb.lastRound)
+			go mb.gossipNextHeight(b, opts...)
+		}
+	}
+}
+
+func (mb *Client) reGossipTxs(txs []interfaces.Transaction) {
+	if len(txs) == 0 {
+		return
+	}
+
+	for _, tx := range txs {
+		go mb.gossipTransaction(tx)
+	}
+}
+
+func (mb *Client) gossipTransaction(transaction interfaces.Transaction, opts ...grpc.CallOption) {
+	if transaction == nil {
+		return
+	}
+	txb, err := transaction.MarshalBinary()
+	if err != nil {
+		utils.DebugTrace(mb.logger, err)
+		return
+	}
+	if len(txb) == 0 {
 		return
 	}
 	if !mb.inSync.Get() {
@@ -491,15 +569,21 @@ func (mb *Client) gossipTransaction(transaction []byte, opts ...grpc.CallOption)
 	}
 	mb.logger.Debug("gossipTransaction")
 	msg := &pb.GossipTransactionMessage{
-		Transaction: utils.CopySlice(transaction),
+		Transaction: utils.CopySlice(txb),
 	}
 	opts = append(opts, []grpc.CallOption{
 		middleware.WithNoBlocking(),
 	}...)
-	_, err := mb.client.GossipTransaction(context.Background(), msg, opts...)
+	_, err = mb.client.GossipTransaction(context.Background(), msg, opts...)
 	if err != nil {
 		utils.DebugTrace(mb.logger, err)
 	}
+	txHash, err := transaction.TxHash()
+	if err != nil {
+		utils.DebugTrace(mb.logger, err)
+		return
+	}
+	mb.filter.Insert(txHash)
 }
 
 func (mb *Client) gossipProposal(proposal []byte, opts ...grpc.CallOption) {

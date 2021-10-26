@@ -211,20 +211,39 @@ type GetPeersResponse struct {
 	err  error
 }
 
+type P2PBus struct {
+	client              interfaces.P2PClient
+	reqChan             <-chan interface{}
+	gossipChan          <-chan interface{}
+	gossipTxChan        <-chan interface{}
+	closeChan           <-chan struct{}
+	maxRequestWorkers   int
+	minRequestWorkers   int
+	metricChan          chan error
+	workerKillChan      chan struct{}
+	errMetric           int
+	numWorkers          int
+	backoff             int
+	logger              *logrus.Logger
+	cleanup             func()
+	peerProtocolVersion uint32
+}
+
 // NewP2PBus binds a peer to the common work sharing and broadcast channels of
 // the peer system.
-func newP2PBus(client interfaces.P2PClient, reqChan <-chan interface{}, gossipChan <-chan interface{}, gossipTxChan <-chan interface{}, closeChan <-chan struct{}, reqCount int, gossipCount int, gossipTxCount int, cleanup func()) *P2PBus {
+func newP2PBus(ctx context.Context, client interfaces.P2PClient, reqChan <-chan interface{}, gossipChan <-chan interface{}, gossipTxChan <-chan interface{}, closeChan <-chan struct{}, reqCount int, gossipCount int, gossipTxCount int, cleanup func()) *P2PBus {
 	p2p := &P2PBus{
-		client:            client,
-		reqChan:           reqChan,
-		gossipChan:        gossipChan,
-		gossipTxChan:      gossipTxChan,
-		closeChan:         closeChan,
-		maxRequestWorkers: reqCount,
-		metricChan:        make(chan error, reqCount),
-		workerKillChan:    make(chan struct{}),
-		logger:            logging.GetLogger(constants.LoggerPeerMan),
-		cleanup:           cleanup,
+		client:              client,
+		reqChan:             reqChan,
+		gossipChan:          gossipChan,
+		gossipTxChan:        gossipTxChan,
+		closeChan:           closeChan,
+		maxRequestWorkers:   reqCount,
+		metricChan:          make(chan error, reqCount),
+		workerKillChan:      make(chan struct{}),
+		logger:              logging.GetLogger(constants.LoggerPeerMan),
+		cleanup:             cleanup,
+		peerProtocolVersion: 0,
 	}
 	p2p.numWorkers++
 	go p2p.reqWorker()
@@ -238,6 +257,12 @@ func newP2PBus(client interfaces.P2PClient, reqChan <-chan interface{}, gossipCh
 	}
 	go p2p.workerOversight()
 	go p2p.cleaner()
+
+	status, err := client.Status(ctx, &pb.StatusRequest{}, nil)
+	if err == nil {
+		p2p.peerProtocolVersion = status.ProtocolVersion
+	}
+
 	return p2p
 }
 
@@ -262,23 +287,6 @@ func (p2p *p2PBus) Feedback(amount int) {
 			}
 		}
 	}()
-}
-
-type P2PBus struct {
-	client            interfaces.P2PClient
-	reqChan           <-chan interface{}
-	gossipChan        <-chan interface{}
-	gossipTxChan      <-chan interface{}
-	closeChan         <-chan struct{}
-	maxRequestWorkers int
-	minRequestWorkers int
-	metricChan        chan error
-	workerKillChan    chan struct{}
-	errMetric         int
-	numWorkers        int
-	backoff           int
-	logger            *logrus.Logger
-	cleanup           func()
 }
 
 func (p2p *P2PBus) cleaner() {

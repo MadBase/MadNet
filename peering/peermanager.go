@@ -3,6 +3,7 @@ package peering
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/MadBase/MadNet/utils"
 	"github.com/sirupsen/logrus"
 )
+
+const defaultTxProbability float64 = 0.5
 
 // PeerManager is a self contained system for management of peering.
 // Other packages that need to send data to peers may subscribe to the
@@ -48,6 +51,8 @@ type PeerManager struct {
 	gossipTxChan             chan interface{}
 	reqChan                  chan interface{}
 	upnpMapper               *transport.UPnPMapper
+
+	txGossipProbability float64
 }
 
 // NewPeerManager creates a new peer manager based on the Configuration
@@ -106,10 +111,11 @@ func NewPeerManager(p2pServer interfaces.P2PServer, chainID uint32, pLimMin int,
 			closeChan: make(chan struct{}),
 			closeOnce: sync.Once{},
 		},
-		mux:              &transport.P2PMux{},
-		transport:        p2ptransport,
-		p2pServerHandler: NewMuxServerHandler(logger, p2ptransport.NodeAddr(), p2pServer),
-		upnpMapper:       upnpMapper,
+		mux:                 &transport.P2PMux{},
+		transport:           p2ptransport,
+		p2pServerHandler:    NewMuxServerHandler(logger, p2ptransport.NodeAddr(), p2pServer),
+		upnpMapper:          upnpMapper,
+		txGossipProbability: defaultTxProbability,
 	}
 	pm.discServerHandler = NewP2PDiscoveryServerHandler(logger, p2ptransport.NodeAddr(), pm)
 	if fwMode { // config.Configuration.Transport.FirewallMode
@@ -162,14 +168,20 @@ func (ps *PeerManager) getPeerChans(cmap chanMap) chanList {
 }
 
 func (ps *PeerManager) sendOnPeerChans(obj interface{}, chans chanList) {
+	ps.sendOnPeerChansWithProbability(obj, chans, 1.0)
+}
+
+func (ps *PeerManager) sendOnPeerChansWithProbability(obj interface{}, chans chanList, probability float64) {
 	for i := 0; i < len(chans); i++ {
-		j := i
-		go func() {
-			select {
-			case chans[j] <- obj:
-			case <-time.After(constants.MsgTimeout):
-			}
-		}()
+		if probability == 1.0 || rand.Float64() < probability {
+			j := i
+			go func() {
+				select {
+				case chans[j] <- obj:
+				case <-time.After(constants.MsgTimeout):
+				}
+			}()
+		}
 	}
 }
 
@@ -191,7 +203,7 @@ func (ps *PeerManager) peerGossipLoop(source peerChan, cmap chanMap) {
 			return
 		case obj := <-source:
 			chans := ps.getPeerChans(cmap)
-			go ps.sendOnPeerChans(obj, chans)
+			go ps.sendOnPeerChansWithProbability(obj, chans, ps.txGossipProbability)
 			ps.drainPeerChans(obj, chans, source)
 		}
 	}
@@ -339,7 +351,7 @@ func (ps *PeerManager) handleP2P(conn interfaces.P2PConn) {
 		delete(ps.gossipMap, key)
 		delete(ps.gossipTxMap, key)
 	}
-	go newP2PBus(client, ps.reqChan, gossipChan, gossipTxChan, client.CloseChan(), 256, 5, 16, cleanup)
+	go newP2PBus(context.TODO(), client, ps.reqChan, gossipChan, gossipTxChan, client.CloseChan(), 256, 5, 16, cleanup)
 }
 
 // P2PClient returns a wrapper around the gossip and request bus channels for
