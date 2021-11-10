@@ -2,13 +2,9 @@ package utils
 
 import (
 	"crypto/rand"
-	"os/user"
-	"path/filepath"
 
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
-	"github.com/MadBase/MadNet/logging"
-	"github.com/dgraph-io/badger/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,51 +55,6 @@ func RandomBytes(num int) ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
-}
-
-// OpenBadger opens a badgerdb database and closes the db when closeChan
-// returns a struct{}{}
-func OpenBadger(closeChan <-chan struct{}, directoryName string, inMemory bool) (*badger.DB, error) {
-	logger := logging.GetLogger(constants.LoggerBadger)
-
-	if len(directoryName) >= 2 {
-		if directoryName[0:2] == "~/" {
-			usr, err := user.Current()
-			if err != nil {
-				return nil, err
-			}
-			directoryName = filepath.Join(usr.HomeDir, directoryName[1:])
-			logger.Infof("Directory:%v", directoryName)
-		}
-	}
-
-	logger.Infof("Opening badger DB... In-Memory:%v Directory:%v", inMemory, directoryName)
-	opts := badger.DefaultOptions(directoryName).WithInMemory(inMemory).WithSyncWrites(true)
-	opts.Logger = logger
-
-	thisDB, err := badger.Open(opts)
-	if err != nil {
-		logger.Errorf("Could not open database: %v", err)
-		return nil, err
-	}
-	go func() {
-		<-closeChan
-		thisDB.Close()
-	}()
-	// if err := thisDB.Flatten(4); err != nil {
-	// 	return nil, err
-	// }
-	// if !inMemory {
-	// 	for {
-	// 		if err := thisDB.RunValueLogGC(constants.BadgerDiscardRatio); err != nil {
-	// 			if err == badger.ErrNoRewrite {
-	// 				break
-	// 			}
-	// 			return nil, err
-	// 		}
-	// 	}
-	// }
-	return thisDB, nil
 }
 
 // DebugTrace allows a traceback to be generated that includes a file name,

@@ -6,7 +6,6 @@ import (
 	"github.com/MadBase/MadNet/application/objs/uint256"
 	"github.com/MadBase/MadNet/application/wrapper"
 	"github.com/MadBase/MadNet/constants"
-	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
 	capnp "zombiezen.com/go/capnproto2"
@@ -247,6 +246,7 @@ func (b *AtomicSwap) ValidateFee(storage *wrapper.Storage) error {
 	return nil
 }
 
+/*
 // ValidateSignature validates the signature of the TXIn against the atomic swap
 func (b *AtomicSwap) ValidateSignature(currentHeight uint32, txIn *TXIn) error {
 	if b == nil {
@@ -262,48 +262,48 @@ func (b *AtomicSwap) ValidateSignature(currentHeight uint32, txIn *TXIn) error {
 	}
 	return b.ASPreImage.ValidateSignature(currentHeight, msg, sig)
 }
+*/
+// // SignAsPrimary signs the object as the user who is the original creator of the AtomicSwap
+// func (b *AtomicSwap) SignAsPrimary(txIn *TXIn, signer *crypto.Secp256k1Signer, hashKey []byte) error {
+// 	if b == nil {
+// 		return errorz.ErrInvalid{}.New("not initialized")
+// 	}
+// 	msg, err := txIn.TXInLinker.MarshalBinary()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sig, err := b.ASPreImage.SignAsPrimary(msg, signer, hashKey)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sigb, err := sig.MarshalBinary()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	txIn.Signature = sigb
+// 	return nil
+// }
 
-// SignAsPrimary signs the object as the user who is the original creator of the AtomicSwap
-func (b *AtomicSwap) SignAsPrimary(txIn *TXIn, signer *crypto.Secp256k1Signer, hashKey []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	msg, err := txIn.TXInLinker.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	sig, err := b.ASPreImage.SignAsPrimary(msg, signer, hashKey)
-	if err != nil {
-		return err
-	}
-	sigb, err := sig.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	txIn.Signature = sigb
-	return nil
-}
-
-// SignAsAlternate signs the object as the user who is exchanging in the AtomicSwap
-func (b *AtomicSwap) SignAsAlternate(txIn *TXIn, signer *crypto.Secp256k1Signer, hashKey []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	msg, err := txIn.TXInLinker.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	sig, err := b.ASPreImage.SignAsAlternate(msg, signer, hashKey)
-	if err != nil {
-		return err
-	}
-	sigb, err := sig.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	txIn.Signature = sigb
-	return nil
-}
+// // SignAsAlternate signs the object as the user who is exchanging in the AtomicSwap
+// func (b *AtomicSwap) SignAsAlternate(txIn *TXIn, signer *crypto.Secp256k1Signer, hashKey []byte) error {
+// 	if b == nil {
+// 		return errorz.ErrInvalid{}.New("not initialized")
+// 	}
+// 	msg, err := txIn.TXInLinker.MarshalBinary()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sig, err := b.ASPreImage.SignAsAlternate(msg, signer, hashKey)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sigb, err := sig.MarshalBinary()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	txIn.Signature = sigb
+// 	return nil
+// }
 
 // MakeTxIn constructs a TXIn object for the current object
 func (b *AtomicSwap) MakeTxIn() (*TXIn, error) {

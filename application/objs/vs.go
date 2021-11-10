@@ -32,9 +32,9 @@ func (b *ValueStore) New(chainID uint32, value *uint256.Uint256, fee *uint256.Ui
 	}
 	vsowner := &ValueStoreOwner{}
 	vsowner.New(acct, curveSpec)
-	if err := vsowner.Validate(); err != nil {
-		return err
-	}
+	// if err := vsowner.Validate(); err != nil {
+	// 	return err
+	// }
 	if chainID == 0 {
 		return errorz.ErrInvalid{}.New("Error in ValueStore.New: invalid chainID")
 	}
@@ -57,9 +57,9 @@ func (b *ValueStore) New(chainID uint32, value *uint256.Uint256, fee *uint256.Ui
 func (b *ValueStore) NewFromDeposit(chainID uint32, value *uint256.Uint256, acct []byte, nonce []byte) error {
 	vsowner := &ValueStoreOwner{}
 	vsowner.New(acct, constants.CurveSecp256k1)
-	if err := vsowner.Validate(); err != nil {
-		return err
-	}
+	// if err := vsowner.Validate(); err != nil {
+	// 	return err
+	// }
 	if chainID == 0 {
 		return errorz.ErrInvalid{}.New("Error in ValueStore.NewFromDeposit: invalid chainID")
 	}
@@ -256,9 +256,9 @@ func (b *ValueStore) Owner() (*ValueStoreOwner, error) {
 	if b == nil || b.VSPreImage == nil {
 		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
-	if err := b.VSPreImage.Owner.Validate(); err != nil {
-		return nil, errorz.ErrInvalid{}.New("ValueStoreOwner invalid")
-	}
+	// if err := b.VSPreImage.Owner.Validate(); err != nil {
+	// 	return nil, errorz.ErrInvalid{}.New("ValueStoreOwner invalid")
+	// }
 	return b.VSPreImage.Owner, nil
 }
 
@@ -276,26 +276,26 @@ func (b *ValueStore) GenericOwner() (*Owner, error) {
 }
 
 // Sign generates the signature for a ValueStore at the time of consumption
-func (b *ValueStore) Sign(txIn *TXIn, s Signer) error {
-	msg, err := txIn.TXInLinker.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	owner, err := b.Owner()
-	if err != nil {
-		return err
-	}
-	sig, err := owner.Sign(msg, s)
-	if err != nil {
-		return err
-	}
-	sigb, err := sig.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	txIn.Signature = sigb
-	return nil
-}
+// func (b *ValueStore) Sign(txIn *TXIn, s Signer) error {
+// msg, err := txIn.TXInLinker.MarshalBinary()
+// if err != nil {
+// return err
+// }
+// owner, err := b.Owner()
+// if err != nil {
+// return err
+// }
+// sig, err := owner.Sign(msg, s)
+// if err != nil {
+// return err
+// }
+// sigb, err := sig.MarshalBinary()
+// if err != nil {
+// return err
+// }
+// txIn.Signature = sigb
+// return nil
+// }
 
 // ValidateFee validates the fee of the object at the time of creation
 func (b *ValueStore) ValidateFee(storage *wrapper.Storage) error {
@@ -321,20 +321,20 @@ func (b *ValueStore) ValidateFee(storage *wrapper.Storage) error {
 
 // ValidateSignature validates the signature of the ValueStore at the time of
 // consumption
-func (b *ValueStore) ValidateSignature(txIn *TXIn) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	msg, err := txIn.TXInLinker.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	sig := &ValueStoreSignature{}
-	if err := sig.UnmarshalBinary(txIn.Signature); err != nil {
-		return err
-	}
-	return b.VSPreImage.ValidateSignature(msg, sig)
-}
+// func (b *ValueStore) ValidateSignature(txIn *TXIn) error {
+// if b == nil {
+// return errorz.ErrInvalid{}.New("not initialized")
+// }
+// msg, err := txIn.TXInLinker.MarshalBinary()
+// if err != nil {
+// return err
+// }
+// sig := &ValueStoreSignature{}
+// if err := sig.UnmarshalBinary(txIn.Signature); err != nil {
+// return err
+// }
+// return b.VSPreImage.ValidateSignature(msg, sig)
+// }
 
 // MakeTxIn constructs a TXIn object for the current object
 func (b *ValueStore) MakeTxIn() (*TXIn, error) {

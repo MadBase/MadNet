@@ -321,6 +321,7 @@ func (b *DataStore) ValidateFee(storage *wrapper.Storage) error {
 	return nil
 }
 
+/*
 // ValidatePreSignature validates the signature of the datastore at the time of
 // creation
 func (b *DataStore) ValidatePreSignature() error {
@@ -396,7 +397,7 @@ func (b *DataStore) ValidateSignature(currentHeight uint32, txIn *TXIn) error {
 	}
 	return b.DSLinker.ValidateSignature(currentHeight, msg, sig)
 }
-
+*/
 // MakeTxIn constructs a TXIn object for the current object
 func (b *DataStore) MakeTxIn() (*TXIn, error) {
 	if b == nil {

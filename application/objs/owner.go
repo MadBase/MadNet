@@ -39,6 +39,7 @@ func (onr *Owner) NewFromAtomicSwapOwner(aso *AtomicSwapOwner) error {
 	return onr.New(aso.PrimaryOwner.Account, aso.PrimaryOwner.CurveSpec)
 }
 
+/*
 // NewFromAtomicSwapSubOwner makes a new Owner from an AtomicSwapSubOwner
 func (onr *Owner) NewFromAtomicSwapSubOwner(asso *AtomicSwapSubOwner) error {
 	if onr == nil {
@@ -49,7 +50,7 @@ func (onr *Owner) NewFromAtomicSwapSubOwner(asso *AtomicSwapSubOwner) error {
 	}
 	return onr.New(asso.Account, asso.CurveSpec)
 }
-
+*/
 // NewFromDataStoreOwner makes a new Owner from a DataStoreOwner
 func (onr *Owner) NewFromDataStoreOwner(dso *DataStoreOwner) error {
 	if onr == nil {
@@ -66,9 +67,9 @@ func (onr *Owner) NewFromValueStoreOwner(vso *ValueStoreOwner) error {
 	if onr == nil {
 		return errorz.ErrInvalid{}.New("not initialized")
 	}
-	if err := vso.Validate(); err != nil {
-		return err
-	}
+	// if err := vso.Validate(); err != nil {
+	// return err
+	// }
 	return onr.New(vso.Account, vso.CurveSpec)
 }
 

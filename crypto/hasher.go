@@ -1,9 +1,11 @@
 package crypto
 
-import "github.com/MadBase/MadNet/crypto/bn256/cloudflare"
+import (
+	eth "github.com/ethereum/go-ethereum/crypto"
+)
 
-// Hasher is the default hasher and calls the hash function defined
-// in our cloudflare library. It has 32 byte (256 bit) output.
-func Hasher(data ...[]byte) []byte {
-	return cloudflare.HashFunc256(data...)
+// HashFunc256 is our universal hash function with 32-byte digest.
+// Changing this function will change *all* locations.
+func Hasher(msg ...[]byte) []byte {
+	return eth.Keccak256(msg...)
 }

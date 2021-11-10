@@ -9,10 +9,10 @@ import (
 	mdefs "github.com/MadBase/MadNet/application/objs/capn"
 	"github.com/MadBase/MadNet/application/objs/tx"
 	"github.com/MadBase/MadNet/application/wrapper"
-	trie "github.com/MadBase/MadNet/badgerTrie"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/interfaces"
+	trie "github.com/MadBase/MadNet/memoryTrie"
 	"github.com/MadBase/MadNet/utils"
 	capnp "zombiezen.com/go/capnproto2"
 )
@@ -287,7 +287,7 @@ func (b *Tx) TxHash() ([]byte, error) {
 		values = append(values, hsh)
 	}
 	// new in memory smt
-	smt := trie.NewMemoryTrie()
+	smt := trie.NewSMT()
 	// smt update
 	keysSorted, valuesSorted, err := utils.SortKVs(keys, values)
 	if err != nil {
@@ -366,20 +366,20 @@ func (b *Tx) GeneratedPreHash() ([][]byte, error) {
 }
 
 // ValidateSignature validates the signatures of the objects
-func (b *Tx) ValidateSignature(currentHeight uint32, refUTXOs Vout) error {
-	if b == nil || len(b.Vin) == 0 {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	return refUTXOs.ValidateSignature(currentHeight, b.Vin)
-}
+// func (b *Tx) ValidateSignature(currentHeight uint32, refUTXOs Vout) error {
+// if b == nil || len(b.Vin) == 0 {
+// return errorz.ErrInvalid{}.New("not initialized")
+// }
+// return refUTXOs.ValidateSignature(currentHeight, b.Vin)
+// }
 
 // ValidatePreSignature validates the presignatures of the objects
-func (b *Tx) ValidatePreSignature() error {
-	if b == nil || len(b.Vout) == 0 {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	return b.Vout.ValidatePreSignature()
-}
+// func (b *Tx) ValidatePreSignature() error {
+// if b == nil || len(b.Vout) == 0 {
+// return errorz.ErrInvalid{}.New("not initialized")
+// }
+// return b.Vout.ValidatePreSignature()
+// }
 
 // ValidateFees validates the fees of the object.
 // currentHeight and refUTXOs are needed to verify if we have a cleanup tx.
@@ -587,10 +587,10 @@ func (b *Tx) PreValidatePending(chainID uint32) error {
 	if err != nil {
 		return err
 	}
-	err = b.ValidatePreSignature()
-	if err != nil {
-		return err
-	}
+	// err = b.ValidatePreSignature()
+	// if err != nil {
+	// return err
+	// }
 	return nil
 }
 
@@ -603,10 +603,10 @@ func (b *Tx) PostValidatePending(currentHeight uint32, consumedUTXOs Vout) error
 	if err != nil {
 		return err
 	}
-	err = b.ValidateSignature(currentHeight, consumedUTXOs)
-	if err != nil {
-		return err
-	}
+	// err = b.ValidateSignature(currentHeight, consumedUTXOs)
+	// if err != nil {
+	// return err
+	// }
 	return nil
 }
 

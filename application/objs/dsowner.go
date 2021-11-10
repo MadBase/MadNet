@@ -1,12 +1,9 @@
 package objs
 
 import (
-	"bytes"
-
 	"github.com/MadBase/MadNet/errorz"
 
 	"github.com/MadBase/MadNet/constants"
-	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/utils"
 )
 
@@ -104,48 +101,48 @@ func (dso *DataStoreOwner) UnmarshalBinary(o []byte) error {
 	return nil
 }
 
-// ValidateSignature validates the DataStoreSignature
-func (dso *DataStoreOwner) ValidateSignature(msg []byte, sig *DataStoreSignature, isExpired bool) error {
-	if err := dso.Validate(); err != nil {
-		return errorz.ErrInvalid{}.New("invalid DataStoreOwner")
-	}
-	if err := sig.Validate(); err != nil {
-		return errorz.ErrInvalid{}.New("invalid DataStoreSignature")
-	}
-	if !isExpired && sig.CurveSpec != dso.CurveSpec {
-		return errorz.ErrInvalid{}.New("unmatched curve spec")
-	}
-	switch sig.CurveSpec {
-	case constants.CurveSecp256k1:
-		val := crypto.Secp256k1Validator{}
-		pk, err := val.Validate(msg, sig.Signature)
-		if err != nil {
-			return err
-		}
-		if !isExpired {
-			account := crypto.GetAccount(pk)
-			if !bytes.Equal(account, dso.Account) {
-				return errorz.ErrInvalid{}.New("invalid sig for account")
-			}
-		}
-		return nil
-	case constants.CurveBN256Eth:
-		val := crypto.BNValidator{}
-		pk, err := val.Validate(msg, sig.Signature)
-		if err != nil {
-			return err
-		}
-		if !isExpired {
-			account := crypto.GetAccount(pk)
-			if !bytes.Equal(account, dso.Account) {
-				return errorz.ErrInvalid{}.New("invalid sig for account")
-			}
-		}
-		return nil
-	default:
-		return errorz.ErrInvalid{}.New("invalid curve spec")
-	}
-}
+// // ValidateSignature validates the DataStoreSignature
+// func (dso *DataStoreOwner) ValidateSignature(msg []byte, sig *DataStoreSignature, isExpired bool) error {
+// 	if err := dso.Validate(); err != nil {
+// 		return errorz.ErrInvalid{}.New("invalid DataStoreOwner")
+// 	}
+// 	if err := sig.Validate(); err != nil {
+// 		return errorz.ErrInvalid{}.New("invalid DataStoreSignature")
+// 	}
+// 	if !isExpired && sig.CurveSpec != dso.CurveSpec {
+// 		return errorz.ErrInvalid{}.New("unmatched curve spec")
+// 	}
+// 	switch sig.CurveSpec {
+// 	case constants.CurveSecp256k1:
+// 		val := crypto.Secp256k1Validator{}
+// 		pk, err := val.Validate(msg, sig.Signature)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if !isExpired {
+// 			account := crypto.GetAccount(pk)
+// 			if !bytes.Equal(account, dso.Account) {
+// 				return errorz.ErrInvalid{}.New("invalid sig for account")
+// 			}
+// 		}
+// 		return nil
+// 	case constants.CurveBN256Eth:
+// 		val := crypto.BNValidator{}
+// 		pk, err := val.Validate(msg, sig.Signature)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if !isExpired {
+// 			account := crypto.GetAccount(pk)
+// 			if !bytes.Equal(account, dso.Account) {
+// 				return errorz.ErrInvalid{}.New("invalid sig for account")
+// 			}
+// 		}
+// 		return nil
+// 	default:
+// 		return errorz.ErrInvalid{}.New("invalid curve spec")
+// 	}
+// }
 
 func (dso *DataStoreOwner) validateCurveSpec() error {
 	if dso == nil {
@@ -177,32 +174,32 @@ func (dso *DataStoreOwner) validateAccount() error {
 	return nil
 }
 
-// Sign allows has the DataStoreOwner sign the message msg with signer s
-func (dso *DataStoreOwner) Sign(msg []byte, s Signer) (*DataStoreSignature, error) {
-	sig := &DataStoreSignature{
-		SVA: DataStoreSVA,
-	}
-	switch s.(type) {
-	case *crypto.Secp256k1Signer:
-		sig.CurveSpec = constants.CurveSecp256k1
-		signature, err := s.Sign(msg)
-		if err != nil {
-			return nil, err
-		}
-		sig.Signature = signature
-		return sig, nil
-	case *crypto.BNSigner:
-		sig.CurveSpec = constants.CurveBN256Eth
-		signature, err := s.Sign(msg)
-		if err != nil {
-			return nil, err
-		}
-		sig.Signature = signature
-		return sig, nil
-	default:
-		return nil, errorz.ErrInvalid{}.New("invalid signer type in DataStoreOwner.Sign")
-	}
-}
+// // Sign allows has the DataStoreOwner sign the message msg with signer s
+// func (dso *DataStoreOwner) Sign(msg []byte, s Signer) (*DataStoreSignature, error) {
+// 	sig := &DataStoreSignature{
+// 		SVA: DataStoreSVA,
+// 	}
+// 	switch s.(type) {
+// 	case *crypto.Secp256k1Signer:
+// 		sig.CurveSpec = constants.CurveSecp256k1
+// 		signature, err := s.Sign(msg)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		sig.Signature = signature
+// 		return sig, nil
+// 	case *crypto.BNSigner:
+// 		sig.CurveSpec = constants.CurveBN256Eth
+// 		signature, err := s.Sign(msg)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		sig.Signature = signature
+// 		return sig, nil
+// 	default:
+// 		return nil, errorz.ErrInvalid{}.New("invalid signer type in DataStoreOwner.Sign")
+// 	}
+// }
 
 // DataStoreSignature ...
 type DataStoreSignature struct {

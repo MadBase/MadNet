@@ -592,40 +592,40 @@ func (b *TXOut) ValidateFee(storage *wrapper.Storage) error {
 }
 
 // ValidatePreSignature validates the PreSignature of the object
-func (b *TXOut) ValidatePreSignature() error {
-	switch {
-	case b.HasDataStore():
-		obj, _ := b.DataStore()
-		return obj.ValidatePreSignature()
-	case b.HasValueStore():
-		return nil
-	case b.HasAtomicSwap():
-		return nil
-	case b.HasTxFee():
-		return nil
-	default:
-		return errorz.ErrInvalid{}.New("TXOut type not defined in ValidatePreSignature")
-	}
-}
+// func (b *TXOut) ValidatePreSignature() error {
+// switch {
+// case b.HasDataStore():
+// obj, _ := b.DataStore()
+// return obj.ValidatePreSignature()
+// case b.HasValueStore():
+// return nil
+// case b.HasAtomicSwap():
+// return nil
+// case b.HasTxFee():
+// return nil
+// default:
+// return errorz.ErrInvalid{}.New("TXOut type not defined in ValidatePreSignature")
+// }
+// }
 
 // ValidateSignature validates the signature of the txIn against the UTXO
-func (b *TXOut) ValidateSignature(currentHeight uint32, txIn *TXIn) error {
-	switch {
-	case b.HasDataStore():
-		obj, _ := b.DataStore()
-		return obj.ValidateSignature(currentHeight, txIn)
-	case b.HasValueStore():
-		obj, _ := b.ValueStore()
-		return obj.ValidateSignature(txIn)
-	case b.HasAtomicSwap():
-		obj, _ := b.AtomicSwap()
-		return obj.ValidateSignature(currentHeight, txIn)
-	case b.HasTxFee():
-		return nil
-	default:
-		return errorz.ErrInvalid{}.New("TXOut type not defined in ValidateSignature")
-	}
-}
+// func (b *TXOut) ValidateSignature(currentHeight uint32, txIn *TXIn) error {
+// switch {
+// case b.HasDataStore():
+// obj, _ := b.DataStore()
+// return obj.ValidateSignature(currentHeight, txIn)
+// case b.HasValueStore():
+// obj, _ := b.ValueStore()
+// return obj.ValidateSignature(txIn)
+// case b.HasAtomicSwap():
+// obj, _ := b.AtomicSwap()
+// return obj.ValidateSignature(currentHeight, txIn)
+// case b.HasTxFee():
+// return nil
+// default:
+// return errorz.ErrInvalid{}.New("TXOut type not defined in ValidateSignature")
+// }
+// }
 
 // MustBeMinedBeforeHeight ...
 func (b *TXOut) MustBeMinedBeforeHeight() (uint32, error) {

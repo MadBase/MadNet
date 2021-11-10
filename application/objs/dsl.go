@@ -210,6 +210,7 @@ func (b *DSLinker) Fee() (*uint256.Uint256, error) {
 	return b.DSPreImage.Fee.Clone(), nil
 }
 
+/*
 // ValidateSignature validates the signature of the datastore at the time of
 // consumption
 func (b *DSLinker) ValidateSignature(currentHeight uint32, msg []byte, sig *DataStoreSignature) error {
@@ -227,3 +228,4 @@ func (b *DSLinker) ValidatePreSignature(msg []byte, sig *DataStoreSignature) err
 	}
 	return b.DSPreImage.ValidatePreSignature(msg, sig)
 }
+*/

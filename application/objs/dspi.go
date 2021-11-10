@@ -203,27 +203,27 @@ func (b *DSPreImage) Value() (*uint256.Uint256, error) {
 	return b.Deposit.Clone(), nil
 }
 
-// ValidatePreSignature validates the signature of the datastore at the time of
-// creation
-func (b *DSPreImage) ValidatePreSignature(msg []byte, sig *DataStoreSignature) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	return b.Owner.ValidateSignature(msg, sig, false)
-}
+// // ValidatePreSignature validates the signature of the datastore at the time of
+// // creation
+// func (b *DSPreImage) ValidatePreSignature(msg []byte, sig *DataStoreSignature) error {
+// 	if b == nil {
+// 		return errorz.ErrInvalid{}.New("not initialized")
+// 	}
+// 	return b.Owner.ValidateSignature(msg, sig, false)
+// }
 
-// ValidateSignature validates the signature of the datastore at the time of
-// consumption
-func (b *DSPreImage) ValidateSignature(currentHeight uint32, msg []byte, sig *DataStoreSignature) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	isExpired, err := b.IsExpired(currentHeight)
-	if err != nil {
-		return err
-	}
-	return b.Owner.ValidateSignature(msg, sig, isExpired)
-}
+// // ValidateSignature validates the signature of the datastore at the time of
+// // consumption
+// func (b *DSPreImage) ValidateSignature(currentHeight uint32, msg []byte, sig *DataStoreSignature) error {
+// 	if b == nil {
+// 		return errorz.ErrInvalid{}.New("not initialized")
+// 	}
+// 	isExpired, err := b.IsExpired(currentHeight)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return b.Owner.ValidateSignature(msg, sig, isExpired)
+// }
 
 // IsExpired returns true if the datastore is free for garbage collection
 func (b *DSPreImage) IsExpired(currentHeight uint32) (bool, error) {

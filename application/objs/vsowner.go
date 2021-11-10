@@ -1,12 +1,9 @@
 package objs
 
 import (
-	"bytes"
-
 	"github.com/MadBase/MadNet/errorz"
 
 	"github.com/MadBase/MadNet/constants"
-	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/utils"
 )
 
@@ -34,21 +31,21 @@ func (vso *ValueStoreOwner) NewFromOwner(o *Owner) error {
 		return err
 	}
 	vso.New(o.Account, o.CurveSpec)
-	if err := vso.Validate(); err != nil {
-		vso.SVA = 0
-		vso.CurveSpec = 0
-		vso.Account = nil
-		return err
-	}
+	// if err := vso.Validate(); err != nil {
+	// 	vso.SVA = 0
+	// 	vso.CurveSpec = 0
+	// 	vso.Account = nil
+	// 	return err
+	// }
 	return nil
 }
 
 // MarshalBinary takes the ValueStoreOwner object and returns the canonical
 // byte slice
 func (vso *ValueStoreOwner) MarshalBinary() ([]byte, error) {
-	if err := vso.Validate(); err != nil {
-		return nil, err
-	}
+	// if err := vso.Validate(); err != nil {
+	// 	return nil, err
+	// }
 	owner := []byte{}
 	owner = append(owner, []byte{uint8(vso.SVA)}...)
 	owner = append(owner, []byte{uint8(vso.CurveSpec)}...)
@@ -57,21 +54,21 @@ func (vso *ValueStoreOwner) MarshalBinary() ([]byte, error) {
 }
 
 // Validate validates the ValueStoreOwner object
-func (vso *ValueStoreOwner) Validate() error {
-	if vso == nil {
-		return errorz.ErrInvalid{}.New("not initialized")
-	}
-	if err := vso.validateSVA(); err != nil {
-		return err
-	}
-	if err := vso.validateCurveSpec(); err != nil {
-		return err
-	}
-	if err := vso.validateAccount(); err != nil {
-		return err
-	}
-	return nil
-}
+// func (vso *ValueStoreOwner) Validate() error {
+// if vso == nil {
+// return errorz.ErrInvalid{}.New("not initialized")
+// }
+// if err := vso.validateSVA(); err != nil {
+// return err
+// }
+// if err := vso.validateCurveSpec(); err != nil {
+// return err
+// }
+// if err := vso.validateAccount(); err != nil {
+// return err
+// }
+// return nil
+// }
 
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // ValueStoreOwner object
@@ -98,12 +95,13 @@ func (vso *ValueStoreOwner) UnmarshalBinary(o []byte) error {
 	vso.SVA = sva
 	vso.CurveSpec = curveSpec
 	vso.Account = account
-	if err := vso.Validate(); err != nil {
-		return err
-	}
+	// if err := vso.Validate(); err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
+/*
 // ValidateSignature validates ValueStoreSignature sig for message msg
 func (vso *ValueStoreOwner) ValidateSignature(msg []byte, sig *ValueStoreSignature) error {
 	if err := vso.Validate(); err != nil {
@@ -282,3 +280,4 @@ func (vss *ValueStoreSignature) validateCurveSpec() error {
 	}
 	return nil
 }
+*/

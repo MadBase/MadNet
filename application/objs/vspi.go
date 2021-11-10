@@ -168,6 +168,7 @@ func (b *VSPreImage) PreHash() ([]byte, error) {
 	return utils.CopySlice(b.preHash), nil
 }
 
+/*
 // ValidateSignature validates the signature for VSPreImage
 func (b *VSPreImage) ValidateSignature(msg []byte, sig *ValueStoreSignature) error {
 	if b == nil {
@@ -175,3 +176,4 @@ func (b *VSPreImage) ValidateSignature(msg []byte, sig *ValueStoreSignature) err
 	}
 	return b.Owner.ValidateSignature(msg, sig)
 }
+*/

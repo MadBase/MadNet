@@ -183,6 +183,7 @@ func (b *ASPreImage) IsExpired(currentHeight uint32) (bool, error) {
 	return false, nil
 }
 
+/*
 // ValidateSignature validates the signature for ASPreImage
 func (b *ASPreImage) ValidateSignature(currentHeight uint32, msg []byte, sig *AtomicSwapSignature) error {
 	isExpired, err := b.IsExpired(currentHeight)
@@ -207,3 +208,4 @@ func (b *ASPreImage) SignAsAlternate(msg []byte, signer *crypto.Secp256k1Signer,
 	}
 	return b.Owner.SignAsAlternate(msg, signer, hashKey)
 }
+*/

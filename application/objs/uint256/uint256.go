@@ -29,6 +29,15 @@ func (u *Uint256) MarshalBinary() ([]byte, error) {
 	return buf[:], nil
 }
 
+func Uint256FromBytes(a []byte) (*Uint256, error) {
+	v := new(Uint256)
+	err := v.UnmarshalBinary(a)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
 // UnmarshalBinary unmarshals a byte slice to a Uint256 object
 func (u *Uint256) UnmarshalBinary(data []byte) error {
 	if u == nil {

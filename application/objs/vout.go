@@ -177,16 +177,17 @@ func (vout Vout) ValidateTxFee(storage *wrapper.Storage) error {
 }
 
 // ValidatePreSignature validates the PreSignature from each TXOut in Vout
-func (vout Vout) ValidatePreSignature() error {
-	for i := 0; i < len(vout); i++ {
-		err := vout[i].ValidatePreSignature()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// func (vout Vout) ValidatePreSignature() error {
+// for i := 0; i < len(vout); i++ {
+// err := vout[i].ValidatePreSignature()
+// if err != nil {
+// return err
+// }
+// }
+// return nil
+// }
 
+/*
 // ValidateSignature validates the Signature from each TXOut in Vout
 func (vout Vout) ValidateSignature(currentHeight uint32, txIn []*TXIn) error {
 	if len(txIn) != len(vout) {
@@ -200,7 +201,7 @@ func (vout Vout) ValidateSignature(currentHeight uint32, txIn []*TXIn) error {
 	}
 	return nil
 }
-
+*/
 // MakeTxIn converts Vout to Vin
 func (vout Vout) MakeTxIn() (Vin, error) {
 	txIns := Vin{}
