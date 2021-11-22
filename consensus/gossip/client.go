@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -22,12 +23,9 @@ import (
 )
 
 const (
-	maxRetryCount = 12
-	backOffAmount = 1
-	backOffJitter = float64(.1)
-
-	cuckooFilterCapacity  = 1000000
-	cuckooFilterErrorRate = 0.01
+	cuckooFilterCapacity  = 1 << 20
+	cuckooFilterErrorRate = .01
+	txReGossipProbability = .5
 )
 
 type appClient interface {
@@ -91,10 +89,10 @@ type Client struct {
 	app           appClient
 	storage       dynamics.StorageGetter
 
+	filter interfaces.Filter
+
 	inSync      *mutexBool
 	isValidator *mutexBool
-
-	filter Filter
 }
 
 // Init sets ups all subscriptions. This MUST be run at least once.
@@ -137,7 +135,11 @@ func (mb *Client) Start() error {
 			opts := []grpc.CallOption{
 				middleware.WithNoBlocking(),
 			}
-			go mb.gossipTransaction(v, opts...)
+			tx, err := mb.app.UnmarshalTx(v)
+			if err != nil {
+				return err
+			}
+			go mb.gossipTransaction(tx, opts...)
 			return nil
 		},
 	)
@@ -223,13 +225,15 @@ func (mb *Client) getReGossipTxs(txn *badger.Txn, height uint32) ([]interfaces.T
 	}
 	txout := make([]interfaces.Transaction, 0, len(txns))
 	for _, tx := range txns {
+		if rand.Float64() < txReGossipProbability {
+			continue
+		}
 		txHash, err := tx.TxHash()
 		if err == nil && mb.filter.Lookup(txHash) {
 			continue
 		}
 		txout = append(txout, tx)
 	}
-
 	return txout, nil
 }
 

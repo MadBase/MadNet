@@ -19,7 +19,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const defaultTxProbability float64 = 0.5
+const (
+	defaultTxProbability float64 = 0.5
+)
 
 // PeerManager is a self contained system for management of peering.
 // Other packages that need to send data to peers may subscribe to the
