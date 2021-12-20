@@ -75,7 +75,7 @@ func (b *Behind) Loop() {
 	// once every 1s - previous logic had the chance of never being
 	// handled if we are polling for information at a frequency that is
 	// greater than 1s
-	starvationPrevention := time.After(time.Second)
+	starvationPrevention := time.After(3 * time.Second)
 	for !done {
 		select {
 		case req, ok := <-b.reqch:

@@ -162,6 +162,7 @@ func (c *ContractDetails) DeployContracts(ctx context.Context, account accounts.
 	if err != nil {
 		return nil, common.Address{}, err
 	}
+	txnOpts.GasPrice = big.NewInt(5000000000)
 
 	logger.Debug("Deploying contracts...")
 	q := eth.Queue()

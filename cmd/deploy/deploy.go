@@ -155,6 +155,8 @@ func deployMigrations(eth interfaces.Ethereum) error {
 		return err
 	}
 
+	txnOpts.GasPrice = big.NewInt(5000000000)
+
 	//
 	logger.Infof("Deploying migrations...")
 

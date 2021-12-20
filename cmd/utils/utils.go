@@ -260,7 +260,7 @@ func register(logger *logrus.Entry, eth interfaces.Ethereum, cmd *cobra.Command,
 	if err != nil {
 		logger.Errorf("Can not build transaction options: %v", err)
 	}
-
+	txnOpts.GasPrice = big.NewInt(5000000000)
 	// Contract orchestration
 	// Approve tokens for staking
 	txn, err := c.StakingToken().Approve(txnOpts, c.ValidatorsAddress(), big.NewInt(1_000_000))
@@ -359,7 +359,7 @@ func approvetokens(logger *logrus.Entry, eth interfaces.Ethereum, cmd *cobra.Com
 		logger.Errorf("Can not build transaction options: %v", err)
 		return 1
 	}
-
+	txnOpts.GasPrice = big.NewInt(5000000000)
 	action := func() bool {
 
 		txn, err := c.StakingToken().Approve(txnOpts, toAddress, amount)
@@ -511,7 +511,7 @@ func transfertokens(logger *logrus.Entry, eth interfaces.Ethereum, cmd *cobra.Co
 	if err != nil {
 		logger.Errorf("Can not build transaction options: %v", err)
 	}
-
+	txnOpts.GasPrice = big.NewInt(5000000000)
 	// Contract orchestration
 	_, err = c.StakingToken().TransferFrom(txnOpts, fromAddress, acct.Address, amount)
 	if err != nil {
