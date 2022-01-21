@@ -5,4 +5,4 @@ steps:
     args: 
       - -c
       - |
-        make build
+        make all
