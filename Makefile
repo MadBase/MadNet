@@ -5,7 +5,7 @@ GOGET=$(GOCMD) get
 BINARY_NAME=madnet
 RACE_DETECTOR=madrace
 
-all: test build
+all: race build
 
 build: 
 	$(GOCMD) build -o $(BINARY_NAME) ./cmd/main.go
