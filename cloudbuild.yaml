@@ -6,3 +6,6 @@ steps:
       - -c
       - |
         make all
+
+options:
+  machineType: E2_HIGHCPU_32
