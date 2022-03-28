@@ -161,7 +161,7 @@ func (t *DisputeMissingGPKjTask) getAccusableParticipants(ctx context.Context, e
 	for _, p := range t.State.Participants {
 		_, isValidator := validatorsMap[p.Address]
 		if isValidator && (p.Nonce != t.State.Nonce ||
-			p.Phase != uint8(objects.GPKJSubmission) ||
+			p.Phase != objects.GPKJSubmission ||
 			(p.GPKj[0].Cmp(big.NewInt(0)) == 0 &&
 				p.GPKj[1].Cmp(big.NewInt(0)) == 0 &&
 				p.GPKj[2].Cmp(big.NewInt(0)) == 0 &&

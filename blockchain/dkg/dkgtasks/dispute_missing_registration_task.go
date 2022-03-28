@@ -164,7 +164,7 @@ func (t *DisputeMissingRegistrationTask) getAccusableParticipants(ctx context.Co
 
 		if isValidator && (!ok ||
 			participant.Nonce != t.State.Nonce ||
-			participant.Phase != uint8(objects.RegistrationOpen) ||
+			participant.Phase != objects.RegistrationOpen ||
 			(participant.PublicKey[0].Cmp(big.NewInt(0)) == 0 &&
 				participant.PublicKey[1].Cmp(big.NewInt(0)) == 0)) {
 
