@@ -157,7 +157,7 @@ func (t *DisputeMissingShareDistributionTask) getAccusableParticipants(ctx conte
 	for _, p := range t.State.Participants {
 		_, isValidator := validatorsMap[p.Address]
 		if isValidator && (p.Nonce != t.State.Nonce ||
-			p.Phase != uint8(objects.ShareDistribution) ||
+			p.Phase != objects.ShareDistribution ||
 			p.DistributedSharesHash == emptySharesHash) {
 			// did not distribute shares
 			accusableParticipants = append(accusableParticipants, p.Address)

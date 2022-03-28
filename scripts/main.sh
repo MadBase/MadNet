@@ -55,6 +55,7 @@ CLEAN_UP () {
     # Init
     mkdir ./scripts/generated
     mkdir ./scripts/generated/stateDBs
+    mkdir ./scripts/generated/monitorDBs
     mkdir ./scripts/generated/config
     mkdir ./scripts/generated/keystores
     mkdir ./scripts/generated/keystores/keys
@@ -93,6 +94,7 @@ CREATE_CONFIGS () {
         sed -e 's/passcodes = .*/passcodes = \"scripts\/generated\/keystores\/passcodes.txt\"/' |
         sed -e 's/keystore = .*/keystore = \"scripts\/generated\/keystores\/keys\"/' |
         sed -e 's/stateDB = .*/stateDB = \"scripts\/generated\/stateDBs\/validator'"$l"'\/\"/' |
+        sed -e 's/monitorDB = .*/monitorDB = \"scripts\/generated\/monitorDBs\/validator'"$l"'\/\"/' |
         sed -e 's/privateKey = .*/privateKey = \"'"$PK"'\"/' > ./scripts/generated/config/validator$l.toml
         echo "$ADDRESS=abc123" >> ./scripts/generated/keystores/passcodes.txt
         mv ./keyfile.json ./scripts/generated/keystores/keys/$ADDRESS
