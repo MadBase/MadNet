@@ -40,6 +40,13 @@ func NewDisputeShareDistributionTask(state *objects.DkgState, start uint64, end 
 // It determines if the shares previously distributed are valid.
 // If any are invalid, disputes will be issued.
 func (t *DisputeShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	t.State.Lock()
 	defer t.State.Unlock()
 

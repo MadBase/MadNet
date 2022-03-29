@@ -22,8 +22,8 @@ type RegisterTask struct {
 	End     uint64
 	State   *objects.DkgState
 	Success bool
-	TxOpts  *bind.TransactOpts
-	TxHash  common.Hash
+	TxOpts  *bind.TransactOpts `json:"-"`
+	TxHash  common.Hash        `json:"-"`
 }
 
 // asserting that RegisterTask struct implements interface interfaces.Task
@@ -46,17 +46,38 @@ func NewRegisterTask(state *objects.DkgState, start uint64, end uint64) *Registe
 // Also get the list of existing validators from the pool to assert accusation
 // in later phases
 func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	t.State.Lock()
 	defer t.State.Unlock()
 
-	logger.Info("RegisterTask Initialize()")
+	logger.Infof("RegisterTask Initialize() %p\n", t.State)
 
-	priv, pub, err := math.GenerateKeys()
-	if err != nil {
-		return err
+	if t.State.TransportPrivateKey == nil ||
+		t.State.TransportPrivateKey.Cmp(big.NewInt(0)) == 0 {
+
+		logger.Infof("RegisterTask Initialize(): generating private-public transport keys")
+		priv, pub, err := math.GenerateKeys()
+		if err != nil {
+			return err
+		}
+		t.State.TransportPrivateKey = priv
+		t.State.TransportPublicKey = pub
+
+		logger.Infof("RegisterTask pre-save state\n")
+		dkgData.PersistStateCB()
+		logger.Infof("RegisterTask post-save state\n")
+
+	} else {
+		logger.Infof("RegisterTask Initialize(): private-public transport keys already defined")
 	}
-	t.State.TransportPrivateKey = priv
-	t.State.TransportPublicKey = pub
+
 	return nil
 }
 

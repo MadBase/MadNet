@@ -36,6 +36,13 @@ func NewDisputeMissingKeySharesTask(state *objects.DkgState, start uint64, end u
 func (t *DisputeMissingKeySharesTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 	logger.Info("Initializing DisputeMissingKeySharesTask...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 

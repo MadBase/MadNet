@@ -36,6 +36,13 @@ func (t *DisputeMissingShareDistributionTask) Initialize(ctx context.Context, lo
 
 	logger.Info("DisputeMissingShareDistributionTask Initializing...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 

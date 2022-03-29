@@ -38,6 +38,14 @@ func NewCompletionTask(state *objects.DkgState, start uint64, end uint64) *Compl
 
 // Initialize prepares for work to be done in the Completion phase
 func (t *CompletionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	t.State.Lock()
 	defer t.State.Unlock()
 

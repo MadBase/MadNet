@@ -304,3 +304,8 @@ func (pl ParticipantList) Less(i, j int) bool {
 func (pl ParticipantList) Swap(i, j int) {
 	pl[i], pl[j] = pl[j], pl[i]
 }
+
+type ETHDKGTaskData struct {
+	PersistStateCB func()
+	State          *DkgState
+}
