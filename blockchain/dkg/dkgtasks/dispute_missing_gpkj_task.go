@@ -31,6 +31,13 @@ func NewDisputeMissingGPKjTask(state *objects.DkgState, start uint64, end uint64
 func (t *DisputeMissingGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 	logger.Info("Initializing DisputeMissingGPKjTask...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 

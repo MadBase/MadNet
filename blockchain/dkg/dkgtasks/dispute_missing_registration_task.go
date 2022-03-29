@@ -30,6 +30,13 @@ func (t *DisputeMissingRegistrationTask) Initialize(ctx context.Context, logger 
 
 	logger.Info("DisputeMissingRegistrationTask Initializing...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 

@@ -30,8 +30,18 @@ func NewShareDistributionTask(state *objects.DkgState, start uint64, end uint64)
 // We construct our commitments and encrypted shares before
 // submitting them to the associated smart contract.
 func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	t.State.Lock()
 	defer t.State.Unlock()
+
+	logger.Infof("ShareDistributionTask Initialize() %p\n", t.State)
 
 	if t.State.Phase != objects.ShareDistribution {
 		return fmt.Errorf("%w because it's not in ShareDistribution phase", objects.ErrCanNotContinue)
@@ -45,7 +55,7 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 	encryptedShares, privateCoefficients, commitments, err := math.GenerateShares(
 		t.State.TransportPrivateKey, participants)
 	if err != nil {
-		logger.Errorf("Failed to generate shares: %v", err)
+		logger.Errorf("Failed to generate shares: %v %#v", err, participants)
 		return err
 	}
 
