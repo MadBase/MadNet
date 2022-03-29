@@ -76,7 +76,7 @@ func (b *Behind) Loop() {
 	// once every 1s - previous logic had the chance of never being
 	// handled if we are polling for information at a frequency that is
 	// greater than 1s
-	starvationPrevention := time.After(time.Second)
+	starvationPrevention := time.After(3 * time.Second)
 	for !done {
 		select {
 		case req, ok := <-b.reqch:
@@ -385,6 +385,11 @@ func (f *TxnQueueDetail) QueueTransaction(ctx context.Context, txn *types.Transa
 	f.logger.WithField("Txn", string(txn.Hash().Bytes())).Debug("Queueing")
 	req := &Request{ctx: ctx, name: "queue", txn: txn} // no response channel because I don't want to wait
 	f.requestWait(ctx, req)
+}
+func (f *TxnQueueDetail) QueueTransactionSync(ctx context.Context, txn *types.Transaction) error {
+	f.logger.WithField("Txn", string(txn.Hash().Bytes())).Debug("Queueing")
+	req := &Request{ctx: ctx, name: "queue", txn: txn, respch: make(chan *Response, 1)} // response channel because I want to wait
+	return f.requestWait(ctx, req).err
 }
 
 func (f *TxnQueueDetail) QueueGroupTransaction(ctx context.Context, grp int, txn *types.Transaction) {

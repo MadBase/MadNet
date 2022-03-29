@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"encoding/binary"
 	"sync"
 
 	"github.com/MadBase/MadNet/constants/dbprefix"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	trie "github.com/MadBase/MadNet/badgerTrie"
 	"github.com/MadBase/MadNet/consensus/objs"
@@ -1918,4 +1920,39 @@ func (phli *PendingHdrLeafIter) Next() ([]byte, []byte, bool, error) {
 
 func (phli *PendingHdrLeafIter) Close() {
 	phli.it.Close()
+}
+
+func (db *Database) SetSnapshotTx(txn *badger.Txn, ss *objs.CachedSnapshotTx) error {
+	binTx, err := ss.Tx.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	data := make([]byte, len(binTx)+9)
+	data[0] = byte(ss.State)
+	binary.LittleEndian.PutUint32(data[1:5], ss.MadEpoch)
+	binary.LittleEndian.PutUint32(data[5:9], ss.EthHeight)
+	copy(data[9:], binTx)
+
+	return utils.SetValue(txn, dbprefix.PrefixSnapshotTx(), data)
+}
+
+func (db *Database) GetSnapshotTx(txn *badger.Txn) (*objs.CachedSnapshotTx, error) {
+	data, err := utils.GetValue(txn, dbprefix.PrefixSnapshotTx())
+	if err != nil {
+		return nil, err
+	}
+
+	tx := &types.Transaction{}
+	err = tx.UnmarshalBinary(data[9:])
+	if err != nil {
+		return nil, err
+	}
+
+	return &objs.CachedSnapshotTx{
+		State:     objs.SnapshotTxState(data[0]),
+		MadEpoch:  binary.LittleEndian.Uint32(data[1:5]),
+		EthHeight: binary.LittleEndian.Uint32(data[5:9]),
+		Tx:        tx,
+	}, nil
 }

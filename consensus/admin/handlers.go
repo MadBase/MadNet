@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"math/big"
 	"sync"
 	"time"
 
-	"github.com/MadBase/MadNet/consensus/appmock"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -19,6 +19,7 @@ import (
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,25 +33,32 @@ import (
 // into the Ethereum blockchain.
 type Handlers struct {
 	sync.RWMutex
+
+	// constructor assigned fields
 	ctx         context.Context
 	cancelFunc  func()
-	closeOnce   sync.Once
-	database    *db.Database
-	isInit      bool
-	isSync      bool
-	secret      []byte
-	chainID     uint32
 	logger      *logrus.Logger
-	ethAcct     []byte
+	database    *db.Database
+	chainID     uint32
+	appHandler  interfaces.Application
 	ethPubk     []byte
-	appHandler  appmock.Application
-	storage     dynamics.StorageGetter
+	secret      []byte
+	ethAcct     []byte
 	ReceiveLock chan interfaces.Lockable
+	storage     dynamics.StorageGetter
 	ipcServer   *ipc.Server
+	ethHeights  chan uint32
+	madHeaders  chan *objs.BlockHeader
+	osListener  chan *objs.OwnState
+
+	// other fields
+	closeOnce sync.Once
+	isInit    bool
+	isSync    bool
 }
 
 // Init creates all fields and binds external services
-func (ah *Handlers) Init(chainID uint32, database *db.Database, secret []byte, appHandler appmock.Application, ethPubk []byte, storage dynamics.StorageGetter, ipcs *ipc.Server) {
+func (ah *Handlers) Init(chainID uint32, database *db.Database, secret []byte, appHandler interfaces.Application, ethPubk []byte, storage dynamics.StorageGetter, ipcs *ipc.Server) {
 	ctx := context.Background()
 	subCtx, cancelFunc := context.WithCancel(ctx)
 	ah.ctx = subCtx
@@ -65,6 +73,8 @@ func (ah *Handlers) Init(chainID uint32, database *db.Database, secret []byte, a
 	ah.ReceiveLock = make(chan interfaces.Lockable)
 	ah.storage = storage
 	ah.ipcServer = ipcs
+	ah.ethHeights = make(chan uint32, 4)
+	ah.madHeaders = make(chan *objs.BlockHeader, 4)
 }
 
 // Close shuts down all workers
@@ -266,52 +276,215 @@ func (ah *Handlers) SetSynchronized(v bool) {
 	ah.isSync = v
 }
 
-// RegisterSnapshotCallback allows a callback to be registered that will be called on snapshot blocks being
-// added to the local db.
-func (ah *Handlers) RegisterSnapshotCallback(fn func(bh *objs.BlockHeader) error) {
-	wrapper := func(v []byte) error {
+// RegisterSnapshotCallbacks allows callbacks to be registered that are used for the snapshotting logic
+func (ah *Handlers) RegisterSnapshotCallbacks(
+	newSS func(bh *objs.BlockHeader) error,
+	resumeSS func(bh *objs.CachedSnapshotTx) error,
+	getSSEthHeight func(epoch *big.Int) (*big.Int, error),
+	refreshTx func(context.Context, *types.Transaction, int) (*types.Transaction, error),
+) {
+	ah.database.SubscribeBroadcastBlockHeader(ah.ctx, func(b []byte) error {
 		bh := &objs.BlockHeader{}
-		err := bh.UnmarshalBinary(v)
+		err := bh.UnmarshalBinary(b)
+
 		if err != nil {
-			return err
+			ah.logger.Errorf("Could not unmarshal received mad block header: %v", err)
+			return nil // swallow error (else subscription is lost)
 		}
-		isValidator := false
-		var syncToBH, maxBHSeen *objs.BlockHeader
-		err = ah.database.View(func(txn *badger.Txn) error {
-			vs, err := ah.database.GetValidatorSet(txn, bh.BClaims.Height)
-			if err != nil {
-				return err
+
+		for { // push mad block to channel, remove oldest item if full
+			select {
+
+			case ah.madHeaders <- bh:
+				return nil
+
+			default:
+
+				select {
+				case <-ah.madHeaders:
+				default:
+				}
+
 			}
+		}
+	})
+
+	go func() { // continously check if snapshots should be made each time we see a new mad or eth block
+		var myAddr []byte
+		var bh *objs.BlockHeader
+		var eh uint32
+		var lastSS struct {
+			ethHeight uint32
+			madEpoch  uint32
+		}
+
+		ah.logger.Infof("Starting snapshot check loop...")
+		defer ah.logger.Infof("Ended snapshot check loop")
+
+		err := ah.database.View(func(txn *badger.Txn) (err error) {
 			os, err := ah.database.GetOwnState(txn)
 			if err != nil {
 				return err
 			}
-			for i := 0; i < len(vs.Validators); i++ {
-				val := vs.Validators[i]
-				if bytes.Equal(val.VAddr, os.VAddr) {
-					isValidator = true
+			bh = os.SyncToBH
+			myAddr = os.VAddr
+			return nil
+		})
+		if err == badger.ErrKeyNotFound {
+			ah.Lock()
+			ah.osListener = make(chan *objs.OwnState, 4)
+			ah.Unlock()
+
+			os := <-ah.osListener
+			bh = os.SyncToBH
+			myAddr = os.VAddr
+
+			ah.Lock()
+			ah.osListener = nil
+			ah.Unlock()
+		} else if err != nil {
+			ah.logger.Errorf("Failed to initialize snapshot check loop. Could not read state from db: %v", err)
+			return
+		}
+
+		for {
+			done := ah.ctx.Done()
+			for { // receive block headers and eth heights until we have at least one of both
+				select {
+				case bh = <-ah.madHeaders:
+				case eh = <-ah.ethHeights:
+				case <-done:
+					return
+				}
+				ah.logger.Info(eh, bh)
+
+				if eh != 0 && bh != nil && bh.BClaims != nil {
 					break
 				}
 			}
-			syncToBH = os.SyncToBH
-			maxBHSeen = os.MaxBHSeen
-			return nil
-		})
-		if err != nil {
-			return err
+
+			for loop := true; loop; { // receive all remaining block headers and eth heights
+				select {
+				case bh = <-ah.madHeaders:
+				case eh = <-ah.ethHeights:
+				case <-done:
+					return
+				default:
+					loop = false
+				}
+			}
+
+			if bh.BClaims.Height%constants.EpochLength != 0 { // only check if madnet is stuck at epoch boundary
+				continue
+			}
+
+			ah.logger.Debugf("Snapshot check started for height %v, epoch %v...", bh.BClaims.Height, bh.BClaims.Height/constants.EpochLength)
+
+			var vs *objs.ValidatorSet
+			var tx *objs.CachedSnapshotTx
+
+			err := ah.database.View(func(txn *badger.Txn) (err error) {
+				tx, err = ah.database.GetSnapshotTx(txn)
+				if err != nil && err != badger.ErrKeyNotFound {
+					return err
+				}
+				vs, err = ah.database.GetValidatorSet(txn, bh.BClaims.Height+1)
+				return err
+			})
+			if err != nil {
+				ah.logger.Errorf("Snapshot check failed. Could not read from db: %v", err)
+				continue
+			}
+
+			index := -1
+			for i := 0; i < len(vs.Validators); i++ {
+				val := vs.Validators[i]
+				if bytes.Equal(val.VAddr, myAddr) {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				ah.logger.Debugf("Snapshot not needed. Not a validator")
+				continue
+			}
+
+			currentEpoch := bh.BClaims.Height / constants.EpochLength
+			lastEpoch := currentEpoch - 1
+			if lastSS.madEpoch != lastEpoch {
+				ssEh, err := getSSEthHeight(big.NewInt(int64(lastEpoch)))
+				if err != nil {
+					ah.logger.Errorf("Snapshot check failed. Could not retrieve ethheight of last snapshot: %v", err)
+					continue
+				}
+				lastSS.ethHeight = uint32(ssEh.Int64())
+				lastSS.madEpoch = lastEpoch
+			}
+
+			ethBlocksSinceDesperation := int(eh) - int(lastSS.ethHeight) - constants.SnapshotDesperationDelay
+
+			blockhash, err := bh.BClaims.BlockHash()
+			if err != nil {
+				ah.logger.Errorf("Snapshot check failed. Could not marshal blockhash")
+				continue
+			}
+
+			if !mayValidatorSnapshot(len(vs.Validators), index, ethBlocksSinceDesperation, blockhash) {
+				ah.logger.Debugf("Snapshot not needed. Not my turn")
+				continue
+			}
+
+			ah.logger.Infof("Snapshot needed. Starting snapshot submission logic...")
+
+			switch {
+
+			// send new transaction if no relevant cached transaction exists
+			case tx == nil || tx.MadEpoch != currentEpoch:
+				ah.logger.Infof("Persisting snapshot for height %v...", bh.BClaims.Height)
+				err := newSS(bh)
+				if err != nil {
+					ah.logger.Errorf("Could not persist new snapshot: %v", err)
+					continue
+				}
+				ah.logger.Infof("Successfully persisted snapshot for height %v...", bh.BClaims.Height)
+
+			// if cached transaction was created but not sent, send
+			case tx.State == objs.SnapshotTxCreated:
+				ah.logger.Infof("Submitting previously unsent snapshot tx for height %v...", bh.BClaims.Height)
+				err := resumeSS(tx)
+				if err != nil {
+					ah.logger.Errorf("Could not resubmit previously created snapshot tx: %v", err)
+					continue
+				}
+				ah.logger.Infof("Successfully persisted previously unsent snapshot tx for height %v...", bh.BClaims.Height)
+
+			// if cached transaction was sent but not verified for a while
+			case tx.State == objs.SnapshotTxSubmitted:
+				newTx, err := refreshTx(ah.ctx, tx.Tx, int(eh)-int(tx.EthHeight))
+				if newTx == nil {
+					ah.logger.Debugf("No refresh needed")
+					continue
+				}
+				if err != nil {
+					ah.logger.Errorf("Failed to refresh transaction: %v", err)
+					continue
+				}
+				ah.logger.Infof("Resubmitting stale snapshot tx for height %v...", bh.BClaims.Height)
+
+				err = resumeSS(&objs.CachedSnapshotTx{
+					Tx:       newTx,
+					State:    objs.SnapshotTxCreated,
+					MadEpoch: currentEpoch,
+				})
+				if err != nil {
+					ah.logger.Errorf("Could not resubmit stale snapshot tx snapshot: %v", err)
+					continue
+				}
+				ah.logger.Infof("Successfully persisted previously stale snapshot tx for height %v...", bh.BClaims.Height)
+			default:
+			}
 		}
-		if !isValidator {
-			return nil
-		}
-		if maxBHSeen.BClaims.Height-syncToBH.BClaims.Height >= constants.EpochLength {
-			return nil
-		}
-		if bh.BClaims.Height%constants.EpochLength == 0 {
-			return fn(bh)
-		}
-		return nil
-	}
-	ah.database.SubscribeBroadcastBlockHeader(ah.ctx, wrapper)
+	}()
 }
 
 // AddPrivateKey stores a private key from an EthDKG run into an encrypted
@@ -382,6 +555,21 @@ func (ah *Handlers) AddPrivateKey(pk []byte, curveSpec constants.CurveSpec) erro
 	return nil
 }
 
+// updateEthHeight
+func (ah *Handlers) UpdateEthHeight(ethHeight uint32) {
+	for { // push ethHeight to channel, remove oldest item if full
+		select {
+		case ah.ethHeights <- ethHeight:
+			return
+		default:
+			select {
+			case <-ah.ethHeights:
+			default:
+			}
+		}
+	}
+}
+
 // GetPrivK returns an decrypted private key from an EthDKG run to the caller
 func (ah *Handlers) GetPrivK(name []byte) ([]byte, error) {
 	var privk []byte
@@ -415,10 +603,10 @@ func (ah *Handlers) GetKey(kid []byte) ([]byte, error) {
 // It sets IsInitialized when one is found and returns
 func (ah *Handlers) InitializationMonitor(closeChan <-chan struct{}) {
 	ah.logger.Debug("InitializationMonitor loop starting")
-	fn := func() {
+	defer func() {
 		ah.logger.Debug("InitializationMonitor loop stopping")
-	}
-	defer fn()
+	}()
+
 	for {
 		ok, err := func() (bool, error) {
 			select {
@@ -429,10 +617,7 @@ func (ah *Handlers) InitializationMonitor(closeChan <-chan struct{}) {
 			case <-time.After(2 * time.Second):
 				err := ah.database.View(func(txn *badger.Txn) error {
 					_, err := ah.database.GetLastSnapshot(txn)
-					if err != nil {
-						return err
-					}
-					return nil
+					return err
 				})
 				if err != nil {
 					return false, nil
@@ -447,8 +632,32 @@ func (ah *Handlers) InitializationMonitor(closeChan <-chan struct{}) {
 			return
 		}
 		if ok {
-			return
+			break
 		}
+	}
+}
+
+func mayValidatorSnapshot(numValidators int, myIdx int, blocksSinceDesperation int, blockhash []byte) bool {
+	var numValidatorsAllowed int = 1
+	for i := int(blocksSinceDesperation); i >= 0; {
+		i -= constants.SnapshotDesperationFactor / numValidatorsAllowed
+		numValidatorsAllowed++
+
+		if numValidatorsAllowed > numValidators/3 {
+			break
+		}
+	}
+
+	// use the random nature of blockhash to deterministically define the range of validators that are allowed to make a snapshot
+	rand := (&big.Int{}).SetBytes(blockhash)
+
+	start := int((&big.Int{}).Mod(rand, big.NewInt(int64(numValidators))).Int64())
+	end := (start + numValidatorsAllowed) % numValidators
+
+	if end > start {
+		return myIdx >= start && myIdx < end
+	} else {
+		return myIdx >= start || myIdx < end
 	}
 }
 

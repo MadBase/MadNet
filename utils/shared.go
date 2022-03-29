@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"math/big"
 	"os/user"
 	"path/filepath"
 
@@ -136,4 +137,11 @@ func DebugTrace(logger *logrus.Logger, err error, s ...string) {
 	}
 	logger.WithField("l", trace).Debug("")
 
+}
+
+func MaxBig(a *big.Int, b *big.Int) *big.Int {
+	if a.Cmp(b) == 1 {
+		return a
+	}
+	return b
 }

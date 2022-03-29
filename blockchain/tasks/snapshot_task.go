@@ -2,14 +2,16 @@ package tasks
 
 import (
 	"context"
-	"errors"
-	dangerousRand "math/rand"
+	"fmt"
 	"sync"
-	"time"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
+	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
+	"github.com/MadBase/MadNet/constants"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,173 +19,67 @@ import (
 type SnapshotTask struct {
 	sync.RWMutex
 	acct        accounts.Account
-	BlockHeader *objs.BlockHeader
+	blockHeader *objs.BlockHeader
 	rawBclaims  []byte
-	rawSigGroup []byte
+	consDb      *db.Database
+	tx          *types.Transaction
+	txState     objs.SnapshotTxState
+	madEpoch    uint32
+	ethHeight   uint32
 }
 
-func NewSnapshotTask(account accounts.Account) *SnapshotTask {
-	return &SnapshotTask{
-		acct: account,
-	}
+func NewSnapshotTask(account accounts.Account, db *db.Database, bh *objs.BlockHeader) *SnapshotTask {
+	return &SnapshotTask{acct: account, consDb: db, blockHeader: bh}
+}
+
+func NewSnapshotTaskFromCached(account accounts.Account, db *db.Database, ss *objs.CachedSnapshotTx) *SnapshotTask {
+	return &SnapshotTask{acct: account, consDb: db, tx: ss.Tx, txState: ss.State}
 }
 
 func (t *SnapshotTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, _ interface{}) error {
+	if t.txState < objs.SnapshotTxCreated || t.tx == nil {
+		rawBClaims, err := t.blockHeader.BClaims.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("unable to marshal block header: %v", err)
+		}
 
-	if t.BlockHeader == nil {
-		return errors.New("BlockHeader must be assigned before initializing")
+		t.Lock()
+		defer t.Unlock()
+
+		t.rawBclaims = rawBClaims
 	}
-
-	rawBClaims, err := t.BlockHeader.BClaims.MarshalBinary()
-	if err != nil {
-		logger.Errorf("Unable to marshal block header: %v", err)
-		return err
-	}
-
-	t.Lock()
-	defer t.Unlock()
-
-	t.rawBclaims = rawBClaims
-	t.rawSigGroup = t.BlockHeader.SigGroup
-
 	return nil
 }
 func (t *SnapshotTask) DoWork(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
-	return t.doTask(ctx, logger, eth)
+	t.DoTask(ctx, logger, eth)
+	return nil // swallow error
 }
 
 func (t *SnapshotTask) DoRetry(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
-	return t.doTask(ctx, logger, eth)
+	t.DoTask(ctx, logger, eth)
+	return nil // swallow error
 }
 
-func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+func (t *SnapshotTask) DoTask(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+	t.Lock()
+	defer t.Unlock()
 
-	t.RLock()
-	defer t.RUnlock()
-
-	for {
-		dangerousRand.Seed(time.Now().UnixNano())
-		n := dangerousRand.Intn(60) // n will be between 0 and 60
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Duration(n) * time.Second):
-		}
-
-		if !t.ShouldRetry(ctx, logger, eth) {
-			// no need for snapshot
-			return nil
-		}
-
-		// do the actual snapshot
-		err := func() error {
-			txnOpts, err := eth.GetTransactionOpts(ctx, t.acct)
-			if err != nil {
-				logger.Warnf("Failed to generate transaction options: %v", err)
-				return nil
-			}
-
-			txn, err := eth.Contracts().Snapshots().Snapshot(txnOpts, t.rawSigGroup, t.rawBclaims)
-			if err != nil {
-				logger.Warnf("Snapshot failed: %v", err)
-				return nil
-			} else {
-				rcpt, err := eth.Queue().QueueAndWait(ctx, txn)
-				if err != nil {
-					logger.Warnf("Snapshot failed to retreive receipt: %v", err)
-					return nil
-				}
-
-				if rcpt.Status != 1 {
-					logger.Warnf("Snapshot receipt status != 1")
-					return context.DeadlineExceeded
-				}
-
-				logger.Info("Snapshot succeeded")
-			}
-
-			return nil
-		}()
-
+	if t.txState < objs.SnapshotTxCreated || t.tx == nil {
+		err := t.createSnapshotTx(ctx, logger, eth)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				select {
-				case <-ctx.Done():
-					return err
-				default:
-				}
-				continue
-			}
+			return err
 		}
-
-		// check/wait for finality delay
-		err = func() error {
-			subctx, cf := context.WithTimeout(ctx, 5*time.Second)
-			defer cf()
-			initialHeight, err := eth.GetCurrentHeight(subctx)
-			if err != nil {
-				return err
-			}
-
-			currentHeight := initialHeight
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(time.Second * 5):
-				}
-
-				err := func() error {
-					subctx, cf := context.WithTimeout(ctx, 5*time.Second)
-					defer cf()
-					testHeight, err := eth.GetCurrentHeight(subctx)
-					if err != nil {
-						return err
-					}
-
-					if testHeight > initialHeight+eth.GetFinalityDelay() {
-						return context.DeadlineExceeded
-					}
-
-					if testHeight > currentHeight {
-						if !t.ShouldRetry(ctx, logger, eth) {
-							// no need for snapshot
-							currentHeight = testHeight
-							if currentHeight >= initialHeight+eth.GetFinalityDelay() {
-								// todo: figure how to get the doTask() func to return nil
-								return nil
-							}
-						}
-					}
-
-					return nil
-				}()
-
-				if err != nil {
-					if errors.Is(err, context.DeadlineExceeded) {
-						select {
-						case <-ctx.Done():
-							return err
-						default:
-						}
-						continue
-					}
-				}
-			}
-		}()
-
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				select {
-				case <-ctx.Done():
-					return err
-				default:
-				}
-				continue
-			}
-		}
-
 	}
+
+	if t.txState < objs.SnapshotTxSubmitted {
+		err := t.submitSnapshotTx(ctx, logger, eth)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := t.awaitSnapshotTx(ctx, logger, eth)
+	return err
 }
 
 func (t *SnapshotTask) ShouldRetry(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) bool {
@@ -206,7 +102,7 @@ func (t *SnapshotTask) ShouldRetry(ctx context.Context, logger *logrus.Entry, et
 	}
 
 	// This means the block height we want to snapshot is older than (or same as) what's already been snapshotted
-	if t.BlockHeader.BClaims.Height != 0 && t.BlockHeader.BClaims.Height < uint32(height.Uint64()) {
+	if t.blockHeader.BClaims.Height != 0 && t.blockHeader.BClaims.Height < uint32(height.Uint64()) {
 		return false
 	}
 
@@ -214,4 +110,102 @@ func (t *SnapshotTask) ShouldRetry(ctx context.Context, logger *logrus.Entry, et
 }
 
 func (*SnapshotTask) DoDone(logger *logrus.Entry) {
+}
+
+func (t *SnapshotTask) createSnapshotTx(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+	if t.tx != nil || t.txState >= objs.SnapshotTxCreated {
+		return fmt.Errorf("snapshot already created")
+	}
+
+	bal, err := eth.GetBalance(t.acct.Address)
+	if err != nil {
+		return err
+	}
+
+	txnOpts, err := eth.GetTransactionOpts(ctx, t.acct)
+	if err != nil {
+		return fmt.Errorf("failed to generate transaction options: %v", err)
+	}
+	logger.Debugf("Snapshot tx options {acct:%v, gas:%v from:%v, balance:%v, sigGroup:%v, bclaims:%v}", t.acct, txnOpts.GasLimit, txnOpts.From, bal, t.blockHeader.SigGroup, t.rawBclaims)
+	tx, err := eth.Contracts().Snapshots().Snapshot(txnOpts, t.blockHeader.SigGroup, t.rawBclaims)
+	if err != nil {
+		return err
+	}
+
+	epoch := t.blockHeader.BClaims.Height / constants.EpochLength
+	err = t.consDb.Update(func(txn *badger.Txn) error {
+		return t.consDb.SetSnapshotTx(txn, &objs.CachedSnapshotTx{
+			State:    objs.SnapshotTxCreated,
+			Tx:       tx,
+			MadEpoch: epoch,
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("failed to persist transaction: %v", err)
+	}
+
+	t.tx = tx
+	t.txState = objs.SnapshotTxCreated
+	t.madEpoch = epoch
+	return nil
+}
+
+func (t *SnapshotTask) submitSnapshotTx(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+	if t.tx == nil || t.txState < objs.SnapshotTxCreated {
+		return fmt.Errorf("no transaction created")
+	}
+
+	h, err := eth.GetCurrentHeight(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = eth.Queue().QueueTransactionSync(ctx, t.tx)
+	if err != nil {
+		return fmt.Errorf("failed to queue transaction: %v", err)
+	}
+
+	err = t.consDb.Update(func(txn *badger.Txn) error {
+		return t.consDb.SetSnapshotTx(txn, &objs.CachedSnapshotTx{
+			State:     objs.SnapshotTxSubmitted,
+			Tx:        t.tx,
+			MadEpoch:  t.madEpoch,
+			EthHeight: uint32(h),
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("failed to persist transaction being sent: %v", err)
+	}
+
+	t.txState = objs.SnapshotTxSubmitted
+	t.ethHeight = uint32(h)
+	return nil
+}
+
+func (t *SnapshotTask) awaitSnapshotTx(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum) error {
+	if t.tx == nil || t.txState < objs.SnapshotTxSubmitted {
+		return fmt.Errorf("no transaction sent")
+	}
+
+	rcpt, err := eth.Queue().WaitTransaction(ctx, t.tx)
+	if err != nil {
+		return fmt.Errorf("snapshot failed to retreive receipt: %v", err)
+	}
+	if rcpt.Status != 1 {
+		return fmt.Errorf("snapshot receipt status %v", rcpt.Status)
+	}
+
+	err = t.consDb.Update(func(txn *badger.Txn) error {
+		return t.consDb.SetSnapshotTx(txn, &objs.CachedSnapshotTx{
+			State:     objs.SnapshotTxVerified,
+			Tx:        t.tx,
+			MadEpoch:  t.madEpoch,
+			EthHeight: t.ethHeight,
+		})
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to persist transaction being succeeded: %v", err)
+	}
+	return nil
 }

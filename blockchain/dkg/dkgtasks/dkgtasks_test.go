@@ -29,6 +29,7 @@ import (
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,6 +42,7 @@ type adminHandlerMock struct {
 	validatorSetCalled bool
 	registerSnapshot   bool
 	setSynchronized    bool
+	ethHeight          uint32
 }
 
 func (ah *adminHandlerMock) AddPrivateKey([]byte, constants.CurveSpec) error {
@@ -58,12 +60,20 @@ func (ah *adminHandlerMock) AddValidatorSet(*objs.ValidatorSet) error {
 	return nil
 }
 
-func (ah *adminHandlerMock) RegisterSnapshotCallback(func(*objs.BlockHeader) error) {
+func (ah *adminHandlerMock) RegisterSnapshotCallbacks(
+	func(*objs.BlockHeader) error,
+	func(*objs.CachedSnapshotTx) error,
+	func(*big.Int) (*big.Int, error),
+	func(context.Context, *types.Transaction, int) (*types.Transaction, error),
+) {
 	ah.registerSnapshot = true
 }
 
 func (ah *adminHandlerMock) SetSynchronized(v bool) {
 	ah.setSynchronized = true
+}
+func (ah *adminHandlerMock) UpdateEthHeight(h uint32) {
+	ah.ethHeight = h
 }
 
 func validator(t *testing.T, idx int, eth interfaces.Ethereum, validatorAcct accounts.Account, adminHandler *adminHandlerMock, wg *sync.WaitGroup, tr *objects.TypeRegistry) {

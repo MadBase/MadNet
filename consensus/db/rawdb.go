@@ -67,7 +67,7 @@ func (db *rawDataBase) DropPrefix(k []byte) error {
 
 // subscribe to prefix is used to form the proposal subscription
 func (db *rawDataBase) subscribeToPrefix(ctx context.Context, prefix []byte, cb func([]byte) error) {
-	fn := func(kvs *badger.KVList) error {
+	wrapper := func(kvs *badger.KVList) error {
 		for i := 0; i < len(kvs.Kv); i++ {
 			kv := kvs.Kv[i]
 			if kv.Value != nil {
@@ -79,13 +79,13 @@ func (db *rawDataBase) subscribeToPrefix(ctx context.Context, prefix []byte, cb 
 		}
 		return nil
 	}
-	fn2 := func() {
-		err := db.db.Subscribe(ctx, fn, prefix)
+
+	go func() {
+		err := db.db.Subscribe(ctx, wrapper, prefix)
 		if err != nil && err != context.Canceled {
 			db.logger.Warnf("terminating db subscription for prefix: %v", prefix)
 		}
-	}
-	go fn2()
+	}()
 }
 
 func (db *rawDataBase) getValue(txn *badger.Txn, key []byte) ([]byte, error) {

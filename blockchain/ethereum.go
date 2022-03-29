@@ -725,9 +725,8 @@ func (eth *EthereumDetails) TransferEther(from common.Address, to common.Address
 	eth.logger.Debugf("TransferEther => chainID:%v from:%v nonce:%v, to:%v, wei:%v, gasLimit:%v, gasPrice:%v",
 		eth.chainID, from.Hex(), nonce, to.Hex(), wei, gasLimit, gasPrice)
 
-	signer := types.NewLondonSigner(eth.chainID)
+	signedTx, err := eth.SignTx(from, txRough)
 
-	signedTx, err := types.SignNewTx(eth.keys[from].PrivateKey, signer, txRough)
 	if err != nil {
 		eth.logger.Errorf("signing error:%v", err)
 		return nil, err
@@ -786,6 +785,10 @@ func (eth *EthereumDetails) Clone(defaultAccount accounts.Account) *EthereumDeta
 	nEth.defaultAccount = defaultAccount
 
 	return &nEth
+}
+
+func (eth *EthereumDetails) SignTx(addr common.Address, tx *types.DynamicFeeTx) (*types.Transaction, error) {
+	return types.SignNewTx(eth.keys[addr].PrivateKey, types.NewLondonSigner(tx.ChainID), tx)
 }
 
 // StringToBytes32 is useful for convert a Go string into a bytes32 useful calling Solidity

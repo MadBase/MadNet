@@ -150,6 +150,10 @@ func PrefixCommittedBlockHeaderCount() []byte {
 	return []byte("A3")
 }
 
+func PrefixSnapshotTx() []byte {
+	return []byte("A4")
+}
+
 func PrefixValidatorSetPostApplication() []byte {
 	return []byte("ZZ")
 }

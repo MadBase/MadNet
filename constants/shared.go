@@ -3,8 +3,20 @@ package constants
 import "time"
 
 const (
-	// EpochLength is the number of blocks in an epoch for MadNet
-	EpochLength uint32 = 1024
+	// EpochLength is the number of blocks in an epoch for MadNet. A lower calue can be used during development, to quickly test behaviour at the epoch boundary.
+	EpochLength uint32 = 32 // 10
+
+	// MinEthSnapshotInterval is the minimum number of Ethereum blocks to be between each snapshot
+	MinEthSnapshotInterval int = int(EpochLength) / 8
+
+	// SnapshotDesperationDelay is after how many Etereum blocks more validators will start being allowed. Highly dependent on EpochLength
+	SnapshotDesperationDelay int = 18 // 600
+
+	// SnapshotDesperationFactor determines how quickly more validators will be allowed to snapshot, after SnapshotDesperationDelay has been reached
+	SnapshotDesperationFactor int = 40 // 100
+
+	// PhaseLength determines how quickly ethDKG goes through its phases. A lower value can be used during development for faster initialization of the network.
+	PhaseLength int = 16 // 40
 
 	// HashLen specifies the length of a hash in bytes
 	HashLen = 32

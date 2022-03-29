@@ -51,6 +51,7 @@ type Ethereum interface {
 	GetTimeoutContext() (context.Context, context.CancelFunc)
 	GetValidators(context.Context) ([]common.Address, error)
 	GetFinalityDelay() uint64
+	SignTx(common.Address, *types.DynamicFeeTx) (*types.Transaction, error)
 
 	KnownSelectors() SelectorMap
 	Queue() TxnQueue
@@ -105,6 +106,7 @@ type GethClient interface {
 type TxnQueue interface {
 	Close()
 	QueueTransaction(ctx context.Context, txn *types.Transaction)
+	QueueTransactionSync(ctx context.Context, txn *types.Transaction) error
 	QueueGroupTransaction(ctx context.Context, grp int, txn *types.Transaction)
 	QueueAndWait(ctx context.Context, txn *types.Transaction) (*types.Receipt, error)
 	StartLoop()
@@ -124,23 +126,23 @@ type SelectorMap interface {
 type Contracts interface {
 	LookupContracts(ctx context.Context, registryAddress common.Address) error
 
-	Ethdkg() *bindings.ETHDKG
+	Ethdkg() bindings.IETHDKG
 	EthdkgAddress() common.Address
-	MadToken() *bindings.MadToken
+	MadToken() bindings.IMadToken
 	MadTokenAddress() common.Address
-	MadByte() *bindings.MadByte
+	MadByte() bindings.IMadByte
 	MadByteAddress() common.Address
-	PublicStaking() *bindings.PublicStaking
+	PublicStaking() bindings.IPublicStaking
 	PublicStakingAddress() common.Address
-	ValidatorStaking() *bindings.ValidatorStaking
+	ValidatorStaking() bindings.IValidatorStaking
 	ValidatorStakingAddress() common.Address
-	ContractFactory() *bindings.MadnetFactory
+	ContractFactory() bindings.IMadnetFactory
 	ContractFactoryAddress() common.Address
 	SnapshotsAddress() common.Address
-	Snapshots() *bindings.Snapshots
-	ValidatorPool() *bindings.ValidatorPool
+	Snapshots() bindings.ISnapshots
+	ValidatorPool() bindings.IValidatorPool
 	ValidatorPoolAddress() common.Address
-	Governance() *bindings.Governance
+	Governance() bindings.IGovernance
 	GovernanceAddress() common.Address
 }
 

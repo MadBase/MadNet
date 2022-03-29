@@ -8,11 +8,11 @@ package MadNet
 
 import (
 	_ "github.com/MadBase/go-capnproto2/v2/capnpc-go"
+	_ "github.com/derision-test/go-mockgen/cmd/go-mockgen"
 	_ "github.com/elazarl/go-bindata-assetfs"
 	_ "github.com/go-bindata/go-bindata/v3"
 	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway"
 	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2"
-	_ "github.com/vburenin/ifacemaker"
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 )

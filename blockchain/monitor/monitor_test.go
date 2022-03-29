@@ -19,20 +19,20 @@ import (
 	"github.com/MadBase/MadNet/blockchain/tasks"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
-	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/logging"
+	"github.com/MadBase/MadNet/test/mocks"
+
+	mockrequire "github.com/derision-test/go-mockgen/testutil/require"
+
 	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupEthereum(t *testing.T, mineInterval time.Duration) interfaces.Ethereum {
@@ -155,165 +155,12 @@ func (mt *mockTask) ShouldRetry(context.Context, *logrus.Entry, interfaces.Ether
 }
 
 //
-// Mock implementation of interfaces.AdminHandler
-//
-type mockAdminHandler struct {
-}
-
-func (ah *mockAdminHandler) AddPrivateKey([]byte, constants.CurveSpec) error {
-	return nil
-}
-
-func (ah *mockAdminHandler) AddSnapshot(*objs.BlockHeader, bool) error {
-	return nil
-}
-func (ah *mockAdminHandler) AddValidatorSet(*objs.ValidatorSet) error {
-	return nil
-}
-
-func (ah *mockAdminHandler) RegisterSnapshotCallback(func(*objs.BlockHeader) error) {
-
-}
-
-func (ah *mockAdminHandler) SetSynchronized(v bool) {
-
-}
-
-//
 // Mock implementation of interfaces.DepositHandler
 //
 type mockDepositHandler struct {
 }
 
 func (dh *mockDepositHandler) Add(*badger.Txn, uint32, []byte, *big.Int, *aobjs.Owner) error {
-	return nil
-}
-
-//
-// Mock implementation of interfaces.Ethereum
-//
-type mockEthereum struct {
-}
-
-func (eth *mockEthereum) ChainID() *big.Int {
-	return nil
-}
-
-func (eth *mockEthereum) GetFinalityDelay() uint64 {
-	return 12
-}
-
-func (eth *mockEthereum) Close() error {
-	return nil
-}
-
-func (eth *mockEthereum) Commit() {
-
-}
-
-func (eth *mockEthereum) IsEthereumAccessible() bool {
-	return false
-}
-
-func (eth *mockEthereum) GetCallOpts(context.Context, accounts.Account) *bind.CallOpts {
-	return nil
-}
-
-func (eth *mockEthereum) GetTransactionOpts(context.Context, accounts.Account) (*bind.TransactOpts, error) {
-	return nil, nil
-}
-
-func (eth *mockEthereum) LoadAccounts(string) {}
-
-func (eth *mockEthereum) LoadPasscodes(string) error {
-	return nil
-}
-
-func (eth *mockEthereum) UnlockAccount(accounts.Account) error {
-	return nil
-}
-
-func (eth *mockEthereum) UnlockAccountWithPasscode(accounts.Account, string) error {
-	return nil
-}
-
-func (eth *mockEthereum) TransferEther(common.Address, common.Address, *big.Int) (*types.Transaction, error) {
-	return nil, nil
-}
-
-func (eth *mockEthereum) GetAccount(addr common.Address) (accounts.Account, error) {
-	return accounts.Account{Address: addr}, nil
-}
-func (eth *mockEthereum) GetAccountKeys(addr common.Address) (*keystore.Key, error) {
-	return nil, nil
-}
-func (eth *mockEthereum) GetBalance(common.Address) (*big.Int, error) {
-	return nil, nil
-}
-func (eth *mockEthereum) GetGethClient() interfaces.GethClient {
-	return nil
-}
-
-func (eth *mockEthereum) GetCoinbaseAddress() common.Address {
-	return eth.GetDefaultAccount().Address
-}
-
-func (eth *mockEthereum) GetCurrentHeight(context.Context) (uint64, error) {
-	return 0, nil
-}
-
-func (eth *mockEthereum) GetDefaultAccount() accounts.Account {
-	return accounts.Account{}
-}
-func (eth *mockEthereum) GetEndpoint() string {
-	return "na"
-}
-func (eth *mockEthereum) GetEvents(ctx context.Context, firstBlock uint64, lastBlock uint64, addresses []common.Address) ([]types.Log, error) {
-	return nil, nil
-}
-func (eth *mockEthereum) GetFinalizedHeight(context.Context) (uint64, error) {
-	return 0, nil
-}
-func (eth *mockEthereum) GetPeerCount(context.Context) (uint64, error) {
-	return 0, nil
-}
-func (eth *mockEthereum) GetSnapshot() ([]byte, error) {
-	return nil, nil
-}
-func (eth *mockEthereum) GetSyncProgress() (bool, *ethereum.SyncProgress, error) {
-	return false, nil, nil
-}
-func (eth *mockEthereum) GetTimeoutContext() (context.Context, context.CancelFunc) {
-	return nil, nil
-}
-func (eth *mockEthereum) GetValidators(context.Context) ([]common.Address, error) {
-	return nil, nil
-}
-
-func (eth *mockEthereum) GetKnownAccounts() []accounts.Account {
-	return []accounts.Account{}
-}
-
-func (eth *mockEthereum) KnownSelectors() interfaces.SelectorMap {
-	return nil
-}
-
-func (eth *mockEthereum) Queue() interfaces.TxnQueue {
-	return nil
-}
-
-func (eth *mockEthereum) RetryCount() int {
-	return 0
-}
-func (eth *mockEthereum) RetryDelay() time.Duration {
-	return time.Second
-}
-
-func (eth *mockEthereum) Timeout() time.Duration {
-	return time.Second
-}
-
-func (eth *mockEthereum) Contracts() interfaces.Contracts {
 	return nil
 }
 
@@ -327,7 +174,8 @@ func TestMonitorPersist(t *testing.T) {
 	database := &db.Database{}
 	database.Init(rawDb)
 
-	mon, err := monitor.NewMonitor(database, database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	eth := mocks.NewMockEthereum()
+	mon, err := monitor.NewMonitor(database, database, mocks.NewMockAdminHandler(), &mockDepositHandler{}, eth, 1*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
 	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
@@ -340,7 +188,7 @@ func TestMonitorPersist(t *testing.T) {
 	mon.PersistState()
 
 	//
-	newMon, err := monitor.NewMonitor(database, database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	newMon, err := monitor.NewMonitor(database, database, mocks.NewMockAdminHandler(), &mockDepositHandler{}, eth, 1*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
 	newMon.LoadState()
@@ -353,9 +201,9 @@ func TestMonitorPersist(t *testing.T) {
 func TestBidirectionalMarshaling(t *testing.T) {
 
 	// setup
-	adminHandler := &mockAdminHandler{}
+	adminHandler := mocks.NewMockAdminHandler()
 	depositHandler := &mockDepositHandler{}
-	eth := &mockEthereum{}
+	eth := mocks.NewMockEthereum()
 	logger := logging.GetLogger("test")
 
 	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
@@ -453,4 +301,138 @@ func TestWrapDoNotContinue(t *testing.T) {
 	assert.True(t, errors.Is(nice2Err, genErr))
 
 	t.Logf("Nice2Err: %v", nice2Err)
+}
+
+func GetSnapshotCallbacks(t *testing.T) (*mocks.EthMockset, mocks.AdminHandlerRegisterSnapshotCallbacksFuncCall, func() *objs.CachedSnapshotTx) {
+	adminHandler := mocks.NewMockAdminHandler()
+	depositHandler := &mockDepositHandler{}
+	eth, mockset := mocks.NewMockLinkedEthereum()
+
+	cdb := mocks.NewMockDb()
+	_, err := monitor.NewMonitor(cdb, mocks.NewMockDb(), adminHandler, depositHandler, eth, 2*time.Second, time.Minute, 1)
+	require.Nil(t, err)
+
+	mockrequire.Called(t, adminHandler.RegisterSnapshotCallbacksFunc)
+	callbacks := adminHandler.RegisterSnapshotCallbacksFunc.History()[0]
+
+	return mockset, callbacks, func() *objs.CachedSnapshotTx {
+		var tx *objs.CachedSnapshotTx
+		cdb.View(func(txn *badger.Txn) (err error) {
+			tx, _ = cdb.GetSnapshotTx(txn)
+			return nil
+		})
+		return tx
+	}
+}
+
+func TestNewSS(t *testing.T) {
+	mockset, callbacks, getDbTx := GetSnapshotCallbacks(t)
+	newSS := callbacks.Arg0
+
+	blockHeader := &objs.BlockHeader{}
+	blockHeader.UnmarshalBinary([]byte{0, 0, 0, 0, 0, 0, 3, 0, 8, 0, 0, 0, 1, 0, 4, 0, 89, 0, 0, 0, 2, 6, 0, 0, 181, 0, 0, 0, 2, 0, 0, 0, 42, 0, 0, 0, 8, 3, 0, 0, 13, 0, 0, 0, 2, 1, 0, 0, 25, 0, 0, 0, 2, 1, 0, 0, 37, 0, 0, 0, 2, 1, 0, 0, 49, 0, 0, 0, 2, 1, 0, 0, 125, 56, 56, 255, 62, 64, 136, 59, 115, 108, 129, 228, 18, 133, 160, 220, 127, 56, 179, 7, 55, 215, 39, 111, 187, 195, 120, 118, 22, 203, 242, 201, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 206, 149, 115, 249, 102, 3, 185, 58, 36, 197, 107, 9, 40, 75, 179, 75, 161, 110, 58, 11, 133, 64, 12, 26, 144, 171, 90, 190, 173, 128, 60, 206, 31, 127, 172, 22, 115, 42, 90, 205, 18, 11, 164, 170, 60, 91, 40, 65, 170, 211, 47, 172, 44, 247, 93, 58, 91, 198, 254, 95, 56, 0, 12, 145, 20, 223, 81, 247, 203, 176, 58, 150, 81, 152, 211, 30, 159, 117, 124, 215, 247, 243, 135, 30, 155, 76, 194, 237, 96, 57, 174, 171, 197, 56, 239, 144, 25, 233, 194, 32, 143, 161, 28, 164, 130, 145, 219, 25, 218, 129, 134, 165, 202, 50, 142, 130, 94, 240, 142, 111, 239, 190, 137, 174, 189, 13, 194, 74, 42, 34, 151, 20, 115, 75, 95, 78, 250, 216, 5, 12, 36, 204, 133, 118, 173, 38, 28, 11, 16, 64, 11, 204, 37, 233, 110, 62, 217, 0, 185, 87, 16, 199, 104, 254, 97, 159, 166, 106, 239, 71, 255, 158, 63, 80, 171, 211, 175, 43, 93, 114, 134, 3, 0, 211, 177, 136, 111, 26, 22, 108, 118, 199, 29, 106, 82, 61, 246, 187, 142, 226, 14, 167, 116, 171, 194, 244, 157, 203, 217, 127, 150, 130, 49, 129, 224, 242, 60, 229, 35, 70, 107, 245, 20, 122})
+
+	require.Nil(t, getDbTx())
+	err := newSS(blockHeader)
+	require.Nil(t, err)
+
+	mockrequire.Called(t, mockset.Queue.QueueTransactionSyncFunc)
+	require.Equal(t, objs.SnapshotTxVerified, getDbTx().State)
+}
+
+func TestResumeSSCreated(t *testing.T) {
+	mockset, callbacks, getDbTx := GetSnapshotCallbacks(t)
+	resumeSS := callbacks.Arg1
+
+	sstx := mocks.NewMockSnapshotTx()
+
+	require.Nil(t, getDbTx())
+	err := resumeSS(&objs.CachedSnapshotTx{State: objs.SnapshotTxCreated, Tx: sstx})
+	require.Nil(t, err)
+
+	mockrequire.CalledWith(t, mockset.Queue.QueueTransactionSyncFunc, mockrequire.Values(mockrequire.Skip, sstx))
+	require.Equal(t, objs.SnapshotTxVerified, getDbTx().State)
+}
+
+func TestResumeSSSubmitted(t *testing.T) {
+	mockset, callbacks, getDbTx := GetSnapshotCallbacks(t)
+	resumeSS := callbacks.Arg1
+
+	sstx := mocks.NewMockSnapshotTx()
+
+	require.Nil(t, getDbTx())
+	err := resumeSS(&objs.CachedSnapshotTx{State: objs.SnapshotTxSubmitted, Tx: sstx})
+	require.Nil(t, err)
+
+	mockrequire.NotCalled(t, mockset.Queue.QueueTransactionSyncFunc)
+	mockrequire.CalledWith(t, mockset.Queue.WaitTransactionFunc, mockrequire.Values(mockrequire.Skip, sstx))
+	require.Equal(t, objs.SnapshotTxVerified, getDbTx().State)
+}
+
+func TestResumeSSDbWrite(t *testing.T) {
+	mockset, callbacks, _ := GetSnapshotCallbacks(t)
+	resumeSS := callbacks.Arg1
+
+	sstx := mocks.NewMockSnapshotTx()
+	err := resumeSS(&objs.CachedSnapshotTx{State: objs.SnapshotTxSubmitted, Tx: sstx})
+	require.Nil(t, err)
+
+	mockrequire.NotCalled(t, mockset.Queue.QueueTransactionSyncFunc)
+	mockrequire.CalledWith(t, mockset.Queue.WaitTransactionFunc, mockrequire.Values(mockrequire.Skip, sstx))
+}
+
+func TestGetSSEthHeight(t *testing.T) {
+	mockset, callbacks, _ := GetSnapshotCallbacks(t)
+	getSSEthHeight := callbacks.Arg2
+
+	_, err := getSSEthHeight(big.NewInt(12))
+	require.Nil(t, err)
+
+	mockrequire.Called(t, mockset.Snapshots.GetCommittedHeightFromSnapshotFunc)
+	require.Equal(t, mockset.Snapshots.GetCommittedHeightFromSnapshotFunc.History()[0].Arg1, big.NewInt(12))
+}
+
+func TestRefreshTxRecent(t *testing.T) {
+	_, callbacks, _ := GetSnapshotCallbacks(t)
+	refreshTx := callbacks.Arg3
+
+	tx1 := mocks.NewMockSnapshotTx()
+	tx2, err := refreshTx(context.Background(), tx1, 1)
+	require.Nil(t, err)
+	require.Nil(t, tx2)
+}
+
+func TestRefreshTxMined(t *testing.T) {
+	mockset, callbacks, _ := GetSnapshotCallbacks(t)
+	refreshTx := callbacks.Arg3
+
+	tx1 := mocks.NewMockSnapshotTx()
+	mockset.GethClient.TransactionByHashFunc.SetDefaultReturn(tx1, false, nil)
+	tx2, err := refreshTx(context.Background(), tx1, 64)
+	require.Nil(t, err)
+	require.Nil(t, tx2)
+}
+
+func TestRefreshTxPending(t *testing.T) {
+	mockset, callbacks, _ := GetSnapshotCallbacks(t)
+	refreshTx := callbacks.Arg3
+
+	tx1 := mocks.NewMockSnapshotTx()
+	mockset.GethClient.TransactionByHashFunc.SetDefaultReturn(tx1, true, nil)
+	tx2, err := refreshTx(context.Background(), tx1, 64)
+	require.Nil(t, err)
+
+	require.Greater(t, tx2.GasFeeCap().Int64(), 2*tx1.GasFeeCap().Int64())
+	require.Greater(t, tx2.GasTipCap().Int64(), tx1.GasTipCap().Int64()+tx1.GasTipCap().Int64()/10)
+}
+
+func TestRefreshTxFailed(t *testing.T) {
+	mockset, callbacks, _ := GetSnapshotCallbacks(t)
+	refreshTx := callbacks.Arg3
+
+	tx1 := mocks.NewMockSnapshotTx()
+	mockset.GethClient.TransactionByHashFunc.SetDefaultReturn(tx1, false, fmt.Errorf("failed"))
+	tx2, err := refreshTx(context.Background(), tx1, 64)
+	require.Nil(t, tx2)
+	require.NotNil(t, err)
 }

@@ -13,7 +13,7 @@ import (
 
 var (
 	ErrUnknownTaskName = errors.New("unknown task name")
-	ErrUnknownTaskType = errors.New("unkonwn task type")
+	ErrUnknownTaskType = errors.New("unknown task type")
 )
 
 func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}) error {

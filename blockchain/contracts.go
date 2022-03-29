@@ -16,25 +16,25 @@ import (
 // ContractDetails contains bindings to smart contract system
 type ContractDetails struct {
 	eth                     *EthereumDetails
-	ethdkg                  *bindings.ETHDKG
+	ethdkg                  bindings.IETHDKG
 	ethdkgAddress           common.Address
-	madToken                *bindings.MadToken
+	madToken                bindings.IMadToken
 	madTokenAddress         common.Address
-	madByte                 *bindings.MadByte
+	madByte                 bindings.IMadByte
 	madByteAddress          common.Address
-	publicStaking           *bindings.PublicStaking
+	publicStaking           bindings.IPublicStaking
 	publicStakingAddress    common.Address
-	validatorStaking        *bindings.ValidatorStaking
+	validatorStaking        bindings.IValidatorStaking
 	validatorStakingAddress common.Address
-	contractFactory         *bindings.MadnetFactory
+	contractFactory         bindings.IMadnetFactory
 	contractFactoryAddress  common.Address
-	snapshots               *bindings.Snapshots
+	snapshots               bindings.ISnapshots
 	snapshotsAddress        common.Address
-	validatorPool           *bindings.ValidatorPool
+	validatorPool           bindings.IValidatorPool
 	validatorPoolAddress    common.Address
-	// factory        *bindings.Factory
+	// factory        bindings.IFactory
 	// factoryAddress common.Address
-	governance        *bindings.Governance
+	governance        bindings.IGovernance
 	governanceAddress common.Address
 }
 
@@ -160,7 +160,7 @@ func (c *ContractDetails) LookupContracts(ctx context.Context, contractFactoryAd
 	return nil
 }
 
-func (c *ContractDetails) Ethdkg() *bindings.ETHDKG {
+func (c *ContractDetails) Ethdkg() bindings.IETHDKG {
 	return c.ethdkg
 }
 
@@ -168,7 +168,7 @@ func (c *ContractDetails) EthdkgAddress() common.Address {
 	return c.ethdkgAddress
 }
 
-func (c *ContractDetails) MadToken() *bindings.MadToken {
+func (c *ContractDetails) MadToken() bindings.IMadToken {
 	return c.madToken
 }
 
@@ -176,7 +176,7 @@ func (c *ContractDetails) MadTokenAddress() common.Address {
 	return c.madTokenAddress
 }
 
-func (c *ContractDetails) MadByte() *bindings.MadByte {
+func (c *ContractDetails) MadByte() bindings.IMadByte {
 	return c.madByte
 }
 
@@ -184,7 +184,7 @@ func (c *ContractDetails) MadByteAddress() common.Address {
 	return c.madByteAddress
 }
 
-func (c *ContractDetails) PublicStaking() *bindings.PublicStaking {
+func (c *ContractDetails) PublicStaking() bindings.IPublicStaking {
 	return c.publicStaking
 }
 
@@ -192,7 +192,7 @@ func (c *ContractDetails) PublicStakingAddress() common.Address {
 	return c.publicStakingAddress
 }
 
-func (c *ContractDetails) ValidatorStaking() *bindings.ValidatorStaking {
+func (c *ContractDetails) ValidatorStaking() bindings.IValidatorStaking {
 	return c.validatorStaking
 }
 
@@ -200,7 +200,7 @@ func (c *ContractDetails) ValidatorStakingAddress() common.Address {
 	return c.validatorStakingAddress
 }
 
-func (c *ContractDetails) ContractFactory() *bindings.MadnetFactory {
+func (c *ContractDetails) ContractFactory() bindings.IMadnetFactory {
 	return c.contractFactory
 }
 
@@ -208,7 +208,7 @@ func (c *ContractDetails) ContractFactoryAddress() common.Address {
 	return c.contractFactoryAddress
 }
 
-func (c *ContractDetails) Snapshots() *bindings.Snapshots {
+func (c *ContractDetails) Snapshots() bindings.ISnapshots {
 	return c.snapshots
 }
 
@@ -216,7 +216,7 @@ func (c *ContractDetails) SnapshotsAddress() common.Address {
 	return c.snapshotsAddress
 }
 
-func (c *ContractDetails) ValidatorPool() *bindings.ValidatorPool {
+func (c *ContractDetails) ValidatorPool() bindings.IValidatorPool {
 	return c.validatorPool
 }
 
@@ -224,7 +224,7 @@ func (c *ContractDetails) ValidatorPoolAddress() common.Address {
 	return c.validatorPoolAddress
 }
 
-func (c *ContractDetails) Governance() *bindings.Governance {
+func (c *ContractDetails) Governance() bindings.IGovernance {
 	return c.governance
 }
 
@@ -232,7 +232,7 @@ func (c *ContractDetails) GovernanceAddress() common.Address {
 	return c.governanceAddress
 }
 
-// func (c *ContractDetails) Factory() *bindings.Factory {
+// func (c *ContractDetails) Factory() bindings.IFactory {
 // 	return c.factory
 // }
 

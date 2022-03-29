@@ -13,6 +13,10 @@ const (
 	proposalStepTO  = 4 * time.Second
 	preVoteStepTO   = 3 * time.Second
 	preCommitStepTO = 3 * time.Second
-	dBRNRTO         = (5 * (proposalStepTO + preVoteStepTO + preCommitStepTO)) / 2 // Parameterize: make 2.5 times Prop, PV, PC timeouts
+	dBRNRTO         = (5 * (proposalStepTO + preVoteStepTO + preCommitStepTO)) / 2 // dead block round next round TO // Parameterize: make 2.5 times Prop, PV, PC timeouts
 	downloadTO      = proposalStepTO + preVoteStepTO + preCommitStepTO             // Parameterize: sum of Prop, PV, PC timeouts
 )
+
+/* block time lower bound: 2*proposalStepTO
+ * block time upper bound: proposalStepTO + 2*dBRNRTO
+ */

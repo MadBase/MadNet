@@ -12,6 +12,7 @@ require (
 	github.com/go-bindata/go-bindata/v3 v3.1.3
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
 	github.com/golang/mock v1.4.4
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.1.5
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.6.0
@@ -30,22 +31,26 @@ require (
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
-	google.golang.org/genproto v0.0.0-20210903162649-d08c68adba83
+	google.golang.org/genproto v0.0.0-20210903162649-d08c68adba83 // indirect
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 )
 
 require (
-	github.com/vburenin/ifacemaker v1.1.0
+	github.com/derision-test/go-mockgen v1.1.4
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 )
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
+	github.com/alecthomas/kingpin v2.2.6+incompatible // indirect
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
+	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/dave/jennifer v1.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/dgraph-io/ristretto v0.0.3-0.20200630154024-f66de99634de // indirect
@@ -56,17 +61,16 @@ require (
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/glog v1.0.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jessevdk/go-flags v1.4.1-0.20181029123624-5de817a9aa20 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml v1.2.0 // indirect
@@ -90,5 +94,5 @@ require (
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

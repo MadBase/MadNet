@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -101,13 +102,73 @@ func NewMonitor(cdb *db.Database,
 
 	wg := new(sync.WaitGroup)
 
-	adminHandler.RegisterSnapshotCallback(func(bh *objs.BlockHeader) error {
-		ctx, cf := context.WithTimeout(context.Background(), timeout)
-		defer cf()
+	adminHandler.RegisterSnapshotCallbacks(
+		func(bh *objs.BlockHeader) error {
+			task := tasks.NewSnapshotTask(eth.GetDefaultAccount(), cdb, bh)
+			defer task.DoDone(logger)
 
-		logger.Info("Entering snapshot callback")
-		return PersistSnapshot(ctx, wg, eth, logger, bh)
-	})
+			ctx := context.Background()
+			err := task.Initialize(ctx, logger, eth, nil)
+			if err != nil {
+				return err
+			}
+			return task.DoTask(ctx, logger, eth)
+		},
+		func(ss *objs.CachedSnapshotTx) error {
+			task := tasks.NewSnapshotTaskFromCached(eth.GetDefaultAccount(), cdb, ss)
+			defer task.DoDone(logger)
+
+			ctx := context.Background()
+			err := task.Initialize(ctx, logger, eth, nil)
+			if err != nil {
+				return err
+			}
+			return task.DoTask(ctx, logger, eth)
+		},
+		func(epoch *big.Int) (*big.Int, error) {
+			return eth.Contracts().Snapshots().GetCommittedHeightFromSnapshot(eth.GetCallOpts(context.Background(), eth.GetDefaultAccount()), epoch)
+		},
+		func(ctx context.Context, tx *types.Transaction, txAge int) (*types.Transaction, error) {
+			if txAge < 10 {
+				return nil, nil
+			}
+
+			tx, isPending, err := eth.GetGethClient().TransactionByHash(ctx, tx.Hash())
+
+			switch {
+			case err != nil:
+				return nil, err
+
+			case isPending:
+				suggestedTipCap, err := eth.GetGethClient().SuggestGasTipCap(ctx)
+				if err != nil {
+					return nil, err
+				}
+				suggestedFeeCap, err := eth.GetGethClient().SuggestGasPrice(ctx)
+				if err != nil {
+					return nil, err
+				}
+
+				return eth.SignTx(eth.GetDefaultAccount().Address, &types.DynamicFeeTx{
+					ChainID:    tx.ChainId(),
+					Nonce:      tx.Nonce(),
+					Gas:        tx.Gas(),
+					To:         tx.To(),
+					Value:      tx.Value(),
+					Data:       tx.Data(),
+					AccessList: tx.AccessList(),
+
+					// assert both the new gastipcap and gasfeecap have their PriceBump applied so old tx is allowed to be replaced
+					GasTipCap: utils.MaxBig(addPriceBump(tx.GasTipCap()), suggestedTipCap),
+					// new gasfeecap set to twice the suggested gasfeecap, making it stay relevent even after up to 6 blocks of maximum congestion-based fee increases (https://ethereum.org/en/developers/docs/gas/#base-fee)
+					GasFeeCap: utils.MaxBig(addPriceBump(tx.GasFeeCap()), (&big.Int{}).Mul(suggestedFeeCap, big.NewInt(2))),
+				})
+
+			default:
+				return nil, nil
+			}
+		},
+	)
 
 	schedule := objects.NewSequentialSchedule(tr, adminHandler)
 	dkgState := objects.NewDkgState(eth.GetDefaultAccount())
@@ -413,6 +474,8 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 			forceExit = true
 		}
 
+		adminHandler.UpdateEthHeight(uint32(finalized))
+
 		// Check if any tasks are scheduled
 		logEntry.Debug("Looking for scheduled task")
 		uuid, err := monitorState.Schedule.Find(currentBlock)
@@ -470,17 +533,6 @@ func ProcessEvents(eth interfaces.Ethereum, monitorState *objects.MonitorState, 
 	}
 
 	return currentBlock, nil
-}
-
-// PersistSnapshot should be registered as a callback and be kicked off automatically by badger when appropriate
-func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Ethereum, logger *logrus.Entry, bh *objs.BlockHeader) error {
-
-	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
-	task.BlockHeader = bh
-
-	tasks.StartTask(logger, wg, eth, task, nil)
-
-	return nil
 }
 
 // EndpointInSync Checks if our endpoint is good to use
@@ -633,4 +685,14 @@ func min(a uint64, b uint64) uint64 {
 		return b
 	}
 	return a
+}
+
+// addPriceBump takes a gasfeecap or gastipcap, and adds 10% to it, rounded up
+// this is the minimum increase required for an existing tx with the same nonce to be replaced in a node's txpool
+// see config value PriceBump @ https://pkg.go.dev/github.com/ethereum/go-ethereum@v1.10.13/core#TxPoolConfig
+func addPriceBump(a *big.Int) *big.Int {
+	b := (&big.Int{}).Div(a, big.NewInt(10))
+	b.Add(b, big.NewInt(1))
+
+	return b.Add(b, a)
 }
