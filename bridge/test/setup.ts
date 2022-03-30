@@ -14,7 +14,9 @@ import {
   AToken,
   ATokenBurnerMock,
   ATokenMinterMock,
+  BridgePool,
   ETHDKG,
+  EventEmitter,
   Foundation,
   LiquidityProviderStaking,
   MadByte,
@@ -378,6 +380,19 @@ export const getFixture = async (
   const { factory, madToken, madByte, publicStaking } =
     await deployFactoryAndBaseTokens(admin);
 
+  // EventEmitter
+  const eventEmitter = (await deployStaticWithFactory(
+    factory,
+    "EventEmitter",
+    []
+  )) as EventEmitter;
+
+  // BridgePool
+  const bridgePool = (await deployStaticWithFactory(factory, "BridgePool", [
+    madByte.address,
+    eventEmitter.address,
+  ])) as BridgePool;
+
   // ValidatorStaking is not considered a base token since is only used by validators
   const validatorStaking = (await deployStaticWithFactory(
     factory,
@@ -508,6 +523,8 @@ export const getFixture = async (
     liquidityProviderStaking,
     foundation,
     stakingPositionDescriptor,
+    eventEmitter,
+    bridgePool,
   };
 };
 

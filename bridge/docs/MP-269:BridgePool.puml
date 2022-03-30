@@ -1,0 +1,39 @@
+@startuml name
+Actor User
+Participant "BridgePool" as BridgePool #LightBlue
+Participant "MadByte\n(ERC20Upgradeable)" as MadByte #LightGreen
+Participant "EventEmitter" as EventEmitter #Orange
+Participant "SideChain" as SideChain #Gray
+title BridgePool
+
+User -> MadByte : approve(BridgePool,tokenAmount)
+User -> BridgePool : deposit(tokenAmount)
+group deposit
+    group transfer       
+        BridgePool -> MadByte : transferFrom\n(user,BridgePool,tokenAmount)
+        User --> BridgePool: madBytes {tokenAmount}
+    end
+    group burn        
+        BridgePool -> MadByte : burn(tokenAmount,0)
+        MadByte --> BridgePool: eths {poolBalance/4}
+    end
+    group createDeposit        
+        BridgePool -> BridgePool : depositId = createDeposit(user, eths, proofOfBurn: false)
+        BridgePool -> EventEmitter: _emitDepositEvent(depositID, user, eths)
+        EventEmitter -> SideChain: _emitDepositEvent(depositID, user, eths)
+    end
+end
+User -> BridgePool : withdraw(depositID)
+group withdraw       
+    BridgePool -> EventEmitter : _emitWithdrawalRequestEvent(depositID)
+    EventEmitter -> SideChain: _emitWithdrawalRequestEvent(depositID)
+end
+SideChain -> BridgePool : validateProofOfBurn(depositID)
+User -> BridgePool : distribute(depositID)
+group distribute        
+    BridgePool -> MadByte : madBytes = mintTo{value: _deposits[depositID_].eths}(user)
+    BridgePool --> User: madBytes
+end
+@enduml
+
+
