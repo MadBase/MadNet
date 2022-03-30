@@ -39,6 +39,8 @@ func NewCompletionTask(state *objects.DkgState, start uint64, end uint64) *Compl
 // Initialize prepares for work to be done in the Completion phase
 func (t *CompletionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 
+	logger.Info("CompletionTask Initialize()...")
+
 	dkgData, ok := state.(objects.ETHDKGTaskData)
 	if !ok {
 		return objects.ErrCanNotContinue
@@ -48,8 +50,6 @@ func (t *CompletionTask) Initialize(ctx context.Context, logger *logrus.Entry, e
 
 	t.State.Lock()
 	defer t.State.Unlock()
-
-	logger.WithField("StateLocation", fmt.Sprintf("%p", t.State)).Info("CompletionTask Initialize()...")
 
 	if t.State.Phase != objects.DisputeGPKJSubmission {
 		return fmt.Errorf("%w because it's not in DisputeGPKJSubmission phase", objects.ErrCanNotContinue)

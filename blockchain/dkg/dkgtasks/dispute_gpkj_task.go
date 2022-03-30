@@ -40,6 +40,8 @@ func NewDisputeGPKjTask(state *objects.DkgState, start uint64, end uint64) *Disp
 // Here, we determine if anyone submitted an invalid gpkj.
 func (t *DisputeGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 
+	logger.Info("GPKJDisputeTask Initialize()...")
+
 	dkgData, ok := state.(objects.ETHDKGTaskData)
 	if !ok {
 		return objects.ErrCanNotContinue
@@ -49,8 +51,6 @@ func (t *DisputeGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, 
 
 	t.State.Lock()
 	defer t.State.Unlock()
-
-	logger.WithField("StateLocation", fmt.Sprintf("%p", t.State)).Info("GPKJDisputeTask Initialize()...")
 
 	if t.State.Phase != objects.DisputeGPKJSubmission && t.State.Phase != objects.GPKJSubmission {
 		return fmt.Errorf("%w because it's not DisputeGPKJSubmission phase", objects.ErrCanNotContinue)

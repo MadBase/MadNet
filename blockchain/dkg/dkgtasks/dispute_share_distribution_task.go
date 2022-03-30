@@ -40,6 +40,9 @@ func NewDisputeShareDistributionTask(state *objects.DkgState, start uint64, end 
 // It determines if the shares previously distributed are valid.
 // If any are invalid, disputes will be issued.
 func (t *DisputeShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
+
+	logger.Info("DisputeShareDistributionTask Initialize()")
+
 	dkgData, ok := state.(objects.ETHDKGTaskData)
 	if !ok {
 		return objects.ErrCanNotContinue
@@ -49,8 +52,6 @@ func (t *DisputeShareDistributionTask) Initialize(ctx context.Context, logger *l
 
 	t.State.Lock()
 	defer t.State.Unlock()
-
-	logger.WithField("StateLocation", fmt.Sprintf("%p", t.State)).Info("DisputeShareDistributionTask Initialize()")
 
 	if t.State.Phase != objects.DisputeShareDistribution && t.State.Phase != objects.ShareDistribution {
 		return fmt.Errorf("%w because it's not DisputeShareDistribution phase", objects.ErrCanNotContinue)

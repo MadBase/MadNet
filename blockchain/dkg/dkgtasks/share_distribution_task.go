@@ -37,6 +37,8 @@ func NewShareDistributionTask(state *objects.DkgState, start uint64, end uint64)
 // submitting them to the associated smart contract.
 func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 
+	logger.Infof("ShareDistributionTask Initialize()")
+
 	dkgData, ok := state.(objects.ETHDKGTaskData)
 	if !ok {
 		return objects.ErrCanNotContinue
@@ -47,31 +49,36 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 	t.State.Lock()
 	defer t.State.Unlock()
 
-	logger.Infof("ShareDistributionTask Initialize() %p\n", t.State)
-
 	if t.State.Phase != objects.ShareDistribution {
 		return fmt.Errorf("%w because it's not in ShareDistribution phase", objects.ErrCanNotContinue)
 	}
 
-	participants := t.State.GetSortedParticipants()
-	numParticipants := len(participants)
-	threshold := math.ThresholdForUserCount(numParticipants)
+	if t.State.SecretValue == nil {
 
-	// Generate shares
-	encryptedShares, privateCoefficients, commitments, err := math.GenerateShares(
-		t.State.TransportPrivateKey, participants)
-	if err != nil {
-		logger.Errorf("Failed to generate shares: %v %#v", err, participants)
-		return err
+		participants := t.State.GetSortedParticipants()
+		numParticipants := len(participants)
+		threshold := math.ThresholdForUserCount(numParticipants)
+
+		// Generate shares
+		encryptedShares, privateCoefficients, commitments, err := math.GenerateShares(
+			t.State.TransportPrivateKey, participants)
+		if err != nil {
+			logger.Errorf("Failed to generate shares: %v %#v", err, participants)
+			return err
+		}
+
+		// Store calculated values
+		t.State.Participants[t.State.Account.Address].Commitments = commitments
+		t.State.Participants[t.State.Account.Address].EncryptedShares = encryptedShares
+
+		t.State.PrivateCoefficients = privateCoefficients
+		t.State.SecretValue = privateCoefficients[0]
+		t.State.ValidatorThreshold = threshold
+
+		dkgData.PersistStateCB()
+	} else {
+		logger.Infof("ShareDistributionTask Initialize(): encrypted shares already defined")
 	}
-
-	// Store calculated values
-	t.State.Participants[t.State.Account.Address].Commitments = commitments
-	t.State.Participants[t.State.Account.Address].EncryptedShares = encryptedShares
-
-	t.State.PrivateCoefficients = privateCoefficients
-	t.State.SecretValue = privateCoefficients[0]
-	t.State.ValidatorThreshold = threshold
 
 	return nil
 }

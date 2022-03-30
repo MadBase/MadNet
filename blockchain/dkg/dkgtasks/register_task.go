@@ -47,6 +47,8 @@ func NewRegisterTask(state *objects.DkgState, start uint64, end uint64) *Registe
 // in later phases
 func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 
+	logger.Infof("RegisterTask Initialize()")
+
 	dkgData, ok := state.(objects.ETHDKGTaskData)
 	if !ok {
 		return objects.ErrCanNotContinue
@@ -56,8 +58,6 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 
 	t.State.Lock()
 	defer t.State.Unlock()
-
-	logger.Infof("RegisterTask Initialize() %p\n", t.State)
 
 	if t.State.TransportPrivateKey == nil ||
 		t.State.TransportPrivateKey.Cmp(big.NewInt(0)) == 0 {
@@ -70,9 +70,7 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 		t.State.TransportPrivateKey = priv
 		t.State.TransportPublicKey = pub
 
-		logger.Infof("RegisterTask pre-save state\n")
 		dkgData.PersistStateCB()
-		logger.Infof("RegisterTask post-save state\n")
 
 	} else {
 		logger.Infof("RegisterTask Initialize(): private-public transport keys already defined")
