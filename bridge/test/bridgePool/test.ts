@@ -26,21 +26,23 @@ describe("Testing BridgePool methods", async () => {
 
   beforeEach(async function () {
     fixture = await getFixture();
-    // const EventEmitter = await ethers.getContractFactory("EventEmitter");
-    // let eventEmitter = (await EventEmitter.deploy()) as EventEmitter;
-    // await eventEmitter.deployed();
-    // const BridgePool = await ethers.getContractFactory("BridgePool");
-    // bridgePool = (await BridgePool.deploy(eventEmitter.address)) as BridgePool;
-    // await bridgePool.deployed();
-
     let signers = await ethers.getSigners();
     [admin, user, user2] = signers;
     await init(fixture);
     // let expectedState = await getState(contractAddresses, userAddresses);
-    await factoryCallAny(fixture, "madByte", "setAdmin", [admin.address]);
+    await factoryCallAny(fixture.factory, fixture.madByte, "setAdmin", [
+      admin.address,
+    ]);
     showState("Initial", await getState(fixture));
     ethIn = ethers.utils.parseEther(eth.toString());
     madDeposit = ethers.utils.parseUnits(mad.toString());
+    [madBytes] = await callFunctionAndGetReturnValues(
+      fixture.madByte,
+      "mint",
+      admin,
+      [minMadBytes],
+      ethIn
+    );
     [madBytes] = await callFunctionAndGetReturnValues(
       fixture.madByte,
       "mint",
@@ -72,7 +74,7 @@ describe("Testing BridgePool methods", async () => {
       admin,
       [madBytes]
     );
-    // Expect a withdrawal event from BridgePool Contract
+    // Expect a requestWithdrawal event from BridgePool Contract
     let encodedEventArgs = ethers.utils.defaultAbiCoder.encode(
       ["string", "string", "address", "uint256"],
       ["BridgePool", "requestWithdrawal", admin.address, madBytes]
@@ -84,7 +86,7 @@ describe("Testing BridgePool methods", async () => {
     showState("After Withdrawal", await getState(fixture));
   });
 
-  it.only("Should withdraw eth if proof of burn was confirmed", async () => {
+  it("Should withdraw eth if proof of burn was confirmed", async () => {
     const [depositID] = await callFunctionAndGetReturnValues(
       fixture.bridgePool,
       "deposit",
@@ -92,7 +94,7 @@ describe("Testing BridgePool methods", async () => {
       [madBytes]
     );
     showState("After Deposit", await getState(fixture));
-    // Prepare the withdrawal
+    // Request the withdrawal
     await fixture.bridgePool.requestWithdrawal(madBytes);
     showState("After Request Withdraw", await getState(fixture));
     // Simulate successful validation of a proof of burn inside of the state proof
@@ -102,10 +104,16 @@ describe("Testing BridgePool methods", async () => {
     //   await fixture.madByte.totalSupply(),
     //   madBytes
     // );
-    // Expect a distribute event from BridgePool Contract
+    // Expect a withdraw event from BridgePool Contract
+    console.log(madBytes.div(4));
     let encodedEventArgs = ethers.utils.defaultAbiCoder.encode(
       ["string", "string", "address", "uint256"],
-      ["BridgePool", "withdrawal", admin.address, madBytes.div(4)]
+      [
+        "BridgePool",
+        "withdrawal",
+        admin.address,
+        BigNumber.from("249388274187129505919"),
+      ]
     );
     await expect(fixture.bridgePool.withdraw(madBytes))
       .to.emit(fixture.eventEmitter, "GenericEvent")

@@ -8,8 +8,8 @@ import "contracts/EventEmitter.sol";
 import "hardhat/console.sol";
 
 contract BridgePool is Initializable {
-    mapping(address => uint256) internal _depositsETH;
-    mapping(address => uint256) internal _stateProofs;
+    mapping(address => uint256) internal _depositMB;
+    mapping(address => uint256) internal _sidechainBurnedMB;
     address internal _eventEmitter;
     address internal _madByte;
 
@@ -27,8 +27,8 @@ contract BridgePool is Initializable {
     }
 
     function confirmProofOfBurn(address account_, uint256 amountMB_) public {
-        //TODO: set access control. Probably onlyETHDKG
-        _stateProofs[account_] += amountMB_;
+        //TODO: set access control.
+        _sidechainBurnedMB[account_] += amountMB_;
     }
 
     function withdraw(uint256 amountMB_) public {
@@ -36,11 +36,10 @@ contract BridgePool is Initializable {
     }
 
     function _deposit(address account_, uint256 amountMB_) internal returns (uint256) {
-        require(amountMB_ > 0, "BridgePool: Deposit amountMB must be greater that 0");
         ERC20(_madByte).transferFrom(account_, address(this), amountMB_);
         uint256 amountETH = MadByte(_madByte).burn(amountMB_, 0);
-        _depositsETH[account_] += amountETH;
         require(amountETH > 0, "BridgePool: Could not burn tokens for deposit");
+        _depositMB[account_] += amountETH;
         _emitDepositEvent(account_, amountMB_);
         return 0;
     }
@@ -50,16 +49,19 @@ contract BridgePool is Initializable {
     }
 
     function _withdraw(address account_, uint256 amountMB_) internal {
-        require(amountMB_ > 0, "BridgePool: Withdrawal amountMB must be greater that 0");
         require(
-            amountMB_ <= _stateProofs[account_],
+            amountMB_ <= _sidechainBurnedMB[account_],
             "BridgePool: Withdrawal amountMB greater than available balance"
         );
-        _stateProofs[account_] -= amount;
-        uint256 amountETH = _depositsETH[account_];
+        _sidechainBurnedMB[account_] -= amountMB_;
+        // uint256 amountETH = _depositMB[account_];
+        uint256 poolBalance_ = MadByte(_madByte).getPoolBalance();
+        uint256 totalSupply_ = ERC20(_madByte).totalSupply();
+        uint256 amountETH = MadByte(_madByte).madByteToEth(poolBalance_, totalSupply_, amountMB_);
         uint256 madBytes = MadByte(_madByte).mintTo{value: amountETH}(account_, 0);
+        console.log(amountMB_, amountETH, madBytes);
         _emitDistributeEvent(account_, madBytes);
-        delete _depositsETH[account_];
+        delete _depositMB[account_];
     }
 
     function _emitDepositEvent(address account_, uint256 amountMB_) internal {

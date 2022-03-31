@@ -25,8 +25,8 @@ group deposit
 end
 User -> BridgePool : withdraw(depositID)
 group withdraw       
-    BridgePool -> EventEmitter : _emitWithdrawalRequestEvent(depositID)
-    EventEmitter -> SideChain: _emitWithdrawalRequestEvent(depositID)
+    BridgePool -> EventEmitter : _emitWithdrawalRequestEvent(bytes[] merkleTree)
+    EventEmitter -> SideChain: _emitWithdrawalRequestEvent(bytes[] merkleTree)
 end
 SideChain -> BridgePool : validateProofOfBurn(depositID)
 User -> BridgePool : distribute(depositID)

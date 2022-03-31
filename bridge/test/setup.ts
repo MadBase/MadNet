@@ -397,15 +397,16 @@ export const getFixture = async (
   // EventEmitter
   const eventEmitter = (await deployStaticWithFactory(
     factory,
-    "EventEmitter",
-    []
+    "EventEmitter"
   )) as EventEmitter;
 
   // BridgePool
-  const bridgePool = (await deployStaticWithFactory(factory, "BridgePool", [
-    madByte.address,
-    eventEmitter.address,
-  ])) as BridgePool;
+  const bridgePool = (await deployStaticWithFactory(
+    factory,
+    "BridgePool",
+    undefined,
+    [madByte.address, eventEmitter.address]
+  )) as BridgePool;
 
   // ValidatorStaking is not considered a base token since is only used by validators
   const validatorStaking = (await deployStaticWithFactory(

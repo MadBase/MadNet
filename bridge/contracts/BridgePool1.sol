@@ -109,7 +109,13 @@ contract BridgePool1 is Initializable {
         address to_,
         uint256 amount_
     ) internal {
-        bytes memory encodedEvent = abi.encode("BridgePool", "distribute", depositID_, to_);
+        bytes memory encodedEvent = abi.encode(
+            "BridgePool",
+            "distribute",
+            depositID_,
+            to_,
+            amount_
+        );
         EventEmitter(_eventEmitter).emitGenericEvent(encodedEvent);
     }
 
