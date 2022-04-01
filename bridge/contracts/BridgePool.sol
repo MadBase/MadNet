@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "contracts/MadByte.sol";
+import "contracts/BToken.sol";
 import "contracts/EventEmitter.sol";
 import "hardhat/console.sol";
 
@@ -11,11 +11,11 @@ contract BridgePool is Initializable {
     mapping(address => uint256) internal _depositMB;
     mapping(address => uint256) internal _sidechainBurnedMB;
     address internal _eventEmitter;
-    address internal _madByte;
+    address internal _BToken;
 
-    function initialize(address madByte_, address eventEmitter_) public initializer {
+    function initialize(address BToken_, address eventEmitter_) public initializer {
         _eventEmitter = eventEmitter_;
-        _madByte = madByte_;
+        _BToken = BToken_;
     }
 
     function deposit(uint256 amountMB_) public returns (uint256) {
@@ -36,8 +36,8 @@ contract BridgePool is Initializable {
     }
 
     function _deposit(address account_, uint256 amountMB_) internal returns (uint256) {
-        ERC20(_madByte).transferFrom(account_, address(this), amountMB_);
-        uint256 amountETH = MadByte(_madByte).burn(amountMB_, 0);
+        ERC20(_BToken).transferFrom(account_, address(this), amountMB_);
+        uint256 amountETH = BToken(_BToken).burn(amountMB_, 0);
         require(amountETH > 0, "BridgePool: Could not burn tokens for deposit");
         _depositMB[account_] += amountETH;
         _emitDepositEvent(account_, amountMB_);
@@ -55,12 +55,12 @@ contract BridgePool is Initializable {
         );
         _sidechainBurnedMB[account_] -= amountMB_;
         // uint256 amountETH = _depositMB[account_];
-        uint256 poolBalance_ = MadByte(_madByte).getPoolBalance();
-        uint256 totalSupply_ = ERC20(_madByte).totalSupply();
-        uint256 amountETH = MadByte(_madByte).madByteToEth(poolBalance_, totalSupply_, amountMB_);
-        uint256 madBytes = MadByte(_madByte).mintTo{value: amountETH}(account_, 0);
-        console.log(amountMB_, amountETH, madBytes);
-        _emitDistributeEvent(account_, madBytes);
+        uint256 poolBalance_ = BToken(_BToken).getPoolBalance();
+        uint256 totalSupply_ = ERC20(_BToken).totalSupply();
+        uint256 amountETH = BToken(_BToken).bTokensToEth(poolBalance_, totalSupply_, amountMB_);
+        uint256 BTokens = BToken(_BToken).mintTo{value: amountETH}(account_, 0);
+        console.log(amountMB_, amountETH, BTokens);
+        _emitDistributeEvent(account_, BTokens);
         delete _depositMB[account_];
     }
 

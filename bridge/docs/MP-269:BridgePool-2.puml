@@ -1,0 +1,49 @@
+@startuml name
+Actor User
+Participant "BridgePool" as BridgePool #LightBlue
+Participant "MadByte\n(ERC20Upgradeable)" as MadByte #LightGreen
+Participant "EventEmitter" as EventEmitter #Orange
+Participant "SideChain" as SideChain #Gray
+title BridgePool
+autonumber
+
+== Initialization ==
+
+User -> MadByte : approve(BridgePool, MadByte amount)
+User -> ERC20 : approve(BridgePool, ERC20 amount)
+User -> BridgePool : deposit(tokenAmount)
+== Deposit ==
+    group transfer       
+        BridgePool -> MadByte : transferFrom\n(user,BridgePool,tokenAmount)
+        BridgePool -> ERC20 : transferFrom\n(user,BridgePool,tokenAmount)
+        User --> BridgePool: madBytes {tokenAmount}
+    end
+    group burn        
+        BridgePool -> MadByte : burnTo(madbyte.address,tokenAmount,0)
+        MadByte --> BridgePool: eths {poolBalance/4}
+    end
+    group createDeposit        
+        BridgePool -> BridgePool : depositId = createDeposit(user, eths, proofOfBurn: false)
+        BridgePool -> EventEmitter: _emitDepositEvent(depositID, user, eths)
+        EventEmitter -> SideChain: _emitDepositEvent(depositID, user, eths)
+    end
+' Burning is perfomed on side chain
+' Asset burned and stored on merkleTree
+
+' User -> BridgePool : requestWithdraw(depositID)
+' group withdraw       
+'     BridgePool -> EventEmitter : _emitWithdrawalRequestEvent(bytes[] merkleTree)
+'     EventEmitter -> SideChain: _emitWithdrawalRequestEvent(bytes[] merkleTree)
+' end
+== Withdraw ==
+
+SideChain -> BridgePool : withdraw(address to, bytes UTXO,bytes proofOfInclusion) TO BE DONE
+User -> BridgePool : withdraw(address to, bytes UTXO,bytes proofOfInclusion)
+group withdraw        
+'If tx is in proofOfInclusion
+    BridgePool -> ERC20 : transferFrom\n(BridgePool, to, UTXO.amount)
+    BridgePool --> User: ERC20 tokens
+end
+@enduml
+
+
