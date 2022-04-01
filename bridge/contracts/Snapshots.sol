@@ -10,10 +10,14 @@ import "contracts/libraries/math/CryptoLibrary.sol";
 import "contracts/libraries/snapshots/SnapshotsStorage.sol";
 import "contracts/utils/DeterministicAddress.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {SnapshotsErrorCodes} from "contracts/libraries/errorCodes/SnapshotsErrorCodes.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @custom:salt Snapshots
 /// @custom:deploy-type deployUpgradeable
 contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
+    using Strings for uint16;
+
     constructor(uint256 chainID_, uint256 epochLength_) SnapshotsStorage(chainID_, epochLength_) {}
 
     function initialize(uint32 desperationDelay_, uint32 desperationFactor_)
@@ -53,16 +57,16 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
     {
         require(
             IValidatorPool(_validatorPoolAddress()).isValidator(msg.sender),
-            "Snapshots: Only validators allowed!"
+            SnapshotsErrorCodes.SNAPSHOT_ONLY_VALIDATORS_ALLOWED.toString()
         );
         require(
             IValidatorPool(_validatorPoolAddress()).isConsensusRunning(),
-            "Snapshots: Consensus is not running!"
+            SnapshotsErrorCodes.SNAPSHOT_CONSENSUS_RUNNING.toString()
         );
 
         require(
             block.number >= _snapshots[_epoch].committedAt + _minimumIntervalBetweenSnapshots,
-            "Snapshots: Necessary amount of ethereum blocks has not passed since last snapshot!"
+            SnapshotsErrorCodes.SNAPSHOT_MIN_BLOCKS_INTERVAL_NOT_PASSED.toString()
         );
 
         (bool success, uint256 validatorIndex) = IETHDKG(_ethdkgAddress()).tryGetParticipantIndex(
@@ -70,7 +74,7 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
         );
         //todo:remove this, dummy operation only to silence linter
         validatorIndex;
-        require(success, "Snapshots: Caller didn't participate in the last ethdkg round!");
+        require(success, SnapshotsErrorCodes.SNAPSHOT_CALLER_NOT_ETHDKG_PARTICIPANT.toString());
 
         uint32 epoch = _epoch + 1;
         // uint256 ethBlocksSinceLastSnapshot = block.number - _snapshots[epoch - 1].committedAt;
@@ -93,7 +97,7 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
                 keccak256(bClaims_),
                 uint256(_snapshotDesperationFactor)
             ),
-            "Snapshots: Validator not elected to do snapshot!"
+             "Snapshots: Validator not elected to do snapshot!"
         );
         */
 
@@ -104,7 +108,7 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
             require(
                 keccak256(abi.encodePacked(masterPublicKey)) ==
                     keccak256(abi.encodePacked(IETHDKG(_ethdkgAddress()).getMasterPublicKey())),
-                "Snapshots: Wrong master public key!"
+                SnapshotsErrorCodes.SNAPSHOT_WRONG_MASTER_PUBLIC_KEY.toString()
             );
 
             require(
@@ -113,7 +117,7 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
                     signature,
                     masterPublicKey
                 ),
-                "Snapshots: Signature verification failed!"
+                SnapshotsErrorCodes.SNAPSHOT_SIGNATURE_VERIFICATION_FAILED.toString()
             );
         }
 
@@ -123,10 +127,13 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
 
         require(
             epoch * _epochLength == blockClaims.height,
-            "Snapshots: Incorrect AliceNet height for snapshot!"
+            SnapshotsErrorCodes.SNAPSHOT_INCORRECT_BLOCK_HEIGHT.toString()
         );
 
-        require(blockClaims.chainId == _chainId, "Snapshots: Incorrect chainID for snapshot!");
+        require(
+            blockClaims.chainId == _chainId,
+            SnapshotsErrorCodes.SNAPSHOT_INCORRECT_CHAIN_ID.toString()
+        );
 
         bool isSafeToProceedConsensus = true;
         if (IValidatorPool(_validatorPoolAddress()).isMaintenanceScheduled()) {

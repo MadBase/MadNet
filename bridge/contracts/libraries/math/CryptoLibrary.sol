@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT-open-group
 pragma solidity ^0.8.11;
 
+import {CryptoLibraryErrorCodes} from "contracts/libraries/errorCodes/CryptoLibraryErrorCodes.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 /* solhint-disable */
 /*
     Author: Philipp Schindler
@@ -19,6 +22,7 @@ pragma solidity ^0.8.11;
 //       some of them may not be if there are attempts they are called with
 //       invalid points.
 library CryptoLibrary {
+    using Strings for uint16;
     ////////////////////////////////////////////////////////////////////////////////////////////////
     //// CRYPTOGRAPHIC CONSTANTS
 
@@ -182,7 +186,7 @@ library CryptoLibrary {
             // 64       size of call return value, i.e. 64 bytes / 512 bit for a BN256 curve point
             success := staticcall(not(0), 0x06, input, 128, result, 64)
         }
-        require(success, "elliptic curve addition failed");
+        require(success, CryptoLibraryErrorCodes.CRYPTOLIB_ELLIPTIC_CURVE_ADDITION.toString());
     }
 
     function bn128_multiply(uint256[3] memory input)
@@ -205,7 +209,10 @@ library CryptoLibrary {
             // 64       size of call return value, i.e. 64 bytes / 512 bit for a BN256 curve point
             success := staticcall(not(0), 0x07, input, 96, result, 64)
         }
-        require(success, "elliptic curve multiplication failed");
+        require(
+            success,
+            CryptoLibraryErrorCodes.CRYPTOLIB_ELLIPTIC_CURVE_MULTIPLICATION.toString()
+        );
     }
 
     function bn128_check_pairing(uint256[12] memory input) internal view returns (bool) {
@@ -219,7 +226,7 @@ library CryptoLibrary {
             // 32        size of result (one 32 byte boolean!)
             success := staticcall(not(0), 0x08, input, 384, result, 32)
         }
-        require(success, "elliptic curve pairing failed");
+        require(success, CryptoLibraryErrorCodes.CRYPTOLIB_ELLIPTIC_CURVE_PAIRING.toString());
         return result[0] == 1;
     }
 
@@ -254,7 +261,7 @@ library CryptoLibrary {
             // data
             result := mload(p)
         }
-        require(success, "modular exponentiation falied");
+        require(success, CryptoLibraryErrorCodes.CRYPTOLIB_MODULAR_EXPONENTIATION.toString());
     }
 
     // Sign takes byte slice message and private key privK.
@@ -336,8 +343,14 @@ library CryptoLibrary {
         // Again, this is to ensure that even if something strange happens, we
         // will not return an invalid curvepoint.
         h = bn128_add([h0[0], h0[1], h1[0], h1[1]]);
-        require(bn128_is_on_curve(h), "Invalid hash point: not on elliptic curve");
-        require(safeSigningPoint(h), "Dangerous hash point: not safe for signing");
+        require(
+            bn128_is_on_curve(h),
+            CryptoLibraryErrorCodes.CRYPTOLIB_HASH_POINT_NOT_ON_CURVE.toString()
+        );
+        require(
+            safeSigningPoint(h),
+            CryptoLibraryErrorCodes.CRYPTOLIB_HASH_POINT_UNSAFE.toString()
+        );
     }
 
     // hashToBase takes in a byte slice message and bytes c0 and c1 for
@@ -555,7 +568,10 @@ library CryptoLibrary {
         // From Fouque-Tibouchi 2012, the only way to get an invalid point is
         // when t == 0, but we have already taken care of that to ensure that
         // when t == 0, we still return a valid curve point.
-        require(bn128_is_on_curve([x, y]), "Invalid point: not on elliptic curve");
+        require(
+            bn128_is_on_curve([x, y]),
+            CryptoLibraryErrorCodes.CRYPTOLIB_POINT_NOT_ON_CURVE.toString()
+        );
 
         h[0] = x;
         h[1] = y;
@@ -641,14 +657,17 @@ library CryptoLibrary {
     ) internal view returns (uint256[2] memory) {
         require(
             sigs.length == indices.length,
-            "Mismatch between length of signatures and index array"
+            CryptoLibraryErrorCodes.CRYPTOLIB_SIGNATURES_INDICES_LENGTH_MISMATCH.toString()
         );
         require(
             sigs.length > threshold,
-            "Failed to meet required number of signatures for threshold"
+            CryptoLibraryErrorCodes.CRYPTOLIB_SIGNATURES_LENGTH_THRESHOLD_NOT_MET.toString()
         );
         uint256 maxIndex = computeArrayMax(indices);
-        require(checkInverses(invArray, maxIndex), "invArray does not include correct inverses");
+        require(
+            checkInverses(invArray, maxIndex),
+            CryptoLibraryErrorCodes.CRYPTOLIB_INVERSE_ARRAY_INCORRECT.toString()
+        );
         uint256[2] memory grpsig;
         grpsig = LagrangeInterpolationG1(sigs, indices, threshold, invArray);
         return grpsig;
@@ -740,7 +759,7 @@ library CryptoLibrary {
         bool validInverses = true;
         require(
             (maxIndex - 1) <= invArray.length,
-            "checkInverses: insufficient inverses for group signature calculation"
+            CryptoLibraryErrorCodes.CRYPTOLIB_INVERSE_ARRAY_THRESHOLD_EXCEEDED.toString()
         );
         for (k = 1; k < maxIndex; k++) {
             kInv = invArray[k - 1];
@@ -763,7 +782,10 @@ library CryptoLibrary {
         uint256 threshold,
         uint256[] memory invArray
     ) internal view returns (uint256[2] memory) {
-        require(pointsG1.length == indices.length, "Mismatch between pointsG1 and indices arrays");
+        require(
+            pointsG1.length == indices.length,
+            CryptoLibraryErrorCodes.CRYPTOLIB_POINTSG1_INDICES_LENGTH_MISMATCH.toString()
+        );
         uint256[2] memory val;
         val[0] = 0;
         val[1] = 0;
@@ -805,7 +827,7 @@ library CryptoLibrary {
         uint256 j,
         uint256[] memory invArray
     ) internal pure returns (uint256) {
-        require(k != j, "Must have k != j when computing Rj partial constants");
+        require(k != j, CryptoLibraryErrorCodes.CRYPTOLIB_K_EQUAL_TO_J.toString());
         uint256 tmp1 = k;
         uint256 tmp2;
         if (k > j) {

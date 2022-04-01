@@ -22,7 +22,7 @@ describe("Testing AToken", async () => {
       it("Should burn when called by external address not identified as burner", async function () {
         await expect(
           fixture.aToken.externalBurn(user.address, amount)
-        ).to.be.revertedWith("onlyATokenBurner");
+        ).to.be.revertedWith("2012");
       });
     });
     describe("Business methods with onlyFactory modifier", async () => {

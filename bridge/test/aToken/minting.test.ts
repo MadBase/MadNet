@@ -23,7 +23,7 @@ describe("Testing AToken", async () => {
         it("Should not mint when called by external address not identified as minter", async function () {
           await expect(
             fixture.aToken.externalMint(user.address, amount)
-          ).to.be.revertedWith("onlyATokenMinter");
+          ).to.be.revertedWith("2013");
         });
       });
 
