@@ -133,6 +133,12 @@ RUN_VALIDATOR() {
     ./madnet --config ./scripts/generated/config/validator$1.toml validator
 }
 
+RACE_VALIDATOR() {
+    # Run a validator
+    CHECK_EXISTING $1
+    ./madrace --config ./scripts/generated/config/validator$1.toml validator
+}
+
 STATUS() {
     # Check validator status
     CHECK_EXISTING $1
@@ -167,6 +173,9 @@ case $1 in
     ;;
     validator)
         RUN_VALIDATOR $2
+    ;;
+    race)
+        RACE_VALIDATOR $2
     ;;
     ethdkg)
         ./scripts/base-scripts/ethdkg.sh
