@@ -36,88 +36,91 @@ func (wm *wrappedMock) GetSnapShotHdrNode(context.Context, *pb.GetSnapShotHdrNod
 func TestActive(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	c1Raw := NewMockP2PClient(ctrl)
-	c1cc := make(chan struct{})
-	c1 := &wrappedMock{c1Raw, c1cc}
-	c2Raw := NewMockP2PClient(ctrl)
-	c2cc := make(chan struct{})
-	c2 := &wrappedMock{c2Raw, c2cc}
-	obj := activePeerStore{
+	P2PClientOne := NewMockP2PClient(ctrl)
+	P2PClientTwo := NewMockP2PClient(ctrl)
+
+	P2PClientOneChannel := make(chan struct{})
+	P2PClientTwoChannel := make(chan struct{})
+
+	clientOne := &wrappedMock{P2PClientOne, P2PClientOneChannel}
+	clientTwo := &wrappedMock{P2PClientTwo, P2PClientTwoChannel}
+
+	activePeerStoreObj := activePeerStore{
 		canClose:  true,
 		store:     make(map[string]interfaces.P2PClient),
 		pid:       make(map[string]uint64),
 		closeChan: make(chan struct{}),
 		closeOnce: sync.Once{},
 	}
-	c1na, err := transport.RandomNodeAddr()
+	NodeAddrOne, err := transport.RandomNodeAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().CloseChan()
-	obj.add(c1)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().CloseChan()
+	activePeerStoreObj.add(clientOne)
 	time.Sleep(3 * time.Second)
 
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().CloseChan()
-	c2.EXPECT().Close()
-	obj.add(c2)
-	if len(obj.store) != 1 {
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().CloseChan()
+	clientTwo.EXPECT().Close()
+	activePeerStoreObj.add(clientTwo)
+	if len(activePeerStoreObj.store) != 1 {
 		t.Fatal("not one")
 	}
-	if len(obj.pid) != 1 {
+	if len(activePeerStoreObj.pid) != 1 {
 		t.Fatal("not one")
 	}
 	time.Sleep(3 * time.Second)
 
-	c1.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().NodeAddr().Return(c1na)
-	c1.EXPECT().NodeAddr().Return(c1na)
-	close(c1cc)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientOne.EXPECT().NodeAddr().Return(NodeAddrOne)
+	close(P2PClientOneChannel)
 	time.Sleep(3 * time.Second)
 
-	if len(obj.store) != 0 {
+	if len(activePeerStoreObj.store) != 0 {
 		t.Fatal("not zero")
 	}
-	if len(obj.pid) != 0 {
+	if len(activePeerStoreObj.pid) != 0 {
 		t.Fatal("not zero")
 	}
 
 	// reset the close channel
-	c2.closeChan = make(chan struct{})
+	clientTwo.closeChan = make(chan struct{})
 
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().CloseChan()
-	c2.EXPECT().NodeAddr().Return(c1na)
-	obj.add(c2)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().CloseChan()
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	activePeerStoreObj.add(clientTwo)
 	time.Sleep(3 * time.Second)
 
-	c2.EXPECT().Close()
-	obj.del(c1na)
+	clientTwo.EXPECT().Close()
+	activePeerStoreObj.del(NodeAddrOne)
 	time.Sleep(3 * time.Second)
 
-	if len(obj.store) != 0 {
+	if len(activePeerStoreObj.store) != 0 {
 		t.Fatal("not zero")
 	}
-	if len(obj.pid) != 0 {
+	if len(activePeerStoreObj.pid) != 0 {
 		t.Fatal("not zero")
 	}
 
 	// reset the close channel
-	c2.closeChan = make(chan struct{})
+	clientTwo.closeChan = make(chan struct{})
 
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().NodeAddr().Return(c1na)
-	c2.EXPECT().CloseChan()
-	obj.add(c2)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().NodeAddr().Return(NodeAddrOne)
+	clientTwo.EXPECT().CloseChan()
+	activePeerStoreObj.add(clientTwo)
 	time.Sleep(3 * time.Second)
 
-	c2.EXPECT().Close()
-	obj.close()
+	clientTwo.EXPECT().Close()
+	activePeerStoreObj.close()
 	time.Sleep(3 * time.Second)
 }
