@@ -10,9 +10,9 @@ import { HardhatUserConfig, task } from "hardhat/config";
 import os from "os";
 import "solidity-coverage";
 import "./scripts/generateImmutableAuth";
+import "./scripts/lib/alicenetFactoryTasks";
+import "./scripts/lib/alicenetTasks";
 import "./scripts/lib/gogogen";
-import "./scripts/lib/madnetFactoryTasks";
-import "./scripts/lib/madnetTasks";
 require("dotenv").config();
 
 /**
@@ -82,7 +82,7 @@ const config: HardhatUserConfig = {
           // admin & validator4
           privateKey:
             "0x6aea45ee1273170fb525da34015e4f20ba39fe792f486ba74020bcacc9badfc1",
-          balance: "1000000000000000000000000", // 1000000 eth
+          balance: "1500000000000000000000000000000", //  1500000000000 eth
         },
         {
           // address: 0x9AC1c9afBAec85278679fF75Ef109217f26b1417
@@ -231,12 +231,12 @@ const config: HardhatUserConfig = {
     clear: true,
     flat: true,
     only: [
-      "MadnetFactory",
+      "AliceNetFactory",
       "ETHDKG",
       "ValidatorPool",
       "Snapshots",
-      "MadByte",
-      "MadToken",
+      "BToken",
+      "AToken",
       "PublicStaking",
       "ValidatorStaking",
       "Governance",

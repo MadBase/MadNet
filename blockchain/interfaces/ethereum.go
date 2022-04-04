@@ -60,6 +60,11 @@ type Ethereum interface {
 
 	Timeout() time.Duration
 
+	GetTxFeePercentageToIncrease() int
+	GetTxMaxFeeThresholdInGwei() uint64
+	GetTxCheckFrequency() time.Duration
+	GetTxTimeoutForReplacement() time.Duration
+
 	Contracts() Contracts
 }
 
@@ -126,15 +131,15 @@ type Contracts interface {
 
 	Ethdkg() *bindings.ETHDKG
 	EthdkgAddress() common.Address
-	MadToken() *bindings.MadToken
-	MadTokenAddress() common.Address
-	MadByte() *bindings.MadByte
-	MadByteAddress() common.Address
+	AToken() *bindings.AToken
+	ATokenAddress() common.Address
+	BToken() *bindings.BToken
+	BTokenAddress() common.Address
 	PublicStaking() *bindings.PublicStaking
 	PublicStakingAddress() common.Address
 	ValidatorStaking() *bindings.ValidatorStaking
 	ValidatorStakingAddress() common.Address
-	ContractFactory() *bindings.MadnetFactory
+	ContractFactory() *bindings.AliceNetFactory
 	ContractFactoryAddress() common.Address
 	SnapshotsAddress() common.Address
 	Snapshots() *bindings.Snapshots
@@ -151,6 +156,7 @@ type Task interface {
 	DoWork(context.Context, *logrus.Entry, Ethereum) error
 	Initialize(context.Context, *logrus.Entry, Ethereum, interface{}) error
 	ShouldRetry(context.Context, *logrus.Entry, Ethereum) bool
+	GetExecutionData() interface{}
 }
 
 type AdminClient interface {

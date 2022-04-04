@@ -1,9 +1,14 @@
 // const { contracts } from"@openzeppelin/cli/lib/prompts/choices");
 import { expect } from "chai";
-import { BytesLike, ContractFactory, ContractTransaction } from "ethers";
+import {
+  BytesLike,
+  ContractFactory,
+  ContractReceipt,
+  ContractTransaction,
+} from "ethers";
 import { ethers } from "hardhat";
-import { END_POINT, MADNET_FACTORY, MOCK } from "../../scripts/lib/constants";
-import { MadnetFactory } from "../../typechain-types/MadnetFactory";
+import { ALICENET_FACTORY, END_POINT, MOCK } from "../../scripts/lib/constants";
+import { AliceNetFactory } from "../../typechain-types/AliceNetFactory";
 
 export async function getAccounts() {
   const signers = await ethers.getSigners();
@@ -33,7 +38,7 @@ export async function proxyMockLogicTest(
   factoryAddress: string
 ) {
   const endPointFactory = await ethers.getContractFactory(END_POINT);
-  const factoryBase = await ethers.getContractFactory(MADNET_FACTORY);
+  const factoryBase = await ethers.getContractFactory(ALICENET_FACTORY);
   const factory = factoryBase.attach(factoryAddress);
   const mockProxy = contract.attach(proxyAddress);
   let txResponse = await mockProxy.setFactory(factoryAddress);
@@ -145,6 +150,35 @@ export async function getEventVar(
   throw new Error(`failed to find event: ${eventName}`);
 }
 
+export async function getReceiptEventVar(
+  receipt: ContractReceipt,
+  eventName: string,
+  varName: string
+) {
+  let result: any;
+  if (receipt.events !== undefined) {
+    const events = receipt.events;
+    for (let i = 0; i < events.length; i++) {
+      // look for the event
+      if (events[i].event === eventName) {
+        if (events[i].args !== undefined) {
+          const args = events[i].args;
+          // extract the deployed mock logic contract address from the event
+          result = args !== undefined ? args[varName] : undefined;
+          if (result !== undefined) {
+            return result;
+          }
+        } else {
+          throw new Error(
+            `failed to extract ${varName} from event: ${eventName}`
+          );
+        }
+      }
+    }
+  }
+  throw new Error(`failed to find event: ${eventName}`);
+}
+
 export async function expectTxSuccess(txResponse: ContractTransaction) {
   const receipt = await txResponse.wait();
   expect(receipt.status).to.equal(1);
@@ -206,7 +240,7 @@ export async function checkMockInit(target: string, initVal: number) {
 }
 
 export async function deployFactory() {
-  const factoryBase = await ethers.getContractFactory(MADNET_FACTORY);
+  const factoryBase = await ethers.getContractFactory(ALICENET_FACTORY);
   const accounts = await getAccounts();
   const firstOwner = accounts[0];
   // gets the initial transaction count for the address
@@ -225,7 +259,7 @@ export async function deployFactory() {
 }
 
 export async function deployCreate2Initable(
-  factory: MadnetFactory,
+  factory: AliceNetFactory,
   salt: BytesLike
 ) {
   const mockInitFactory = await ethers.getContractFactory("MockInitializable");

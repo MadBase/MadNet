@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { expect } from "../../chai-setup";
 import { completeETHDKGRound } from "../../ethdkg/setup";
 import {
-  factoryCallAny,
+  factoryCallAnyFixture,
   Fixture,
   getFixture,
   getValidatorEthAccount,
@@ -37,8 +37,8 @@ describe("ValidatorPool: Registration logic", async () => {
     stakeAmount = (await fixture.validatorPool.getStakeAmount()).toBigInt();
   });
 
-  it("Should not allow registering validators if the PublicStaking position doesn’t have enough MADTokens staked", async function () {
-    const rcpt = await factoryCallAny(
+  it("Should not allow registering validators if the PublicStaking position doesn’t have enough Tokens staked", async function () {
+    const rcpt = await factoryCallAnyFixture(
       fixture,
       "validatorPool",
       "setStakeAmount",
@@ -46,7 +46,7 @@ describe("ValidatorPool: Registration logic", async () => {
     ); // Add 1 to max amount allowed
     expect(rcpt.status).to.equal(1);
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])
@@ -56,11 +56,14 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Should not allow registering more validators that the current number of free spots in the pool", async function () {
-    await factoryCallAny(fixture, "validatorPool", "setMaxNumValidators", [
-      maxNumValidators - 1,
-    ]); // Set maxNumValidators to 1 under default number of validators
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "setMaxNumValidators",
+      [maxNumValidators - 1]
+    ); // Set maxNumValidators to 1 under default number of validators
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])
@@ -71,7 +74,7 @@ describe("ValidatorPool: Registration logic", async () => {
 
   it("Should not allow registering validators if the size of the input data is not correct", async function () {
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators.slice(0, 3),
         stakingTokenIds,
       ])
@@ -79,7 +82,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "ValidatorPool: Both input array should have same length!"
     );
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds.slice(0, 3),
       ])
@@ -88,15 +91,17 @@ describe("ValidatorPool: Registration logic", async () => {
     );
   });
 
-  it('Should not allow registering validators if "Madnet consensus is running" or ETHDKG round is running', async function () {
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+  it('Should not allow registering validators if "AliceNet consensus is running" or ETHDKG round is running', async function () {
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     // Complete ETHDKG Round
-    await factoryCallAny(fixture, "validatorPool", "initializeETHDKG");
+    await factoryCallAnyFixture(fixture, "validatorPool", "initializeETHDKG");
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])
@@ -106,25 +111,25 @@ describe("ValidatorPool: Registration logic", async () => {
       validatorPool: fixture.validatorPool,
     });
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])
     ).to.be.revertedWith(
-      "ValidatorPool: Error Madnet Consensus should be halted!"
+      "ValidatorPool: Error AliceNet Consensus should be halted!"
     );
   });
 
   it("Should not allow registering validators if the PublicStaking position was not given permissions for the ValidatorPool contract burn it", async function () {
     for (const tokenID of stakingTokenIds) {
       // Disallow validatorPool to withdraw validator's NFT from PublicStaking
-      await factoryCallAny(fixture, "publicStaking", "approve", [
+      await factoryCallAnyFixture(fixture, "publicStaking", "approve", [
         dummyAddress,
         tokenID,
       ]);
     }
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])
@@ -138,12 +143,12 @@ describe("ValidatorPool: Registration logic", async () => {
     _validatorsSnapshots[1] = _validatorsSnapshots[0];
     const newValidators = await createValidators(fixture, _validatorsSnapshots);
     // Approve first validator for twice the amount
-    await fixture.madToken
+    await fixture.aToken
       .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
       .approve(fixture.publicStaking.address, stakeAmount * BigInt(2));
     await stakeValidators(fixture, newValidators);
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         newValidators,
         stakingTokenIds,
       ])
@@ -153,18 +158,23 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Should not allow registering an address that is in the exiting queue", async function () {
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     await mineBlocks(1n);
-    await factoryCallAny(fixture, "validatorPool", "unregisterValidators", [
-      validators,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "unregisterValidators",
+      [validators]
+    );
     const newValidators = await createValidators(fixture, validatorsSnapshots);
     const newTokensIds = await stakeValidators(fixture, newValidators);
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         newValidators,
         newTokensIds,
       ])
@@ -183,14 +193,16 @@ describe("ValidatorPool: Registration logic", async () => {
       expectedState.validators[index].Reg = true;
     }
     // Expect that all validators funds are transferred from PublicStaking to ValidatorStaking
-    expectedState.PublicStaking.MAD -= stakeAmount * BigInt(validators.length);
-    expectedState.ValidatorStaking.MAD +=
+    expectedState.PublicStaking.ATK -= stakeAmount * BigInt(validators.length);
+    expectedState.ValidatorStaking.ATK +=
       stakeAmount * BigInt(validators.length);
     // Register validators
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     const currentState = await getCurrentState(fixture, validators);
     await showState("after registering", currentState);
     await showState("Expected state after registering", expectedState);
@@ -203,8 +215,8 @@ describe("ValidatorPool: Registration logic", async () => {
     // Mint a publicStaking and burn it to the ValidatorPool contract. Besides a contract self destructing
     // itself, this is a method to send eth accidentally to the validatorPool contract
     const etherAmount = ethers.utils.parseEther("1");
-    const madTokenAmount = ethers.utils.parseEther("2");
-    await burnStakeTo(fixture, etherAmount, madTokenAmount, adminSigner);
+    const aTokenAmount = ethers.utils.parseEther("2");
+    await burnStakeTo(fixture, etherAmount, aTokenAmount, adminSigner);
 
     const expectedState = await getCurrentState(fixture, validators);
     // Expect that NFTs are transferred from each validator from ValidatorPool to ValidatorStaking
@@ -215,15 +227,17 @@ describe("ValidatorPool: Registration logic", async () => {
       expectedState.validators[index].Reg = true;
     }
     // Expect that all validators funds are transferred from PublicStaking to ValidatorStaking
-    expectedState.PublicStaking.MAD -= stakeAmount * BigInt(validators.length);
+    expectedState.PublicStaking.ATK -= stakeAmount * BigInt(validators.length);
     expectedState.PublicStaking.ETH = BigInt(0);
-    expectedState.ValidatorStaking.MAD +=
+    expectedState.ValidatorStaking.ATK +=
       stakeAmount * BigInt(validators.length);
     // Register validators
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     const currentState = await getCurrentState(fixture, validators);
     await showState("after registering", currentState);
     await showState("Expected state after registering", expectedState);
@@ -233,10 +247,12 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Set and get the validator's location after registering", async function () {
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     const currentState = await getCurrentState(fixture, validators);
     await showState("after registering", currentState);
     await fixture.validatorPool
@@ -248,10 +264,12 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Should not allow non-validator to set an IP location", async function () {
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     const currentState = await getCurrentState(fixture, validators);
     await showState("after registering", currentState);
     // Original Validators has all the validators not only the maximum to register
@@ -262,14 +280,19 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Should not allow users to register reusing previous publicStaking that cannot be burned", async function () {
-    await factoryCallAny(fixture, "validatorPool", "registerValidators", [
-      validators,
-      stakingTokenIds,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "registerValidators",
+      [validators, stakingTokenIds]
+    );
     await mineBlocks(1n);
-    await factoryCallAny(fixture, "validatorPool", "unregisterValidators", [
-      validators,
-    ]);
+    await factoryCallAnyFixture(
+      fixture,
+      "validatorPool",
+      "unregisterValidators",
+      [validators]
+    );
     await commitSnapshots(fixture, 4);
     stakingTokenIds = [];
     for (const validator of validatorsSnapshots) {
@@ -285,7 +308,7 @@ describe("ValidatorPool: Registration logic", async () => {
         .connect(await getValidatorEthAccount(validator))
         .transferFrom(validator.address, fixture.factory.address, tokenId);
       // Approve new tokensIds
-      await factoryCallAny(fixture, "publicStaking", "approve", [
+      await factoryCallAnyFixture(fixture, "publicStaking", "approve", [
         fixture.validatorPool.address,
         tokenId,
       ]);
@@ -294,12 +317,12 @@ describe("ValidatorPool: Registration logic", async () => {
       "After claiming:",
       await getCurrentState(fixture, validators)
     );
-    // After claiming, position is locked for a period of 172800 Madnet epochs
+    // After claiming, position is locked for a period of 172800 AliceNet epochs
     // To perform this test with no revert, POSITION_LOCK_PERIOD can be set to 3
     // in ValidatorPool and then take 4 snapshots
     // await commitSnapshots(fixture, 4)
     await expect(
-      factoryCallAny(fixture, "validatorPool", "registerValidators", [
+      factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds,
       ])

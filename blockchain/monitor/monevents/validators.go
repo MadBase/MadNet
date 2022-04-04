@@ -36,7 +36,7 @@ func ProcessValidatorSetCompleted(eth interfaces.Ethereum, logger *logrus.Entry,
 		"Nonce":          event.Nonce,
 		"Epoch":          event.Epoch,
 		"EthHeight":      event.EthHeight,
-		"MadHeight":      event.MadHeight,
+		"AliceNetHeight": event.AliceNetHeight,
 		"GroupKey0":      event.GroupKey0,
 		"GroupKey1":      event.GroupKey1,
 		"GroupKey2":      event.GroupKey2,
@@ -46,7 +46,7 @@ func ProcessValidatorSetCompleted(eth interfaces.Ethereum, logger *logrus.Entry,
 	epoch := uint32(event.Epoch.Int64())
 
 	vs := state.ValidatorSets[epoch]
-	vs.NotBeforeMadNetHeight = uint32(event.MadHeight.Uint64())
+	vs.NotBeforeMadNetHeight = uint32(event.AliceNetHeight.Uint64())
 	vs.ValidatorCount = uint8(event.ValidatorCount.Uint64())
 	vs.GroupKey[0] = event.GroupKey0
 	vs.GroupKey[1] = event.GroupKey1
@@ -59,7 +59,6 @@ func ProcessValidatorSetCompleted(eth interfaces.Ethereum, logger *logrus.Entry,
 		vs1b := vs.GroupKey[0].Bytes()
 		if !bytes.Equal(vs0b, vs1b) {
 			delete(updatedState.ValidatorSets, epoch)
-			delete(updatedState.Validators, epoch)
 		}
 	}
 	updatedState.ValidatorSets[epoch] = vs
@@ -172,7 +171,7 @@ func checkValidatorSet(state *objects.MonitorState, epoch uint32, logger *logrus
 		"ValidatorsExpected":    expectedCount,
 	}).Infof("Building ValidatorSet...")
 
-	if receivedCount == expectedCount {
+	if receivedCount == expectedCount || receivedCount == 0 {
 		// Start by building the ValidatorSet
 		ptrGroupKey := [4]*big.Int{validatorSet.GroupKey[0], validatorSet.GroupKey[1], validatorSet.GroupKey[2], validatorSet.GroupKey[3]}
 		groupKey, err := bn256.MarshalG2Big(ptrGroupKey)
@@ -185,24 +184,26 @@ func checkValidatorSet(state *objects.MonitorState, epoch uint32, logger *logrus
 			Validators: make([]*objs.Validator, validatorSet.ValidatorCount),
 			NotBefore:  validatorSet.NotBeforeMadNetHeight}
 		// Loop over the Validators
-		for _, validator := range validators {
-			ptrGroupShare := [4]*big.Int{
-				validator.SharedKey[0], validator.SharedKey[1],
-				validator.SharedKey[2], validator.SharedKey[3]}
-			groupShare, err := bn256.MarshalG2Big(ptrGroupShare)
-			if err != nil {
-				logger.Errorf("Failed to marshal groupShare: %v", err)
-				return err
+		if receivedCount != 0 {
+			for _, validator := range validators {
+				ptrGroupShare := [4]*big.Int{
+					validator.SharedKey[0], validator.SharedKey[1],
+					validator.SharedKey[2], validator.SharedKey[3]}
+				groupShare, err := bn256.MarshalG2Big(ptrGroupShare)
+				if err != nil {
+					logger.Errorf("Failed to marshal groupShare: %v", err)
+					return err
+				}
+				v := &objs.Validator{
+					VAddr:      validator.Account.Bytes(),
+					GroupShare: groupShare}
+				vs.Validators[validator.Index-1] = v
+				logger.WithFields(logrus.Fields{
+					"Index":      validator.Index,
+					"GroupShare": fmt.Sprintf("0x%x", groupShare),
+					"Validator":  fmt.Sprintf("0x%x", v.VAddr),
+				}).Info("ValidatorMember")
 			}
-			v := &objs.Validator{
-				VAddr:      validator.Account.Bytes(),
-				GroupShare: groupShare}
-			vs.Validators[validator.Index-1] = v
-			logger.WithFields(logrus.Fields{
-				"Index":      validator.Index,
-				"GroupShare": fmt.Sprintf("0x%x", groupShare),
-				"Validator":  fmt.Sprintf("0x%x", v.VAddr),
-			}).Info("ValidatorMember")
 		}
 
 		validatorStrings := make([]string, len(vs.Validators))

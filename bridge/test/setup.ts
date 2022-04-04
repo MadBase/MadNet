@@ -11,13 +11,15 @@ import {
 import { isHexString } from "ethers/lib/utils";
 import { ethers, network } from "hardhat";
 import {
+  AliceNetFactory,
   AToken,
   ATokenBurnerMock,
   ATokenMinterMock,
+  BToken,
   ETHDKG,
-  MadByte,
-  MadnetFactory,
-  MadToken,
+  Foundation,
+  LegacyToken,
+  LiquidityProviderStaking,
   PublicStaking,
   Snapshots,
   SnapshotsMock,
@@ -40,13 +42,14 @@ export interface Snapshot {
 }
 
 export interface BaseFixture {
-  factory: MadnetFactory;
+  factory: AliceNetFactory;
   [key: string]: any;
 }
 
 export interface BaseTokensFixture extends BaseFixture {
-  madToken: MadToken;
-  madByte: MadByte;
+  aToken: AToken;
+  bToken: BToken;
+  legacyToken: LegacyToken;
   publicStaking: PublicStaking;
 }
 
@@ -100,8 +103,8 @@ export const getValidatorEthAccount = async (
     const balance = await ethers.provider.getBalance(validator.address);
     if (balance.eq(0)) {
       await (
-        await ethers.getSigner("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
-      ).sendTransaction({
+        await ethers.getSigners()
+      )[0].sendTransaction({
         to: validator.address,
         value: ethers.utils.parseEther("10"),
       });
@@ -111,6 +114,28 @@ export const getValidatorEthAccount = async (
     }
     return ethers.getSigner(validator.address);
   }
+};
+
+export const createUsers = async (
+  numberOfUsers: number,
+  createWithNoFunds: boolean = false
+): Promise<SignerWithAddress[]> => {
+  const users: SignerWithAddress[] = [];
+  const admin = (await ethers.getSigners())[0];
+  for (let i = 0; i < numberOfUsers; i++) {
+    const user = new Wallet(ethers.utils.randomBytes(64), ethers.provider);
+    if (!createWithNoFunds) {
+      const balance = await ethers.provider.getBalance(user.address);
+      if (balance.eq(0)) {
+        await admin.sendTransaction({
+          to: user.address,
+          value: ethers.utils.parseEther("1"),
+        });
+      }
+    }
+    users.push(user as Signer as SignerWithAddress);
+  }
+  return users;
 };
 
 async function getContractAddressFromDeployedStaticEvent(
@@ -167,22 +192,16 @@ function getBytes32Salt(contractName: string) {
 }
 
 export const deployStaticWithFactory = async (
-  factory: MadnetFactory,
+  factory: AliceNetFactory,
   contractName: string,
+  salt?: string,
   initCallData?: any[],
-  constructorArgs?: any[]
+  constructorArgs: any[] = []
 ): Promise<Contract> => {
   const _Contract = await ethers.getContractFactory(contractName);
-  let contractTx;
-  if (constructorArgs !== undefined) {
-    contractTx = await factory.deployTemplate(
-      _Contract.getDeployTransaction(...constructorArgs).data as BytesLike
-    );
-  } else {
-    contractTx = await factory.deployTemplate(
-      _Contract.getDeployTransaction().data as BytesLike
-    );
-  }
+  const contractTx = await factory.deployTemplate(
+    _Contract.getDeployTransaction(...constructorArgs).data as BytesLike
+  );
   let receipt = await ethers.provider.getTransactionReceipt(contractTx.hash);
   if (receipt.gasUsed.gt(10_000_000)) {
     throw new Error(
@@ -203,10 +222,13 @@ export const deployStaticWithFactory = async (
     console.log(error);
     initCallDataBin = "0x";
   }
-  const tx = await factory.deployStatic(
-    getBytes32Salt(contractName),
-    initCallDataBin
-  );
+  let saltBytes;
+  if (salt === undefined) {
+    saltBytes = getBytes32Salt(contractName);
+  } else {
+    saltBytes = getBytes32Salt(salt);
+  }
+  const tx = await factory.deployStatic(saltBytes, initCallDataBin);
   receipt = await ethers.provider.getTransactionReceipt(tx.hash);
   if (receipt.gasUsed.gt(10_000_000)) {
     throw new Error(
@@ -218,25 +240,20 @@ export const deployStaticWithFactory = async (
 };
 
 async function deployUpgradeableWithFactory(
-  factory: MadnetFactory,
+  factory: AliceNetFactory,
   contractName: string,
   salt?: string,
   initCallData?: any[],
-  constructorArgs?: any[]
+  constructorArgs: any[] = []
 ): Promise<Contract> {
   const _Contract = await ethers.getContractFactory(contractName);
   let deployCode: BytesLike;
-  let contractTx;
-  if (constructorArgs !== undefined) {
-    contractTx = await factory.deployTemplate(
-      (deployCode = _Contract.getDeployTransaction(...constructorArgs)
-        .data as BytesLike)
-    );
-  } else {
-    contractTx = await factory.deployTemplate(
-      (deployCode = _Contract.getDeployTransaction().data as BytesLike)
-    );
-  }
+
+  const contractTx = await factory.deployTemplate(
+    (deployCode = _Contract.getDeployTransaction(...constructorArgs)
+      .data as BytesLike)
+  );
+
   let receipt = await ethers.provider.getTransactionReceipt(contractTx.hash);
   if (receipt.gasUsed.gt(10_000_000)) {
     throw new Error(
@@ -288,18 +305,24 @@ async function deployUpgradeableWithFactory(
 export const deployFactoryAndBaseTokens = async (
   admin: SignerWithAddress
 ): Promise<BaseTokensFixture> => {
-  const factory = await deployMadnetFactory(admin);
-  // MadToken
-  const madToken = (await deployStaticWithFactory(
-    factory,
-    "MadToken"
-  )) as MadToken;
+  const factory = await deployAliceNetFactory(admin);
 
-  // MadByte
-  const madByte = (await deployStaticWithFactory(
+  // LegacyToken
+  const legacyToken = (await deployStaticWithFactory(
     factory,
-    "MadByte"
-  )) as MadByte;
+    "LegacyToken"
+  )) as LegacyToken;
+
+  const aToken = (await deployStaticWithFactory(
+    factory,
+    "AToken",
+    "AToken",
+    undefined,
+    [legacyToken.address]
+  )) as AToken;
+
+  // BToken
+  const bToken = (await deployStaticWithFactory(factory, "BToken")) as BToken;
 
   // PublicStaking
   const publicStaking = (await deployStaticWithFactory(
@@ -309,14 +332,16 @@ export const deployFactoryAndBaseTokens = async (
 
   return {
     factory,
-    madToken,
-    madByte,
+    aToken,
+    bToken,
+    legacyToken,
     publicStaking,
   };
 };
-export const deployMadnetFactory = async (
+
+export const deployAliceNetFactory = async (
   admin: SignerWithAddress
-): Promise<MadnetFactory> => {
+): Promise<AliceNetFactory> => {
   const txCount = await ethers.provider.getTransactionCount(admin.address);
   // calculate the factory address for the constructor arg
   const futureFactoryAddress = ethers.utils.getContractAddress({
@@ -324,7 +349,7 @@ export const deployMadnetFactory = async (
     nonce: txCount,
   });
 
-  const Factory = await ethers.getContractFactory("MadnetFactory");
+  const Factory = await ethers.getContractFactory("AliceNetFactory");
   const factory = await Factory.deploy(futureFactoryAddress);
   await factory.deployed();
   return factory;
@@ -339,16 +364,43 @@ export const preFixtureSetup = async () => {
 };
 
 export const posFixtureSetup = async (
-  factory: MadnetFactory,
-  madToken: MadToken,
-  admin: SignerWithAddress
+  factory: AliceNetFactory,
+  aToken: AToken,
+  legacyToken: LegacyToken
 ) => {
   // finish workaround, putting the blockgas limit to the previous value 30_000_000
   await network.provider.send("evm_setBlockGasLimit", ["0x1C9C380"]);
+  const [admin] = await ethers.getSigners();
+  // transferring some part of the legacy token from the factory to the admin
   await factory.callAny(
-    madToken.address,
+    legacyToken.address,
     0,
-    madToken.interface.encodeFunctionData("transfer", [
+    aToken.interface.encodeFunctionData("transfer", [
+      admin.address,
+      ethers.utils.parseEther("100000000"),
+    ])
+  );
+  // migrating the rest of the legacy tokens to fresh new Atokens
+  await factory.callAny(
+    legacyToken.address,
+    0,
+    aToken.interface.encodeFunctionData("approve", [
+      aToken.address,
+      ethers.utils.parseEther("100000000"),
+    ])
+  );
+  await factory.callAny(
+    aToken.address,
+    0,
+    aToken.interface.encodeFunctionData("migrate", [
+      ethers.utils.parseEther("100000000"),
+    ])
+  );
+  // transferring those Atokens to the admin
+  await factory.callAny(
+    aToken.address,
+    0,
+    aToken.interface.encodeFunctionData("transfer", [
       admin.address,
       ethers.utils.parseEther("100000000"),
     ])
@@ -358,9 +410,9 @@ export const posFixtureSetup = async (
 export const getBaseTokensFixture = async (): Promise<BaseTokensFixture> => {
   await preFixtureSetup();
   const [admin] = await ethers.getSigners();
-  // MadToken
+  // AToken
   const fixture = await deployFactoryAndBaseTokens(admin);
-  await posFixtureSetup(fixture.factory, fixture.madToken, admin);
+  await posFixtureSetup(fixture.factory, fixture.aToken, fixture.legacyToken);
   return fixture;
 };
 
@@ -373,7 +425,7 @@ export const getFixture = async (
   const namedSigners = await ethers.getSigners();
   const [admin] = namedSigners;
   // Deploy the base tokens
-  const { factory, madToken, madByte, publicStaking } =
+  const { factory, aToken, bToken, legacyToken, publicStaking } =
     await deployFactoryAndBaseTokens(admin);
 
   // ValidatorStaking is not considered a base token since is only used by validators
@@ -381,6 +433,19 @@ export const getFixture = async (
     factory,
     "ValidatorStaking"
   )) as ValidatorStaking;
+
+  // LiquidityProviderStaking
+  const liquidityProviderStaking = (await deployStaticWithFactory(
+    factory,
+    "LiquidityProviderStaking"
+  )) as LiquidityProviderStaking;
+
+  // Foundation
+  const foundation = (await deployUpgradeableWithFactory(
+    factory,
+    "Foundation",
+    undefined
+  )) as Foundation;
 
   let validatorPool;
   if (typeof mockValidatorPool !== "undefined" && mockValidatorPool) {
@@ -455,9 +520,6 @@ export const getFixture = async (
     )) as Snapshots;
   }
 
-  const aToken = (await deployStaticWithFactory(factory, "AToken", undefined, [
-    madToken.address,
-  ])) as AToken;
   const aTokenMinter = (await deployUpgradeableWithFactory(
     factory,
     "ATokenMinterMock",
@@ -469,7 +531,7 @@ export const getFixture = async (
     "ATokenBurner"
   )) as ATokenBurnerMock;
 
-  await posFixtureSetup(factory, madToken, admin);
+  await posFixtureSetup(factory, aToken, legacyToken);
 
   const blockNumber = BigInt(await ethers.provider.getBlockNumber());
   const phaseLength = (await ethdkg.getPhaseLength()).toBigInt();
@@ -478,8 +540,9 @@ export const getFixture = async (
   }
 
   return {
-    madToken,
-    madByte,
+    aToken,
+    bToken,
+    legacyToken,
     publicStaking,
     validatorStaking,
     validatorPool,
@@ -487,9 +550,10 @@ export const getFixture = async (
     ethdkg,
     factory,
     namedSigners,
-    aToken,
     aTokenMinter,
     aTokenBurner,
+    liquidityProviderStaking,
+    foundation,
     stakingPositionDescriptor,
   };
 };
@@ -506,7 +570,7 @@ export async function getTokenIdFromTx(tx: any) {
   return log.args[2];
 }
 
-export async function factoryCallAny(
+export async function factoryCallAnyFixture(
   fixture: BaseFixture,
   contractName: string,
   functionName: string,
@@ -514,6 +578,15 @@ export async function factoryCallAny(
 ) {
   const factory = fixture.factory;
   const contract: Contract = fixture[contractName];
+  return await factoryCallAny(factory, contract, functionName, args);
+}
+
+export async function factoryCallAny(
+  factory: AliceNetFactory,
+  contract: Contract,
+  functionName: string,
+  args?: Array<any>
+) {
   if (args === undefined) {
     args = [];
   }
@@ -556,3 +629,15 @@ export async function callFunctionAndGetReturnValues(
     );
   }
 }
+
+export const getMetamorphicAddress = (
+  factoryAddress: string,
+  salt: string
+): string => {
+  const initCode = "0x6020363636335afa1536363636515af43d36363e3d36f3";
+  return ethers.utils.getCreate2Address(
+    factoryAddress,
+    ethers.utils.formatBytes32String(salt),
+    ethers.utils.keccak256(initCode)
+  );
+};
