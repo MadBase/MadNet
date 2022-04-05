@@ -8,7 +8,7 @@ interface IETHDKG {
 
     function setConfirmationLength(uint16 confirmationLength_) external;
 
-    function setCustomMadnetHeight(uint256 madnetHeight) external;
+    function setCustomAliceNetHeight(uint256 aliceNetHeight) external;
 
     function initializeETHDKG() external;
 
@@ -78,6 +78,8 @@ interface IETHDKG {
         returns (Participant memory);
 
     function getMasterPublicKey() external view returns (uint256[4] memory);
+
+    function getMasterPublicKeyHash() external view returns (bytes32);
 
     function tryGetParticipantIndex(address participant) external view returns (bool, uint256);
 }

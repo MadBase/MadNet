@@ -28,7 +28,7 @@ contract AToken is
     }
 
     function initialize() public onlyFactory initializer {
-        __ERC20_init("AToken", "ATK");
+        __ERC20_init("AToken", "ALC");
     }
 
     function migrate(uint256 amount) public {
@@ -42,5 +42,9 @@ contract AToken is
 
     function externalBurn(address from, uint256 amount) public onlyATokenBurner {
         _burn(from, amount);
+    }
+
+    function getLegacyTokenAddress() public view returns (address) {
+        return _legacyToken;
     }
 }

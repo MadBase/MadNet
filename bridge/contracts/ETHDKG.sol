@@ -81,14 +81,14 @@ contract ETHDKG is
         _confirmationLength = confirmationLength_;
     }
 
-    function setCustomMadnetHeight(uint256 madnetHeight) public onlyValidatorPool {
-        _customMadnetHeight = madnetHeight;
+    function setCustomAliceNetHeight(uint256 aliceNetHeight) public onlyValidatorPool {
+        _customAliceNetHeight = aliceNetHeight;
         emit ValidatorSetCompleted(
             0,
             _nonce,
             ISnapshots(_snapshotsAddress()).getEpoch(),
             ISnapshots(_snapshotsAddress()).getCommittedHeightFromLatestSnapshot(),
-            madnetHeight,
+            aliceNetHeight,
             0x0,
             0x0,
             0x0,
@@ -288,15 +288,21 @@ contract ETHDKG is
     }
 
     function tryGetParticipantIndex(address participant) public view returns (bool, uint256) {
-        Participant memory participantData = _participants[participant];
-        if (participantData.nonce == _nonce && _nonce != 0) {
-            return (true, _participants[participant].index);
+        uint256 participantDataIndex = _participants[participant].index;
+        uint256 participantDataNonce = _participants[participant].nonce;
+        uint256 nonce = _nonce;
+        if (participantDataNonce == nonce && nonce != 0) {
+            return (true, participantDataIndex);
         }
         return (false, 0);
     }
 
     function getMasterPublicKey() public view returns (uint256[4] memory) {
         return _masterPublicKey;
+    }
+
+    function getMasterPublicKeyHash() public view returns (bytes32) {
+        return _masterPublicKeyHash;
     }
 
     function getMinValidators() public pure returns (uint256) {
@@ -343,10 +349,7 @@ contract ETHDKG is
         _nonce++;
         _numParticipants = 0;
         _badParticipants = 0;
-        _mpkG1 = [uint256(0), uint256(0)];
         _ethdkgPhase = Phase.RegistrationOpen;
-
-        delete _masterPublicKey;
 
         emit RegistrationOpened(
             block.number,
