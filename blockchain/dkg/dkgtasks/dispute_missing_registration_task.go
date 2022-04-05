@@ -2,12 +2,13 @@ package dkgtasks
 
 import (
 	"context"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // DisputeMissingRegistrationTask contains required state for accusing missing registrations
@@ -35,7 +36,11 @@ func (t *DisputeMissingRegistrationTask) Initialize(ctx context.Context, logger 
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
+	dkgData.State.Lock()
+	defer dkgData.State.Unlock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	return nil
 }

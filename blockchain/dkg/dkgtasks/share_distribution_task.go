@@ -3,12 +3,13 @@ package dkgtasks
 import (
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // ShareDistributionTask stores the data required safely distribute shares
@@ -38,12 +39,13 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.Phase != objects.ShareDistribution {
+		t.State.Unlock()
 		return fmt.Errorf("%w because it's not in ShareDistribution phase", objects.ErrCanNotContinue)
 	}
 
@@ -57,6 +59,7 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		encryptedShares, privateCoefficients, commitments, err := math.GenerateShares(
 			t.State.TransportPrivateKey, participants)
 		if err != nil {
+			t.State.Unlock()
 			logger.Errorf("Failed to generate shares: %v %#v", err, participants)
 			return err
 		}
@@ -69,8 +72,10 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		t.State.SecretValue = privateCoefficients[0]
 		t.State.ValidatorThreshold = threshold
 
+		t.State.Unlock()
 		dkgData.PersistStateCB()
 	} else {
+		t.State.Unlock()
 		logger.Infof("ShareDistributionTask Initialize(): encrypted shares already defined")
 	}
 

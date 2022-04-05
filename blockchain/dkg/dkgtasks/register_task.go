@@ -41,10 +41,10 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.TransportPrivateKey == nil ||
 		t.State.TransportPrivateKey.Cmp(big.NewInt(0)) == 0 {
@@ -57,9 +57,11 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 		t.State.TransportPrivateKey = priv
 		t.State.TransportPublicKey = pub
 
+		t.State.Unlock()
 		dkgData.PersistStateCB()
 
 	} else {
+		t.State.Unlock()
 		logger.Infof("RegisterTask Initialize(): private-public transport keys already defined")
 	}
 

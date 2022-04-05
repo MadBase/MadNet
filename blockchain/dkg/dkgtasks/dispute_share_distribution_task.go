@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -12,7 +14,6 @@ import (
 	"github.com/MadBase/MadNet/crypto/bn256/cloudflare"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // DisputeShareDistributionTask stores the data required to dispute shares
@@ -42,10 +43,11 @@ func (t *DisputeShareDistributionTask) Initialize(ctx context.Context, logger *l
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	defer dkgData.State.Unlock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.Phase != objects.DisputeShareDistribution && t.State.Phase != objects.ShareDistribution {
 		return fmt.Errorf("%w because it's not DisputeShareDistribution phase", objects.ErrCanNotContinue)

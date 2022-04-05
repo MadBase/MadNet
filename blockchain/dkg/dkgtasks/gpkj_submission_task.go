@@ -3,13 +3,14 @@ package dkgtasks
 import (
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // GPKjSubmissionTask contains required state for gpk submission
@@ -41,10 +42,10 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.GroupPrivateKey == nil ||
 		t.State.GroupPrivateKey.Cmp(big.NewInt(0)) == 0 {
@@ -65,6 +66,7 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 			logger.WithFields(logrus.Fields{
 				"t.State.Index": t.State.Index,
 			}).Errorf("Could not generate group keys: %v", err)
+			t.State.Unlock()
 			return dkg.LogReturnErrorf(logger, "Could not generate group keys: %v", err)
 		}
 
@@ -75,11 +77,14 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 		logger.Infof("Adding private bn256eth key... using %p", t.adminHandler)
 		err = t.adminHandler.AddPrivateKey(groupPrivateKey.Bytes(), constants.CurveBN256Eth)
 		if err != nil {
+			t.State.Unlock()
 			return fmt.Errorf("%w because error adding private key: %v", objects.ErrCanNotContinue, err)
 		}
 
+		t.State.Unlock()
 		dkgData.PersistStateCB()
 	} else {
+		t.State.Unlock()
 		logger.Infof("GPKSubmissionTask Initialize(): group private-public key already defined")
 	}
 

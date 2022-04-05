@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // MPKSubmissionTask stores the data required to submit the mpk
@@ -40,12 +41,13 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.Phase != objects.MPKSubmission {
+		t.State.Unlock()
 		return fmt.Errorf("%w because it's not in MPKSubmission phase", objects.ErrCanNotContinue)
 	}
 
@@ -62,6 +64,7 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		// setup leader election
 		block, err := eth.GetGethClient().BlockByNumber(ctx, big.NewInt(int64(t.Start)))
 		if err != nil {
+			t.State.Unlock()
 			return fmt.Errorf("MPKSubmissionTask Initialize(): error getting block by number: %v", err)
 		}
 
@@ -100,6 +103,7 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 
 		mpk, err := math.GenerateMasterPublicKey(g1KeyShares, g2KeyShares)
 		if err != nil && validMPK {
+			t.State.Unlock()
 			return dkg.LogReturnErrorf(logger, "Failed to generate master public key:%v", err)
 		}
 
@@ -110,8 +114,10 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		// Master public key is all we generate here so save it
 		t.State.MasterPublicKey = mpk
 
+		t.State.Unlock()
 		dkgData.PersistStateCB()
 	} else {
+		t.State.Unlock()
 		logger.Infof("MPKSubmissionTask Initialize(): mpk already defined")
 	}
 

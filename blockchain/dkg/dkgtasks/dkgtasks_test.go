@@ -90,7 +90,7 @@ func validator(t *testing.T, idx int, eth interfaces.Ethereum, validatorAcct acc
 	var done bool
 
 	for !done {
-		err := monitor.MonitorTick(ctx, cancel, wg, eth, monitorState, logger, events, adminHandler, 10)
+		err := monitor.MonitorTick(ctx, cancel, wg, eth, monitorState, logger, events, adminHandler, 10, nil)
 		assert.Nil(t, err)
 
 		time.Sleep(time.Second)

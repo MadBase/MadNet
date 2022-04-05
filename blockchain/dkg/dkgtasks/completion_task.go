@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // CompletionTask contains required state for safely performing a registration
@@ -37,10 +38,11 @@ func (t *CompletionTask) Initialize(ctx context.Context, logger *logrus.Entry, e
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	defer dkgData.State.Unlock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.Phase != objects.DisputeGPKJSubmission {
 		return fmt.Errorf("%w because it's not in DisputeGPKJSubmission phase", objects.ErrCanNotContinue)

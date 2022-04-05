@@ -3,6 +3,8 @@ package dkgtasks
 import (
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/math"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -11,7 +13,6 @@ import (
 	"github.com/MadBase/MadNet/crypto/bn256"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 // DisputeGPKjTask contains required state for performing a group accusation
@@ -40,10 +41,11 @@ func (t *DisputeGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, 
 		return objects.ErrCanNotContinue
 	}
 
-	t.State = dkgData.State
-
-	t.State.Lock()
-	defer t.State.Unlock()
+	dkgData.State.Lock()
+	defer dkgData.State.Unlock()
+	if dkgData.State != t.State {
+		t.State = dkgData.State
+	}
 
 	if t.State.Phase != objects.DisputeGPKJSubmission && t.State.Phase != objects.GPKJSubmission {
 		return fmt.Errorf("%w because it's not DisputeGPKJSubmission phase", objects.ErrCanNotContinue)

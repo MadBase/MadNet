@@ -151,11 +151,6 @@ func (mon *monitor) LoadState() error {
 			return err
 		}
 
-		// todo: fix task state pointers
-		// for taskUUID, block := range mon.State.Schedule.Ranges {
-		// 	block.Task.
-		// }
-
 		return nil
 	}); err != nil {
 		return err
@@ -167,18 +162,13 @@ func (mon *monitor) LoadState() error {
 
 func (mon *monitor) PersistState() error {
 
-	fmt.Println("mon.PersistState() pre-lock")
 	mon.Lock()
-	fmt.Println("mon.PersistState() post-lock")
 	defer mon.Unlock()
 
 	rawData, err := json.Marshal(mon)
 	if err != nil {
 		return err
 	}
-
-	// todo: delete this
-	//fmt.Printf("persisted monitor: %s\n", rawData)
 
 	err = mon.db.Update(func(txn *badger.Txn) error {
 		keyLabel := fmt.Sprintf("%x", getStateKey())
@@ -229,9 +219,6 @@ func (mon *monitor) Start() error {
 		mon.State.HighestBlockFinalized = startingBlock
 		mon.State.HighestBlockProcessed = startingBlock
 	}
-
-	// todo: delete this
-	logger.Infof("loaded monitor.state.dkgState: %##v\n", mon.State.EthDKG)
 
 	if startingBlock > mon.State.HighestBlockProcessed {
 		logger.WithFields(logrus.Fields{
@@ -295,9 +282,7 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 			oldMonitorState := mon.State.Clone()
 
 			persistMonitorCB := func() {
-				logger.Infof("persistMonitorCB is calling")
 				mon.PersistState()
-				logger.Infof("persistMonitorCB was called")
 			}
 
 			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize, persistMonitorCB); err != nil {
@@ -321,6 +306,10 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 }
 
 func (m *monitor) MarshalJSON() ([]byte, error) {
+	m.State.RLock()
+	defer m.State.RUnlock()
+	m.State.EthDKG.RLock()
+	defer m.State.EthDKG.RUnlock()
 	rawData, err := json.Marshal(m.State)
 
 	if err != nil {
@@ -435,7 +424,6 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 
 		// Check if any tasks are scheduled
 		logEntry.Debug("Looking for scheduled task")
-		logger.Infof("monitor.State.DkgState: %p\n", monitorState.EthDKG)
 		uuid, err := monitorState.Schedule.Find(currentBlock)
 		if err == nil {
 			isRunning, err := monitorState.Schedule.IsRunning(uuid)
@@ -474,7 +462,6 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 				}
 			}
 
-			//monitorState.Schedule.Remove(uuid)
 		} else if err == objects.ErrNothingScheduled {
 			logEntry.Debug("No tasks scheduled")
 		} else {
