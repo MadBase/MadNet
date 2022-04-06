@@ -39,21 +39,11 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		return objects.ErrCanNotContinue
 	}
 
-	dkgData.State.Lock()
+	unlock := dkgData.LockState()
+	defer unlock()
 	if dkgData.State != t.State {
 		t.State = dkgData.State
 	}
-	unlock := func() func() {
-		unlocked := false
-
-		return func() {
-			if !unlocked {
-				unlocked = true
-				dkgData.State.Unlock()
-			}
-		}
-	}()
-	defer unlock()
 
 	if t.State.Phase != objects.ShareDistribution {
 		return fmt.Errorf("%w because it's not in ShareDistribution phase", objects.ErrCanNotContinue)

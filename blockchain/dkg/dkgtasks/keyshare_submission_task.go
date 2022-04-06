@@ -37,22 +37,11 @@ func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.
 		return objects.ErrCanNotContinue
 	}
 
-	dkgData.State.Lock()
+	unlock := dkgData.LockState()
+	defer unlock()
 	if dkgData.State != t.State {
 		t.State = dkgData.State
 	}
-
-	unlock := func() func() {
-		unlocked := false
-
-		return func() {
-			if !unlocked {
-				unlocked = true
-				dkgData.State.Unlock()
-			}
-		}
-	}()
-	defer unlock()
 
 	me := t.State.Account.Address
 

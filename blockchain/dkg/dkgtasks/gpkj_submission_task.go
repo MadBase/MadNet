@@ -42,22 +42,11 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 		return objects.ErrCanNotContinue
 	}
 
-	dkgData.State.Lock()
+	unlock := dkgData.LockState()
+	defer unlock()
 	if dkgData.State != t.State {
 		t.State = dkgData.State
 	}
-
-	unlock := func() func() {
-		unlocked := false
-
-		return func() {
-			if !unlocked {
-				unlocked = true
-				dkgData.State.Unlock()
-			}
-		}
-	}()
-	defer unlock()
 
 	if t.State.GroupPrivateKey == nil ||
 		t.State.GroupPrivateKey.Cmp(big.NewInt(0)) == 0 {

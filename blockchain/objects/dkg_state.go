@@ -309,3 +309,15 @@ type ETHDKGTaskData struct {
 	PersistStateCB func()
 	State          *DkgState
 }
+
+func (e *ETHDKGTaskData) LockState() func() {
+	e.State.Lock()
+	unlocked := false
+
+	return func() {
+		if !unlocked {
+			unlocked = true
+			e.State.Unlock()
+		}
+	}
+}

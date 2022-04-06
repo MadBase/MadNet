@@ -41,8 +41,8 @@ func (t *DisputeGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, 
 		return objects.ErrCanNotContinue
 	}
 
-	dkgData.State.Lock()
-	defer dkgData.State.Unlock()
+	unlock := dkgData.LockState()
+	defer unlock()
 	if dkgData.State != t.State {
 		t.State = dkgData.State
 	}
