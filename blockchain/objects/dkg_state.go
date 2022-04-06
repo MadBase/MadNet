@@ -313,8 +313,10 @@ type ETHDKGTaskData struct {
 // NewETHDKGTaskData creates an isntance of ETHDKGTaskData
 func NewETHDKGTaskData(state *DkgState) ETHDKGTaskData {
 	return ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
+		PersistStateCB: func() {
+			// placeholder
+		},
+		State: state,
 	}
 }
 
