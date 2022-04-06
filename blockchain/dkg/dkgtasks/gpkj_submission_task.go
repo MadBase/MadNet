@@ -47,6 +47,18 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 		t.State = dkgData.State
 	}
 
+	unlock := func() func() {
+		unlocked := false
+
+		return func() {
+			if !unlocked {
+				unlocked = true
+				dkgData.State.Unlock()
+			}
+		}
+	}()
+	defer unlock()
+
 	if t.State.GroupPrivateKey == nil ||
 		t.State.GroupPrivateKey.Cmp(big.NewInt(0)) == 0 {
 
@@ -66,7 +78,6 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 			logger.WithFields(logrus.Fields{
 				"t.State.Index": t.State.Index,
 			}).Errorf("Could not generate group keys: %v", err)
-			t.State.Unlock()
 			return dkg.LogReturnErrorf(logger, "Could not generate group keys: %v", err)
 		}
 
@@ -77,14 +88,12 @@ func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entr
 		logger.Infof("Adding private bn256eth key... using %p", t.adminHandler)
 		err = t.adminHandler.AddPrivateKey(groupPrivateKey.Bytes(), constants.CurveBN256Eth)
 		if err != nil {
-			t.State.Unlock()
 			return fmt.Errorf("%w because error adding private key: %v", objects.ErrCanNotContinue, err)
 		}
 
-		t.State.Unlock()
+		unlock()
 		dkgData.PersistStateCB()
 	} else {
-		t.State.Unlock()
 		logger.Infof("GPKSubmissionTask Initialize(): group private-public key already defined")
 	}
 

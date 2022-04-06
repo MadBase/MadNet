@@ -42,6 +42,18 @@ func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.
 		t.State = dkgData.State
 	}
 
+	unlock := func() func() {
+		unlocked := false
+
+		return func() {
+			if !unlocked {
+				unlocked = true
+				dkgData.State.Unlock()
+			}
+		}
+	}()
+	defer unlock()
+
 	me := t.State.Account.Address
 
 	// check if task already defined key shares
@@ -53,7 +65,6 @@ func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.
 		// Generate the key shares
 		g1KeyShare, g1Proof, g2KeyShare, err := math.GenerateKeyShare(t.State.SecretValue)
 		if err != nil {
-			t.State.Unlock()
 			return err
 		}
 
@@ -61,10 +72,9 @@ func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.
 		t.State.Participants[me].KeyShareG1CorrectnessProofs = g1Proof
 		t.State.Participants[me].KeyShareG2s = g2KeyShare
 
-		t.State.Unlock()
+		unlock()
 		dkgData.PersistStateCB()
 	} else {
-		t.State.Unlock()
 		logger.Infof("KeyshareSubmissionTask Initialize(): key shares already defined")
 	}
 

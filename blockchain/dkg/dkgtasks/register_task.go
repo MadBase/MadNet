@@ -46,6 +46,18 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 		t.State = dkgData.State
 	}
 
+	unlock := func() func() {
+		unlocked := false
+
+		return func() {
+			if !unlocked {
+				unlocked = true
+				dkgData.State.Unlock()
+			}
+		}
+	}()
+	defer unlock()
+
 	if t.State.TransportPrivateKey == nil ||
 		t.State.TransportPrivateKey.Cmp(big.NewInt(0)) == 0 {
 
@@ -57,11 +69,9 @@ func (t *RegisterTask) Initialize(ctx context.Context, logger *logrus.Entry, eth
 		t.State.TransportPrivateKey = priv
 		t.State.TransportPublicKey = pub
 
-		t.State.Unlock()
+		unlock()
 		dkgData.PersistStateCB()
-
 	} else {
-		t.State.Unlock()
 		logger.Infof("RegisterTask Initialize(): private-public transport keys already defined")
 	}
 

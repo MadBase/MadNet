@@ -46,8 +46,19 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		t.State = dkgData.State
 	}
 
+	unlock := func() func() {
+		unlocked := false
+
+		return func() {
+			if !unlocked {
+				unlocked = true
+				dkgData.State.Unlock()
+			}
+		}
+	}()
+	defer unlock()
+
 	if t.State.Phase != objects.MPKSubmission {
-		t.State.Unlock()
 		return fmt.Errorf("%w because it's not in MPKSubmission phase", objects.ErrCanNotContinue)
 	}
 
@@ -64,7 +75,6 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		// setup leader election
 		block, err := eth.GetGethClient().BlockByNumber(ctx, big.NewInt(int64(t.Start)))
 		if err != nil {
-			t.State.Unlock()
 			return fmt.Errorf("MPKSubmissionTask Initialize(): error getting block by number: %v", err)
 		}
 
@@ -103,7 +113,6 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 
 		mpk, err := math.GenerateMasterPublicKey(g1KeyShares, g2KeyShares)
 		if err != nil && validMPK {
-			t.State.Unlock()
 			return dkg.LogReturnErrorf(logger, "Failed to generate master public key:%v", err)
 		}
 
@@ -114,10 +123,9 @@ func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry
 		// Master public key is all we generate here so save it
 		t.State.MasterPublicKey = mpk
 
-		t.State.Unlock()
+		unlock()
 		dkgData.PersistStateCB()
 	} else {
-		t.State.Unlock()
 		logger.Infof("MPKSubmissionTask Initialize(): mpk already defined")
 	}
 

@@ -43,9 +43,19 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 	if dkgData.State != t.State {
 		t.State = dkgData.State
 	}
+	unlock := func() func() {
+		unlocked := false
+
+		return func() {
+			if !unlocked {
+				unlocked = true
+				dkgData.State.Unlock()
+			}
+		}
+	}()
+	defer unlock()
 
 	if t.State.Phase != objects.ShareDistribution {
-		t.State.Unlock()
 		return fmt.Errorf("%w because it's not in ShareDistribution phase", objects.ErrCanNotContinue)
 	}
 
@@ -59,7 +69,6 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		encryptedShares, privateCoefficients, commitments, err := math.GenerateShares(
 			t.State.TransportPrivateKey, participants)
 		if err != nil {
-			t.State.Unlock()
 			logger.Errorf("Failed to generate shares: %v %#v", err, participants)
 			return err
 		}
@@ -72,10 +81,9 @@ func (t *ShareDistributionTask) Initialize(ctx context.Context, logger *logrus.E
 		t.State.SecretValue = privateCoefficients[0]
 		t.State.ValidatorThreshold = threshold
 
-		t.State.Unlock()
+		unlock()
 		dkgData.PersistStateCB()
 	} else {
-		t.State.Unlock()
 		logger.Infof("ShareDistributionTask Initialize(): encrypted shares already defined")
 	}
 
