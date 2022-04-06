@@ -93,10 +93,7 @@ func TestRegisterTask(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 
@@ -163,10 +160,7 @@ func TestRegistrationGood2(t *testing.T) {
 
 		dkgStates[idx] = state
 		tasks[idx] = registrationTask
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err = tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
@@ -243,10 +237,7 @@ func TestRegistrationBad1(t *testing.T) {
 
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	// Mess up private key
@@ -304,10 +295,7 @@ func TestRegistrationBad2(t *testing.T) {
 	)
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	// Mess up private key
@@ -398,10 +386,7 @@ func TestRegistrationBad5(t *testing.T) {
 	)
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	err = registrationTask.DoWork(ctx, logger, eth)
@@ -485,10 +470,7 @@ func TestRegisterTaskShouldRetryFalse(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 
@@ -578,10 +560,7 @@ func TestRegisterTaskShouldRetryTrue(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 

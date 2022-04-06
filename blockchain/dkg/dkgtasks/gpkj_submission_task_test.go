@@ -30,10 +30,7 @@ func TestGPKjSubmissionGoodAllValid(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
@@ -79,10 +76,7 @@ func TestGPKjSubmissionBad1(t *testing.T) {
 	task := dkgtasks.NewGPKjSubmissionTask(state, 1, 100, adminHandler)
 	log := logger.WithField("TaskID", "foo")
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
@@ -108,10 +102,7 @@ func TestGPKjSubmissionBad2(t *testing.T) {
 	log := logger.WithField("TaskID", "foo")
 	adminHandler := new(adminHandlerMock)
 	task := dkgtasks.NewGPKjSubmissionTask(state, 1, 100, adminHandler)
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err := task.Initialize(ctx, log, eth, dkgData)
 	if err == nil {
 		t.Fatal("Should have raised error")
@@ -148,10 +139,7 @@ func TestGPKjSubmissionBad3(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
@@ -182,10 +170,7 @@ func TestGPKjSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
@@ -213,10 +198,7 @@ func TestGPKjSubmission_ShouldRetry_returnsTrue(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 

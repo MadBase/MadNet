@@ -30,10 +30,7 @@ func TestMPKSubmissionGoodAllValid(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		amILeading := tasks[idx].AmILeading(ctx, eth, logger)
@@ -95,10 +92,7 @@ func TestMPKSubmissionBad1(t *testing.T) {
 	logger := logging.GetLogger("test").WithField("Validator", "")
 
 	task := suite.mpkSubmissionTasks[0]
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          dkgStates[0],
-	}
+	dkgData := objects.NewETHDKGTaskData(dkgStates[0])
 	err := task.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	eth.Commit()
@@ -132,10 +126,7 @@ func TestMPKSubmissionBad2(t *testing.T) {
 	task := dkgtasks.NewMPKSubmissionTask(state, 1, 100)
 	log := logger.WithField("TaskID", "foo")
 
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
@@ -160,10 +151,7 @@ func TestMPKSubmissionBad4(t *testing.T) {
 	state := objects.NewDkgState(acct)
 	log := logger.WithField("TaskID", "foo")
 	task := dkgtasks.NewMPKSubmissionTask(state, 1, 100)
-	dkgData := objects.ETHDKGTaskData{
-		PersistStateCB: func() {},
-		State:          state,
-	}
+	dkgData := objects.NewETHDKGTaskData(state)
 	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
@@ -183,10 +171,7 @@ func TestMPKSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		amILeading := tasks[idx].AmILeading(ctx, eth, logger)
@@ -240,10 +225,7 @@ func TestMPKSubmission_LeaderElection(t *testing.T) {
 	tasks := suite.mpkSubmissionTasks
 	for idx := 0; idx < n; idx++ {
 		state := suite.dkgStates[idx]
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		//tasks[idx].State.MasterPublicKey[0] = big.NewInt(1)
 

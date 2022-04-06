@@ -310,6 +310,14 @@ type ETHDKGTaskData struct {
 	State          *DkgState
 }
 
+// NewETHDKGTaskData creates an isntance of ETHDKGTaskData
+func NewETHDKGTaskData(state *DkgState) ETHDKGTaskData {
+	return ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+}
+
 func (e *ETHDKGTaskData) LockState() func() {
 	e.State.Lock()
 	unlocked := false

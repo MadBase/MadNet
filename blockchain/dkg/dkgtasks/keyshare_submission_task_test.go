@@ -59,10 +59,7 @@ func TestKeyShareSubmissionBad3(t *testing.T) {
 
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.NotNil(t, err)
 	}
@@ -85,10 +82,7 @@ func TestKeyShareSubmissionBad4(t *testing.T) {
 		state := suite.dkgStates[idx]
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 

@@ -21,10 +21,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeShares(t *testing.T) {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
@@ -50,10 +47,7 @@ func TestShouldAccuseAllValidatorsWhoDidNotDistributeShares(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
@@ -79,10 +73,7 @@ func TestShouldNotAccuseValidatorsWhoDidDistributeShares(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
@@ -123,10 +114,7 @@ func TestDisputeMissingShareDistributionTask_ShouldRetryTrue(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		shouldRetry := task.ShouldRetry(ctx, logger, suite.eth)
@@ -145,10 +133,7 @@ func TestDisputeMissingShareDistributionTask_ShouldRetryFalse(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
@@ -180,10 +165,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeSharesAndAnotherSubmittedBad
 		// disputeMissingShareDist
 		disputeMissingShareDistTask := suite.disputeMissingShareDistTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := disputeMissingShareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingShareDistTask.DoWork(ctx, logger, suite.eth)

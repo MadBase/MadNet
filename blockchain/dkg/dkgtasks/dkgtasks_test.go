@@ -310,10 +310,7 @@ func StartFromRegistrationOpenPhase(t *testing.T, n int, unregisteredValidators 
 		dkgStates[idx] = state
 		regTasks[idx] = regTask
 		dispMissingRegTasks[idx] = dispMissingRegTask
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err = regTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
@@ -412,10 +409,7 @@ func StartFromShareDistributionPhase(t *testing.T, n int, undistributedSharesIdx
 
 		shareDistTask := suite.shareDistTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := shareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
@@ -501,10 +495,7 @@ func StartFromKeyShareSubmissionPhase(t *testing.T, n int, undistributedShares i
 
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
@@ -568,10 +559,7 @@ func StartFromMPKSubmissionPhase(t *testing.T, n int, phaseLength uint16) *TestS
 		task := suite.mpkSubmissionTasks[idx]
 		state := dkgStates[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := task.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		if task.AmILeading(ctx, eth, logger) {
@@ -628,10 +616,7 @@ func StartFromGPKjPhase(t *testing.T, n int, undistributedGPKjIdx []int, badGPKj
 
 		gpkjSubTask := suite.gpkjSubmissionTasks[idx]
 
-		dkgData := objects.ETHDKGTaskData{
-			PersistStateCB: func() {},
-			State:          state,
-		}
+		dkgData := objects.NewETHDKGTaskData(state)
 		err := gpkjSubTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
