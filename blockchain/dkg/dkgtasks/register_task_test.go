@@ -93,7 +93,11 @@ func TestRegisterTask(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	err = registrationTask.Initialize(ctx, log, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 
 	err = registrationTask.DoWork(ctx, log, eth)
@@ -159,7 +163,11 @@ func TestRegistrationGood2(t *testing.T) {
 
 		dkgStates[idx] = state
 		tasks[idx] = registrationTask
-		err = tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err = tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -235,7 +243,11 @@ func TestRegistrationBad1(t *testing.T) {
 
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	err = registrationTask.Initialize(ctx, logger, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	// Mess up private key
 	state.TransportPrivateKey = big.NewInt(0)
@@ -292,7 +304,11 @@ func TestRegistrationBad2(t *testing.T) {
 	)
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	err = registrationTask.Initialize(ctx, logger, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	// Mess up private key
 	state.TransportPrivateKey = big.NewInt(0)
@@ -382,7 +398,11 @@ func TestRegistrationBad5(t *testing.T) {
 	)
 	logger = logging.GetLogger("test").WithField("Validator", accounts[0].Address.String())
 
-	err = registrationTask.Initialize(ctx, logger, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 	err = registrationTask.DoWork(ctx, logger, eth)
 	assert.NotNil(t, err)
@@ -465,7 +485,11 @@ func TestRegisterTaskShouldRetryFalse(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	err = registrationTask.Initialize(ctx, log, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 
 	err = registrationTask.DoWork(ctx, log, eth)
@@ -554,7 +578,11 @@ func TestRegisterTaskShouldRetryTrue(t *testing.T) {
 
 	log := logger.WithField("TaskID", "foo")
 
-	err = registrationTask.Initialize(ctx, log, eth, state)
+	dkgData := objects.ETHDKGTaskData{
+		PersistStateCB: func() {},
+		State:          state,
+	}
+	err = registrationTask.Initialize(ctx, log, eth, dkgData)
 	assert.Nil(t, err)
 
 	state.TransportPublicKey[0] = big.NewInt(0)

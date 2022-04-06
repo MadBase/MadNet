@@ -310,7 +310,11 @@ func StartFromRegistrationOpenPhase(t *testing.T, n int, unregisteredValidators 
 		dkgStates[idx] = state
 		regTasks[idx] = regTask
 		dispMissingRegTasks[idx] = dispMissingRegTask
-		err = regTasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err = regTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		if idx >= n-unregisteredValidators {
@@ -408,7 +412,11 @@ func StartFromShareDistributionPhase(t *testing.T, n int, undistributedSharesIdx
 
 		shareDistTask := suite.shareDistTasks[idx]
 
-		err := shareDistTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err := shareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		for _, badIdx := range badSharesIdx {
@@ -493,7 +501,11 @@ func StartFromKeyShareSubmissionPhase(t *testing.T, n int, undistributedShares i
 
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		err = keyshareSubmissionTask.DoWork(ctx, logger, suite.eth)
@@ -556,7 +568,11 @@ func StartFromMPKSubmissionPhase(t *testing.T, n int, phaseLength uint16) *TestS
 		task := suite.mpkSubmissionTasks[idx]
 		state := dkgStates[idx]
 
-		err := task.Initialize(ctx, logger, eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err := task.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		if task.AmILeading(ctx, eth, logger) {
 			err = task.DoWork(ctx, logger, eth)
@@ -612,7 +628,11 @@ func StartFromGPKjPhase(t *testing.T, n int, undistributedGPKjIdx []int, badGPKj
 
 		gpkjSubTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.ETHDKGTaskData{
+			PersistStateCB: func() {},
+			State:          state,
+		}
+		err := gpkjSubTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		for _, badIdx := range badGPKjIdx {
