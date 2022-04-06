@@ -3,7 +3,6 @@ package objects
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -147,7 +146,6 @@ func (ss *SequentialSchedule) MarshalJSON() ([]byte, error) {
 	for k, v := range ss.Ranges {
 		wt, err := ss.marshaller.WrapInstance(v.Task)
 		if err != nil {
-			fmt.Printf("error marshalling wrapinstance1: %v", err)
 			return []byte{}, err
 		}
 		ws.Ranges[k] = &innerBlock{Start: v.Start, End: v.End, WrappedTask: wt}
@@ -155,7 +153,6 @@ func (ss *SequentialSchedule) MarshalJSON() ([]byte, error) {
 
 	raw, err := json.Marshal(&ws)
 	if err != nil {
-		fmt.Printf("error marshalling wrapinstance2: %v", err)
 		return []byte{}, err
 	}
 
