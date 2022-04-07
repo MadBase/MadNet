@@ -95,11 +95,9 @@ func makeTxInitial(ownerSigner objs.Signer) (objs.Vout, *objs.Tx) {
 	if err != nil {
 		panic(err)
 	}
-	txfee := uint256.Zero()
 	tx := &objs.Tx{
 		Vin:  txInputs,
 		Vout: generatedUTXOs,
-		Fee:  txfee,
 	}
 	err = tx.SetTxHash()
 	if err != nil {
@@ -135,11 +133,9 @@ func makeTxConsuming(ownerSigner objs.Signer, consumedUTXOs objs.Vout) *objs.Tx 
 	if err != nil {
 		panic(err)
 	}
-	txfee := uint256.Zero()
 	tx := &objs.Tx{
 		Vin:  txInputs,
 		Vout: generatedUTXOs,
-		Fee:  txfee,
 	}
 	err = tx.SetTxHash()
 	if err != nil {

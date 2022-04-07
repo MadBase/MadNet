@@ -4,7 +4,7 @@ import (
 	mdefs "github.com/MadBase/MadNet/consensus/objs/capn"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // Marshal will marshal the OwnState object.
@@ -43,6 +43,9 @@ func Unmarshal(data []byte) (mdefs.OwnState, error) {
 func Validate(p mdefs.OwnState) error {
 	if !p.IsValid() {
 		return errorz.ErrInvalid{}.New("ownstate capn obj is not valid")
+	}
+	if !p.HasVAddr() {
+		return errorz.ErrInvalid{}.New("ownstate capn obj does not have VAddr")
 	}
 	if !p.HasSyncToBH() {
 		return errorz.ErrInvalid{}.New("ownstate capn obj does not have SyncToBH")

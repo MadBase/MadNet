@@ -142,8 +142,8 @@ func TestStorageInitialized(t *testing.T) {
 		t.Fatal("Incorrect downloadTimeout")
 	}
 
-	minTxFeeReturned := s.GetMinTxFee()
-	if minTxFeeReturned.Cmp(minTxFee) != 0 {
+	minTxFee := s.GetMinTxFee()
+	if minTxFee.Sign() != 0 {
 		t.Fatal("Incorrect minTxFee")
 	}
 
@@ -152,8 +152,8 @@ func TestStorageInitialized(t *testing.T) {
 		t.Fatal("Incorrect txValidVersion")
 	}
 
-	vsFeeReturned := s.GetValueStoreFee()
-	if vsFeeReturned.Cmp(valueStoreFee) != 0 {
+	vsFee := s.GetValueStoreFee()
+	if vsFee.Sign() != 0 {
 		t.Fatal("Incorrect valueStoreFee")
 	}
 
@@ -162,8 +162,8 @@ func TestStorageInitialized(t *testing.T) {
 		t.Fatal("Incorrect valueStoreValidVersion")
 	}
 
-	asFeeReturned := s.GetAtomicSwapFee()
-	if asFeeReturned.Cmp(atomicSwapFee) != 0 {
+	asFee := s.GetAtomicSwapFee()
+	if asFee.Sign() != 0 {
 		t.Fatal("Incorrect atomicSwapFee")
 	}
 
@@ -172,8 +172,8 @@ func TestStorageInitialized(t *testing.T) {
 		t.Fatal("Incorrect atomicSwapValidStopEpoch")
 	}
 
-	dsEpochFeeReturned := s.GetDataStoreEpochFee()
-	if dsEpochFeeReturned.Cmp(dataStoreEpochFee) != 0 {
+	dsEpochFee := s.GetDataStoreEpochFee()
+	if dsEpochFee.Sign() != 0 {
 		t.Fatal("Incorrect dataStoreEpochFee")
 	}
 
@@ -1336,8 +1336,8 @@ func TestStorageUpdateStorageValueBad4(t *testing.T) {
 func TestStorageGetMinTxFee(t *testing.T) {
 	s := initializeStorageWithFirstNode()
 	txFee := s.GetMinTxFee()
-	if txFee.Cmp(minTxFee) != 0 {
-		t.Fatal("txFee incorrect")
+	if txFee.Sign() != 0 {
+		t.Fatal("txFee should be zero")
 	}
 
 	epoch := uint32(25519)
@@ -1373,8 +1373,8 @@ func TestStorageGetMinTxFee(t *testing.T) {
 func TestStorageGetDataStoreEpochFee(t *testing.T) {
 	s := initializeStorageWithFirstNode()
 	dsEpochFee := s.GetDataStoreEpochFee()
-	if dsEpochFee.Cmp(dataStoreEpochFee) != 0 {
-		t.Fatal("dsEpochFee incorrect")
+	if dsEpochFee.Sign() != 0 {
+		t.Fatal("dsEpochFee should be zero")
 	}
 
 	epoch := uint32(25519)
@@ -1407,8 +1407,8 @@ func TestStorageGetDataStoreEpochFee(t *testing.T) {
 func TestStorageGetValueStoreFee(t *testing.T) {
 	s := initializeStorageWithFirstNode()
 	vsFee := s.GetValueStoreFee()
-	if vsFee.Cmp(valueStoreFee) != 0 {
-		t.Fatal("vsFee incorrect")
+	if vsFee.Sign() != 0 {
+		t.Fatal("vsFee should be zero")
 	}
 
 	epoch := uint32(25519)
@@ -1441,8 +1441,8 @@ func TestStorageGetValueStoreFee(t *testing.T) {
 func TestStorageGetAtomicSwapFee(t *testing.T) {
 	s := initializeStorageWithFirstNode()
 	asFee := s.GetAtomicSwapFee()
-	if asFee.Cmp(atomicSwapFee) != 0 {
-		t.Fatal("asFee incorrect")
+	if asFee.Sign() != 0 {
+		t.Fatal("asFee should be zero")
 	}
 
 	epoch := uint32(25519)

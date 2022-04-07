@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/MadBase/MadNet/bridge/bindings"
+	"github.com/MadBase/bridge/bindings"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -50,7 +50,6 @@ type Ethereum interface {
 	GetSyncProgress() (bool, *ethereum.SyncProgress, error)
 	GetTimeoutContext() (context.Context, context.CancelFunc)
 	GetValidators(context.Context) ([]common.Address, error)
-	GetFinalityDelay() uint64
 
 	KnownSelectors() SelectorMap
 	Queue() TxnQueue
@@ -59,11 +58,6 @@ type Ethereum interface {
 	RetryDelay() time.Duration
 
 	Timeout() time.Duration
-
-	GetTxFeePercentageToIncrease() int
-	GetTxMaxFeeThresholdInGwei() uint64
-	GetTxCheckFrequency() time.Duration
-	GetTxTimeoutForReplacement() time.Duration
 
 	Contracts() Contracts
 }
@@ -128,25 +122,27 @@ type SelectorMap interface {
 // Contracts contains bindings to smart contract system
 type Contracts interface {
 	LookupContracts(ctx context.Context, registryAddress common.Address) error
+	DeployContracts(ctx context.Context, account accounts.Account) (*bindings.Registry, common.Address, error)
 
+	Crypto() *bindings.Crypto
+	CryptoAddress() common.Address
+	Deposit() *bindings.Deposit
+	DepositAddress() common.Address
 	Ethdkg() *bindings.ETHDKG
 	EthdkgAddress() common.Address
-	AToken() *bindings.AToken
-	ATokenAddress() common.Address
-	BToken() *bindings.BToken
-	BTokenAddress() common.Address
-	PublicStaking() *bindings.PublicStaking
-	PublicStakingAddress() common.Address
-	ValidatorStaking() *bindings.ValidatorStaking
-	ValidatorStakingAddress() common.Address
-	ContractFactory() *bindings.AliceNetFactory
-	ContractFactoryAddress() common.Address
-	SnapshotsAddress() common.Address
+	Governor() *bindings.Governor
+	GovernorAddress() common.Address
+	Participants() *bindings.Participants
+	Registry() *bindings.Registry
+	RegistryAddress() common.Address
 	Snapshots() *bindings.Snapshots
-	ValidatorPool() *bindings.ValidatorPool
-	ValidatorPoolAddress() common.Address
-	Governance() *bindings.Governance
-	GovernanceAddress() common.Address
+	Staking() *bindings.Staking
+	StakingToken() *bindings.Token
+	StakingTokenAddress() common.Address
+	UtilityToken() *bindings.Token
+	UtilityTokenAddress() common.Address
+	Validators() *bindings.Validators
+	ValidatorsAddress() common.Address
 }
 
 // Task the interface requirements of a task
@@ -156,7 +152,6 @@ type Task interface {
 	DoWork(context.Context, *logrus.Entry, Ethereum) error
 	Initialize(context.Context, *logrus.Entry, Ethereum, interface{}) error
 	ShouldRetry(context.Context, *logrus.Entry, Ethereum) bool
-	GetExecutionData() interface{}
 }
 
 type AdminClient interface {

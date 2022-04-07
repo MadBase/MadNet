@@ -1,6 +1,5 @@
 package blockchain_test
 
-/*
 import (
 	"context"
 	"math/big"
@@ -81,4 +80,3 @@ func (s *DepositTestSuite) TestDepositEvent() {
 func TestDepositTestSuite(t *testing.T) {
 	suite.Run(t, new(DepositTestSuite))
 }
-*/

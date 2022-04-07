@@ -3,7 +3,7 @@ package pclaims
 import (
 	mdefs "github.com/MadBase/MadNet/consensus/objs/capn"
 	"github.com/MadBase/MadNet/errorz"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // Marshal will marshal the PClaims object.

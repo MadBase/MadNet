@@ -6,11 +6,13 @@ import (
 	mdefs "github.com/MadBase/MadNet/consensus/objs/capn"
 	"github.com/MadBase/MadNet/consensus/objs/ovstate"
 	"github.com/MadBase/MadNet/errorz"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // OwnValidatingState ...
 type OwnValidatingState struct {
+	VAddr                []byte
+	GroupKey             []byte
 	RoundStarted         int64
 	PreVoteStepStarted   int64
 	PreCommitStepStarted int64
@@ -21,9 +23,6 @@ type OwnValidatingState struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // OwnValidatingState object
 func (b *OwnValidatingState) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("OwnValidatingState.UnmarshalBinary; ovs not initialized")
-	}
 	bh, err := ovstate.Unmarshal(data)
 	if err != nil {
 		return err
@@ -34,13 +33,12 @@ func (b *OwnValidatingState) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *OwnValidatingState) UnmarshalCapn(bh mdefs.OwnValidatingState) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("OwnValidatingState.UnmarshalCapn; ovs not initialized")
-	}
 	err := ovstate.Validate(bh)
 	if err != nil {
 		return err
 	}
+	b.VAddr = bh.VAddr()
+	b.GroupKey = bh.GroupKey()
 	b.RoundStarted = bh.RoundStarted()
 	b.PreVoteStepStarted = bh.PreVoteStepStarted()
 	b.PreCommitStepStarted = bh.PreCommitStepStarted()
@@ -65,7 +63,7 @@ func (b *OwnValidatingState) UnmarshalCapn(bh mdefs.OwnValidatingState) error {
 // byte slice
 func (b *OwnValidatingState) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("OwnValidatingState.MarshalBinary; ovs not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -78,7 +76,7 @@ func (b *OwnValidatingState) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *OwnValidatingState) MarshalCapn(seg *capnp.Segment) (mdefs.OwnValidatingState, error) {
 	if b == nil {
-		return mdefs.OwnValidatingState{}, errorz.ErrInvalid{}.New("OwnValidatingState.MarshalCapn; ovs not initialized")
+		return mdefs.OwnValidatingState{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.OwnValidatingState
 	if seg == nil {
@@ -97,6 +95,14 @@ func (b *OwnValidatingState) MarshalCapn(seg *capnp.Segment) (mdefs.OwnValidatin
 			return bh, err
 		}
 		bh = tmp
+	}
+	err := bh.SetVAddr(b.VAddr)
+	if err != nil {
+		return mdefs.OwnValidatingState{}, err
+	}
+	err = bh.SetGroupKey(b.GroupKey)
+	if err != nil {
+		return mdefs.OwnValidatingState{}, err
 	}
 	bh.SetRoundStarted(b.RoundStarted)
 	bh.SetPreVoteStepStarted(b.PreVoteStepStarted)

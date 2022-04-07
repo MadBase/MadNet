@@ -6,7 +6,7 @@ import (
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // PreVoteNil ...
@@ -21,9 +21,6 @@ type PreVoteNil struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // PreVoteNil object
 func (b *PreVoteNil) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreVoteNil.UnmarshalBinary; pvn not initialized")
-	}
 	bh, err := prevotenil.Unmarshal(data)
 	if err != nil {
 		return err
@@ -34,9 +31,6 @@ func (b *PreVoteNil) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *PreVoteNil) UnmarshalCapn(bh mdefs.PreVoteNil) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreVoteNil.UnmarshalCapn; pvn not initialized")
-	}
 	b.RCert = &RCert{}
 	err := prevotenil.Validate(bh)
 	if err != nil {
@@ -54,7 +48,7 @@ func (b *PreVoteNil) UnmarshalCapn(bh mdefs.PreVoteNil) error {
 // byte slice
 func (b *PreVoteNil) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("PreVoteNil.MarshalBinary; pvn not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -67,7 +61,7 @@ func (b *PreVoteNil) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *PreVoteNil) MarshalCapn(seg *capnp.Segment) (mdefs.PreVoteNil, error) {
 	if b == nil {
-		return mdefs.PreVoteNil{}, errorz.ErrInvalid{}.New("PreVoteNil.MarshalCapn; pvn not initialized")
+		return mdefs.PreVoteNil{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.PreVoteNil
 	if seg == nil {
@@ -104,7 +98,7 @@ func (b *PreVoteNil) MarshalCapn(seg *capnp.Segment) (mdefs.PreVoteNil, error) {
 
 func (b *PreVoteNil) ValidateSignatures(secpVal *crypto.Secp256k1Validator, bnVal *crypto.BNGroupValidator) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("PreVoteNil.ValidateSignatures; pvn not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.RCert.ValidateSignature(bnVal)
 	if err != nil {

@@ -37,7 +37,6 @@ func (txv TxVec) ValidateUnique(exclSet map[string]bool) (map[string]bool, error
 	return exclSet, nil
 }
 
-// ValidateDataStoreIndexes ...
 func (txv TxVec) ValidateDataStoreIndexes(exclSet map[string]bool) (map[string]bool, error) {
 	if exclSet == nil {
 		exclSet = make(map[string]bool)
@@ -268,9 +267,9 @@ func (txv TxVec) PreValidatePending(chainID uint32) error {
 }
 
 // PostValidatePending ...
-func (txv TxVec) PostValidatePending(currentHeight uint32, consumedUTXOs Vout, storage *wrapper.Storage) error {
+func (txv TxVec) PostValidatePending(currentHeight uint32, consumedUTXOs Vout) error {
 	for i := 0; i < len(txv); i++ {
-		if err := txv[i].PostValidatePending(currentHeight, consumedUTXOs, storage); err != nil {
+		if err := txv[i].PostValidatePending(currentHeight, consumedUTXOs); err != nil {
 			return err
 		}
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // ValueStore stores value in a UTXO
@@ -22,16 +22,13 @@ type ValueStore struct {
 // New creates a new ValueStore
 func (b *ValueStore) New(chainID uint32, value *uint256.Uint256, fee *uint256.Uint256, acct []byte, curveSpec constants.CurveSpec, txHash []byte) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("vs.new: vs not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
-	if value == nil {
-		return errorz.ErrInvalid{}.New("vs.new: value is nil")
-	}
-	if value.IsZero() {
-		return errorz.ErrInvalid{}.New("vs.new: value is zero")
+	if value == nil || value.IsZero() {
+		return errorz.ErrInvalid{}.New("invalue value: nil or zero")
 	}
 	if fee == nil {
-		return errorz.ErrInvalid{}.New("vs.new: fee is nil")
+		return errorz.ErrInvalid{}.New("invalue fee: nil")
 	}
 	vsowner := &ValueStoreOwner{}
 	vsowner.New(acct, curveSpec)
@@ -39,10 +36,10 @@ func (b *ValueStore) New(chainID uint32, value *uint256.Uint256, fee *uint256.Ui
 		return err
 	}
 	if chainID == 0 {
-		return errorz.ErrInvalid{}.New("vs.new: chainID is zero")
+		return errorz.ErrInvalid{}.New("Error in ValueStore.New: invalid chainID")
 	}
 	if len(txHash) != constants.HashLen {
-		return errorz.ErrInvalid{}.New("vs.new: invalid txHash; incorrect txhash length")
+		return errorz.ErrInvalid{}.New("Error in ValueStore.New: invalid txHash")
 	}
 	vsp := &VSPreImage{
 		ChainID:  chainID,
@@ -64,23 +61,16 @@ func (b *ValueStore) NewFromDeposit(chainID uint32, value *uint256.Uint256, acct
 		return err
 	}
 	if chainID == 0 {
-		return errorz.ErrInvalid{}.New("vs.newFromDeposit: chainID is zero")
+		return errorz.ErrInvalid{}.New("Error in ValueStore.NewFromDeposit: invalid chainID")
 	}
 	if len(nonce) != constants.HashLen {
-		return errorz.ErrInvalid{}.New("vs.newFromDeposit: invalid nonce; incorrect nonce length")
-	}
-	if value == nil {
-		return errorz.ErrInvalid{}.New("vs.newFromDeposit: value is nil")
-	}
-	if value.IsZero() {
-		return errorz.ErrInvalid{}.New("vs.newFromDeposit: value is zero")
+		return errorz.ErrInvalid{}.New("Error in ValueStore.NewFromDeposit: invalid nonce")
 	}
 	vsp := &VSPreImage{
 		ChainID:  chainID,
 		Value:    value,
 		TXOutIdx: constants.MaxUint32,
 		Owner:    vsowner,
-		Fee:      uint256.Zero(),
 	}
 	b.VSPreImage = vsp
 	b.TxHash = utils.CopySlice(nonce)
@@ -91,7 +81,7 @@ func (b *ValueStore) NewFromDeposit(chainID uint32, value *uint256.Uint256, acct
 // ValueStore object
 func (b *ValueStore) UnmarshalBinary(data []byte) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("vs.unmarshalBinary: vs not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	bc, err := valuestore.Unmarshal(data)
 	if err != nil {
@@ -104,7 +94,7 @@ func (b *ValueStore) UnmarshalBinary(data []byte) error {
 // byte slice
 func (b *ValueStore) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.marshalBinary: vs not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bc, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -129,7 +119,7 @@ func (b *ValueStore) UnmarshalCapn(bc mdefs.ValueStore) error {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *ValueStore) MarshalCapn(seg *capnp.Segment) (mdefs.ValueStore, error) {
 	if b == nil {
-		return mdefs.ValueStore{}, errorz.ErrInvalid{}.New("vs.marshalCapn: vs not initialized")
+		return mdefs.ValueStore{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bc mdefs.ValueStore
 	if seg == nil {
@@ -166,21 +156,15 @@ func (b *ValueStore) MarshalCapn(seg *capnp.Segment) (mdefs.ValueStore, error) {
 // PreHash calculates the PreHash of the object
 func (b *ValueStore) PreHash() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.preHash: vs not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	return b.VSPreImage.PreHash()
 }
 
 // UTXOID calculates the UTXOID of the object
 func (b *ValueStore) UTXOID() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.utxoID: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.utxoID: vspi not initialized")
-	}
-	if len(b.TxHash) != constants.HashLen {
-		return nil, errorz.ErrInvalid{}.New("vs.utxoID: vs.txhash has incorrect length")
+	if b == nil || b.VSPreImage == nil || len(b.TxHash) != constants.HashLen {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	if b.utxoID != nil {
 		return utils.CopySlice(b.utxoID), nil
@@ -189,24 +173,18 @@ func (b *ValueStore) UTXOID() ([]byte, error) {
 	return utils.CopySlice(b.utxoID), nil
 }
 
-// TxOutIdx returns the TxOutIdx of the object
-func (b *ValueStore) TxOutIdx() (uint32, error) {
-	if b == nil {
-		return 0, errorz.ErrInvalid{}.New("vs.txOutIdx: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return 0, errorz.ErrInvalid{}.New("vs.txOutIdx: vspi not initialized")
+// TXOutIdx returns the TXOutIdx of the object
+func (b *ValueStore) TXOutIdx() (uint32, error) {
+	if b == nil || b.VSPreImage == nil {
+		return 0, errorz.ErrInvalid{}.New("not initialized")
 	}
 	return b.VSPreImage.TXOutIdx, nil
 }
 
-// SetTxOutIdx sets the TxOutIdx of the object
-func (b *ValueStore) SetTxOutIdx(idx uint32) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("vs.setTxOutIdx: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return errorz.ErrInvalid{}.New("vs.setTxOutIdx: vspi not initialized")
+// SetTXOutIdx sets the TXOutIdx of the object
+func (b *ValueStore) SetTXOutIdx(idx uint32) error {
+	if b == nil || b.VSPreImage == nil {
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	b.VSPreImage.TXOutIdx = idx
 	return nil
@@ -214,14 +192,11 @@ func (b *ValueStore) SetTxOutIdx(idx uint32) error {
 
 // SetTxHash sets the TxHash of the object
 func (b *ValueStore) SetTxHash(txHash []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("vs.setTxHash: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return errorz.ErrInvalid{}.New("vs.setTxHash: vspi not initialized")
+	if b == nil || b.VSPreImage == nil {
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	if len(txHash) != constants.HashLen {
-		return errorz.ErrInvalid{}.New("vs.setTxHash: invalid hash length")
+		return errorz.ErrInvalid{}.New("Invalid hash length")
 	}
 	b.TxHash = utils.CopySlice(txHash)
 	return nil
@@ -229,45 +204,24 @@ func (b *ValueStore) SetTxHash(txHash []byte) error {
 
 // ChainID returns the ChainID of the object
 func (b *ValueStore) ChainID() (uint32, error) {
-	if b == nil {
-		return 0, errorz.ErrInvalid{}.New("vs.chainID: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return 0, errorz.ErrInvalid{}.New("vs.chainID: vspi not initialized")
-	}
-	if b.VSPreImage.ChainID == 0 {
-		return 0, errorz.ErrInvalid{}.New("vs.chainID: chainID is zero")
+	if b == nil || b.VSPreImage == nil || b.VSPreImage.ChainID == 0 {
+		return 0, errorz.ErrInvalid{}.New("not initialized")
 	}
 	return b.VSPreImage.ChainID, nil
 }
 
 // Value returns the Value of the object
 func (b *ValueStore) Value() (*uint256.Uint256, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.value: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.value: vspi not initialized")
-	}
-	if b.VSPreImage.Value == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.value: vspi.value not initialized")
-	}
-	if b.VSPreImage.Value.IsZero() {
-		return nil, errorz.ErrInvalid{}.New("vs.value: vspi.value is zero")
+	if b == nil || b.VSPreImage == nil || b.VSPreImage.Value == nil || b.VSPreImage.Value.IsZero() {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	return b.VSPreImage.Value.Clone(), nil
 }
 
 // Fee returns the Fee of the object
 func (b *ValueStore) Fee() (*uint256.Uint256, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.fee: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.fee: vspi not initialized")
-	}
-	if b.VSPreImage.Fee == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.fee: vspi.fee not initialized")
+	if b == nil || b.VSPreImage == nil || b.VSPreImage.Fee == nil {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	return b.VSPreImage.Fee.Clone(), nil
 }
@@ -299,14 +253,11 @@ func (b *ValueStore) IsDeposit() bool {
 
 // Owner returns the ValueStoreOwner of the ValueStore
 func (b *ValueStore) Owner() (*ValueStoreOwner, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.owner: vs not initialized")
-	}
-	if b.VSPreImage == nil {
-		return nil, errorz.ErrInvalid{}.New("vs.owner: vspi not initialized")
+	if b == nil || b.VSPreImage == nil {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	if err := b.VSPreImage.Owner.Validate(); err != nil {
-		return nil, errorz.ErrInvalid{}.New("vs.owner: ValueStoreOwner invalid")
+		return nil, errorz.ErrInvalid{}.New("ValueStoreOwner invalid")
 	}
 	return b.VSPreImage.Owner, nil
 }
@@ -326,9 +277,6 @@ func (b *ValueStore) GenericOwner() (*Owner, error) {
 
 // Sign generates the signature for a ValueStore at the time of consumption
 func (b *ValueStore) Sign(txIn *TXIn, s Signer) error {
-	if txIn == nil {
-		return errorz.ErrInvalid{}.New("vs.sign: txin not initialized")
-	}
 	msg, err := txIn.TXInLinker.MarshalBinary()
 	if err != nil {
 		return err
@@ -357,7 +305,7 @@ func (b *ValueStore) ValidateFee(storage *wrapper.Storage) error {
 	}
 	if b.IsDeposit() {
 		if !fee.IsZero() {
-			return errorz.ErrInvalid{}.New("vs.validateFee: invalid fee; deposits should have fee equal zero")
+			return errorz.ErrInvalid{}.New("vs: invalid fee; deposits should have fee equal zero")
 		}
 		return nil
 	}
@@ -366,7 +314,7 @@ func (b *ValueStore) ValidateFee(storage *wrapper.Storage) error {
 		return err
 	}
 	if fee.Cmp(feeTrue) != 0 {
-		return errorz.ErrInvalid{}.New("vs.validateFee: invalid fee")
+		return errorz.ErrInvalid{}.New("vs: invalid fee")
 	}
 	return nil
 }
@@ -375,10 +323,7 @@ func (b *ValueStore) ValidateFee(storage *wrapper.Storage) error {
 // consumption
 func (b *ValueStore) ValidateSignature(txIn *TXIn) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("vs.validateSignature: vs not initialized")
-	}
-	if txIn == nil {
-		return errorz.ErrInvalid{}.New("vs.validateSignature: txin not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	msg, err := txIn.TXInLinker.MarshalBinary()
 	if err != nil {
@@ -393,7 +338,7 @@ func (b *ValueStore) ValidateSignature(txIn *TXIn) error {
 
 // MakeTxIn constructs a TXIn object for the current object
 func (b *ValueStore) MakeTxIn() (*TXIn, error) {
-	txOutIdx, err := b.TxOutIdx()
+	txOutIdx, err := b.TXOutIdx()
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +347,7 @@ func (b *ValueStore) MakeTxIn() (*TXIn, error) {
 		return nil, err
 	}
 	if len(b.TxHash) != constants.HashLen {
-		return nil, errorz.ErrInvalid{}.New("vs.makeTxIn: invalid TxHash")
+		return nil, errorz.ErrInvalid{}.New("invalid TxHash")
 	}
 	return &TXIn{
 		TXInLinker: &TXInLinker{

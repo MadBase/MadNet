@@ -8,7 +8,6 @@ import (
 	aobjs "github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
-	bobjs "github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -18,16 +17,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func ProcessDepositReceived(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log,
+func ProcessDepositReceived(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log,
 	cdb *db.Database, depositHandler interfaces.DepositHandler) error {
 
 	logger.Info("ProcessDepositReceived() ...")
 
-	if !state.EthDKG.IsValidator {
-		return nil
-	}
-
-	event, err := eth.Contracts().BToken().ParseDepositReceived(log)
+	event, err := eth.Contracts().Deposit().ParseDepositReceived(log)
 	if err != nil {
 		return err
 	}
@@ -46,12 +41,11 @@ func ProcessDepositReceived(eth interfaces.Ethereum, logger *logrus.Entry, state
 		depositNonce := event.DepositID.Bytes()
 		account := event.Depositor.Bytes()
 		owner := &aobjs.Owner{}
-		// todo: evvaluate sec concern of non-validated CurveSpec if any
-		if err := owner.New(account, constants.CurveSpec(event.AccountType)); err != nil {
+		err := owner.New(account, constants.CurveSecp256k1)
+		if err != nil {
 			logger.Debugf("Error in Services.ProcessDepositReceived at owner.New: %v", err)
 			return err
 		}
-
 		return depositHandler.Add(txn, chainID, depositNonce, event.Amount, owner)
 	})
 
@@ -70,11 +64,7 @@ func ProcessValueUpdated(eth interfaces.Ethereum, logger *logrus.Entry, state *o
 
 	logger.Info("ProcessValueUpdated() ...")
 
-	if !state.EthDKG.IsValidator {
-		return nil
-	}
-
-	event, err := eth.Contracts().Governance().ParseValueUpdated(log)
+	event, err := eth.Contracts().Governor().ParseValueUpdated(log)
 	if err != nil {
 		return err
 	}
@@ -92,27 +82,27 @@ func ProcessValueUpdated(eth interfaces.Ethereum, logger *logrus.Entry, state *o
 }
 
 // ProcessSnapshotTaken handles receiving snapshots
-func ProcessSnapshotTaken(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log,
+func ProcessSnapshotTaken(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log,
 	adminHandler interfaces.AdminHandler) error {
 
 	logger.Info("ProcessSnapshotTaken() ...")
 
 	c := eth.Contracts()
 
-	event, err := c.Snapshots().ParseSnapshotTaken(log)
+	event, err := c.Validators().ParseSnapshotTaken(log)
 	if err != nil {
 		return err
 	}
 
 	epoch := event.Epoch
-	safeToProceedConsensus := event.IsSafeToProceedConsensus
+	ethDkgStarted := event.StartingETHDKG
 
 	logger.WithFields(logrus.Fields{
-		"ChainID":                  event.ChainId,
-		"Epoch":                    epoch,
-		"Height":                   event.Height,
-		"Validator":                event.Validator.Hex(),
-		"IsSafeToProceedConsensus": event.IsSafeToProceedConsensus}).Infof("Snapshot taken")
+		"ChainID":        event.ChainId,
+		"Epoch":          epoch,
+		"Height":         event.Height,
+		"Validator":      event.Validator.Hex(),
+		"StartingEthDKG": event.StartingETHDKG}).Infof("Snapshot taken")
 
 	// Retrieve snapshot information from contract
 	ctx, cancel := context.WithTimeout(context.Background(), eth.Timeout())
@@ -120,72 +110,31 @@ func ProcessSnapshotTaken(eth interfaces.Ethereum, logger *logrus.Entry, state *
 
 	callOpts := eth.GetCallOpts(ctx, eth.GetDefaultAccount())
 
-	rawBClaims, err := c.Snapshots().GetBlockClaimsFromSnapshot(callOpts, epoch)
+	rawBClaims, err := c.Validators().GetRawBlockClaimsSnapshot(callOpts, epoch)
+	if err != nil {
+		return err
+	}
+
+	rawSignature, err := c.Validators().GetRawSignatureSnapshot(callOpts, epoch)
 	if err != nil {
 		return err
 	}
 
 	// put it back together
-	bclaims := &objs.BClaims{
-		ChainID:    rawBClaims.ChainId,
-		Height:     rawBClaims.Height,
-		TxCount:    rawBClaims.TxCount,
-		PrevBlock:  rawBClaims.PrevBlock[:],
-		TxRoot:     rawBClaims.TxRoot[:],
-		StateRoot:  rawBClaims.StateRoot[:],
-		HeaderRoot: rawBClaims.HeaderRoot[:],
+	bclaims := &objs.BClaims{}
+	err = bclaims.UnmarshalBinary(rawBClaims)
+	if err != nil {
+		return err
 	}
-
 	header := &objs.BlockHeader{}
 	header.BClaims = bclaims
-	header.SigGroup = event.SignatureRaw
-	header.TxHshLst = [][]byte{}
+	header.SigGroup = rawSignature
 
 	// send the reconstituted header to a handler
-	logger.Debugf("invoking adminHandler.AddSnapshot")
-	err = adminHandler.AddSnapshot(header, safeToProceedConsensus)
+	err = adminHandler.AddSnapshot(header, ethDkgStarted)
 	if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-// ProcessValidatorMinorSlashed handles the Minor Slash event
-func ProcessValidatorMinorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
-
-	logger.Info("ProcessValidatorMinorSlashed() ...")
-
-	event, err := eth.Contracts().ValidatorPool().ParseValidatorMinorSlashed(log)
-	if err != nil {
-		return err
-	}
-
-	logger = logger.WithFields(logrus.Fields{
-		"Account":               event.Account.String(),
-		"PublicStaking.TokenID": event.PublicStakingTokenID.Uint64(),
-	})
-
-	logger.Infof("ValidatorMinorSlashed")
-
-	return nil
-}
-
-// ProcessValidatorMajorSlashed handles the Major Slash event
-func ProcessValidatorMajorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
-
-	logger.Info("ProcessValidatorMajorSlashed() ...")
-
-	event, err := eth.Contracts().ValidatorPool().ParseValidatorMajorSlashed(log)
-	if err != nil {
-		return err
-	}
-
-	logger = logger.WithFields(logrus.Fields{
-		"Account": event.Account.String(),
-	})
-
-	logger.Infof("ValidatorMajorSlashed")
 
 	return nil
 }

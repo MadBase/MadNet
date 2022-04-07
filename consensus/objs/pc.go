@@ -8,7 +8,7 @@ import (
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // PreCommit ...
@@ -26,9 +26,6 @@ type PreCommit struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // PreCommit object
 func (b *PreCommit) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.UnmarshalBinary; pc not initialized")
-	}
 	bh, err := precommit.Unmarshal(data)
 	if err != nil {
 		return err
@@ -39,9 +36,6 @@ func (b *PreCommit) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *PreCommit) UnmarshalCapn(bh mdefs.PreCommit) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.UnmarshalCapn; pc not initialized")
-	}
 	b.Proposal = &Proposal{}
 	err := precommit.Validate(bh)
 	if err != nil {
@@ -65,7 +59,7 @@ func (b *PreCommit) UnmarshalCapn(bh mdefs.PreCommit) error {
 // byte slice
 func (b *PreCommit) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("PreCommit.MarshalBinary; pc not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -78,7 +72,7 @@ func (b *PreCommit) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *PreCommit) MarshalCapn(seg *capnp.Segment) (mdefs.PreCommit, error) {
 	if b == nil {
-		return mdefs.PreCommit{}, errorz.ErrInvalid{}.New("PreCommit.MarshalCapn; pc not initialized")
+		return mdefs.PreCommit{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.PreCommit
 	if seg == nil {
@@ -118,17 +112,8 @@ func (b *PreCommit) MarshalCapn(seg *capnp.Segment) (mdefs.PreCommit, error) {
 }
 
 func (b *PreCommit) ValidateSignatures(secpVal *crypto.Secp256k1Validator, bnVal *crypto.BNGroupValidator) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.ValidateSignatures; pc not initialized")
-	}
-	if b.Proposal == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.ValidateSignatures; proposal not initialized")
-	}
-	if b.Proposal.PClaims == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.ValidateSignatures; pclaims not initialized")
-	}
-	if b.Proposal.PClaims.RCert == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.ValidateSignatures; rcert not initialized")
+	if b == nil || b.Proposal == nil || b.Proposal.PClaims == nil || b.Proposal.PClaims.RCert == nil {
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.Proposal.ValidateSignatures(secpVal, bnVal)
 	if err != nil {
@@ -196,11 +181,8 @@ func (b *PreCommit) MakeImplPreVotes() (PreVoteList, error) {
 }
 
 func (b *PreCommit) Sign(secpSigner *crypto.Secp256k1Signer) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.Sign; pc not initialized")
-	}
-	if b.Proposal == nil {
-		return errorz.ErrInvalid{}.New("PreCommit.Sign; proposal not initialized")
+	if b == nil || b.Proposal == nil {
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	canonicalEncoding, err := b.Proposal.PClaims.MarshalBinary()
 	if err != nil {

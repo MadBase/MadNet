@@ -5,7 +5,7 @@ package proto;
 
 import "aobjs.proto";
 import "cobjs.proto";
-option go_package = "/;proto";
+//option go_package = "github.com/MadBase/MadNet/proto";
 
 
 message GetDataRequest {
@@ -37,15 +37,6 @@ message MinedTransactionRequest {
 }
 message MinedTransactionResponse {
     Tx Tx = 1;
-}
-
-message TransactionStatusRequest {
-    string TxHash = 1; // 32 bytes
-    bool ReturnTx = 2;
-}
-message TransactionStatusResponse {
-    bool IsMined = 1;
-    Tx Tx = 2;
 }
 
 
@@ -138,13 +129,4 @@ message RoundStateForValidatorRequest {
 }
 message RoundStateForValidatorResponse {
     bytes RoundState = 1; // ignore for now
-}
-message FeeRequest {
-}
-
-message FeeResponse {
-string MinTxFee = 1;
-string ValueStoreFee = 2;
-string DataStoreFee = 3;
-string AtomicSwapFee = 4;
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs/validator"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // Validator ...
@@ -17,9 +17,6 @@ type Validator struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // Validator object
 func (b *Validator) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("Validator.UnmarshalBinary; validator not initialized")
-	}
 	bh, err := validator.Unmarshal(data)
 	if err != nil {
 		return err
@@ -30,9 +27,6 @@ func (b *Validator) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *Validator) UnmarshalCapn(bh mdefs.Validator) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("Validator.UnmarshalCapn; validator not initialized")
-	}
 	err := validator.Validate(bh)
 	if err != nil {
 		return err
@@ -46,7 +40,7 @@ func (b *Validator) UnmarshalCapn(bh mdefs.Validator) error {
 // byte slice
 func (b *Validator) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("Validator.MarshalBinary; validator not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -59,7 +53,7 @@ func (b *Validator) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *Validator) MarshalCapn(seg *capnp.Segment) (mdefs.Validator, error) {
 	if b == nil {
-		return mdefs.Validator{}, errorz.ErrInvalid{}.New("Validator.MarshalCapn; validator not initialized")
+		return mdefs.Validator{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.Validator
 	if seg == nil {

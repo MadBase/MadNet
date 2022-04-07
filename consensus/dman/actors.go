@@ -148,7 +148,10 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 				return false
 			}
 			if _, exists := a.reqs[b.Identifier()]; exists {
-				return retry
+				if retry {
+					return true
+				}
+				return false
 			}
 			a.reqs[b.Identifier()] = true
 			return true
@@ -236,7 +239,10 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 				return false
 			}
 			if _, exists := a.reqs[b.Identifier()]; exists {
-				return retry
+				if retry {
+					return true
+				}
+				return false
 			}
 			a.reqs[b.Identifier()] = true
 			return true
@@ -471,26 +477,11 @@ func (a *downloadActor) run() {
 		case req := <-a.WorkQ:
 			switch req.DownloadType() {
 			case PendingTxRequest:
-				select {
-				case a.PendingDispatchQ <- req.(*TxDownloadRequest):
-				default:
-					a.ptxa.start()
-					a.PendingDispatchQ <- req.(*TxDownloadRequest)
-				}
+				a.PendingDispatchQ <- req.(*TxDownloadRequest)
 			case MinedTxRequest:
-				select {
-				case a.MinedDispatchQ <- req.(*TxDownloadRequest):
-				default:
-					a.mtxa.start()
-					a.MinedDispatchQ <- req.(*TxDownloadRequest)
-				}
+				a.MinedDispatchQ <- req.(*TxDownloadRequest)
 			case BlockHeaderRequest:
-				select {
-				case a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest):
-				default:
-					a.bha.start()
-					a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest)
-				}
+				a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest)
 			default:
 				panic(req.DownloadType())
 			}
@@ -499,12 +490,10 @@ func (a *downloadActor) run() {
 }
 
 type minedDownloadActor struct {
-	sync.Mutex
-	numWorkers int
-	WorkQ      chan *TxDownloadRequest
-	reqBus     typeProxyIface
-	Logger     *logrus.Logger
-	closeChan  chan struct{}
+	WorkQ     chan *TxDownloadRequest
+	reqBus    typeProxyIface
+	Logger    *logrus.Logger
+	closeChan chan struct{}
 }
 
 func (a *minedDownloadActor) init(workQ chan *TxDownloadRequest, logger *logrus.Logger, reqBus typeProxyIface, closeChan chan struct{}) error {
@@ -516,27 +505,14 @@ func (a *minedDownloadActor) init(workQ chan *TxDownloadRequest, logger *logrus.
 }
 
 func (a *minedDownloadActor) start() {
-	a.Lock()
-	defer a.Unlock()
-	for i := 0; i < 2; i++ {
-		if a.numWorkers < downloadWorkerCountMinedTx {
-			a.numWorkers++
-			go a.run()
-		}
+	for i := 0; i < downloadWorkerCountMinedTx; i++ {
+		go a.run()
 	}
 }
 
 func (a *minedDownloadActor) run() {
 	for {
 		select {
-		case <-time.After(10 * time.Second):
-			a.Lock()
-			if a.numWorkers > 1 {
-				a.numWorkers--
-				a.Unlock()
-				return
-			}
-			a.Unlock()
 		case <-a.closeChan:
 			return
 		case reqOrig := <-a.WorkQ:
@@ -571,12 +547,10 @@ func (a *minedDownloadActor) run() {
 }
 
 type pendingDownloadActor struct {
-	sync.Mutex
-	numWorkers int
-	WorkQ      chan *TxDownloadRequest
-	reqBus     typeProxyIface
-	Logger     *logrus.Logger
-	closeChan  chan struct{}
+	WorkQ     chan *TxDownloadRequest
+	reqBus    typeProxyIface
+	Logger    *logrus.Logger
+	closeChan chan struct{}
 }
 
 func (a *pendingDownloadActor) init(workQ chan *TxDownloadRequest, logger *logrus.Logger, reqBus typeProxyIface, closeChan chan struct{}) error {
@@ -588,27 +562,14 @@ func (a *pendingDownloadActor) init(workQ chan *TxDownloadRequest, logger *logru
 }
 
 func (a *pendingDownloadActor) start() {
-	a.Lock()
-	defer a.Unlock()
-	for i := 0; i < 2; i++ {
-		if a.numWorkers < downloadWorkerCountPendingTx {
-			a.numWorkers++
-			go a.run()
-		}
+	for i := 0; i < downloadWorkerCountPendingTx; i++ {
+		go a.run()
 	}
 }
 
 func (a *pendingDownloadActor) run() {
 	for {
 		select {
-		case <-time.After(10 * time.Second):
-			a.Lock()
-			if a.numWorkers > 1 {
-				a.numWorkers--
-				a.Unlock()
-				return
-			}
-			a.Unlock()
 		case <-a.closeChan:
 			return
 		case reqOrig := <-a.WorkQ:
@@ -643,12 +604,10 @@ func (a *pendingDownloadActor) run() {
 }
 
 type blockHeaderDownloadActor struct {
-	sync.Mutex
-	numWorkers int
-	WorkQ      chan *BlockHeaderDownloadRequest
-	reqBus     typeProxyIface
-	Logger     *logrus.Logger
-	closeChan  chan struct{}
+	WorkQ     chan *BlockHeaderDownloadRequest
+	reqBus    typeProxyIface
+	Logger    *logrus.Logger
+	closeChan chan struct{}
 }
 
 func (a *blockHeaderDownloadActor) init(workQ chan *BlockHeaderDownloadRequest, logger *logrus.Logger, reqBus typeProxyIface, closeChan chan struct{}) error {
@@ -660,27 +619,14 @@ func (a *blockHeaderDownloadActor) init(workQ chan *BlockHeaderDownloadRequest, 
 }
 
 func (a *blockHeaderDownloadActor) start() {
-	a.Lock()
-	defer a.Unlock()
-	for i := 0; i < 2; i++ {
-		if a.numWorkers < downloadWorkerCountBlockHeader {
-			a.numWorkers++
-			go a.run()
-		}
+	for i := 0; i < downloadWorkerCountBlockHeader; i++ {
+		go a.run()
 	}
 }
 
 func (a *blockHeaderDownloadActor) run() {
 	for {
 		select {
-		case <-time.After(10 * time.Second):
-			a.Lock()
-			if a.numWorkers > 1 {
-				a.numWorkers--
-				a.Unlock()
-				return
-			}
-			a.Unlock()
 		case <-a.closeChan:
 			return
 		case reqOrig := <-a.WorkQ:

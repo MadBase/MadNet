@@ -5,7 +5,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs/nextround"
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // NextRound ...
@@ -21,9 +21,6 @@ type NextRound struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // NextRound object
 func (b *NextRound) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("NextRound.UnmarshalBinary; nr not initialized")
-	}
 	bh, err := nextround.Unmarshal(data)
 	if err != nil {
 		return err
@@ -34,9 +31,6 @@ func (b *NextRound) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *NextRound) UnmarshalCapn(bh mdefs.NextRound) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("NextRound.UnmarshalCapn; nr not initialized")
-	}
 	b.NRClaims = &NRClaims{}
 	err := nextround.Validate(bh)
 	if err != nil {
@@ -54,7 +48,7 @@ func (b *NextRound) UnmarshalCapn(bh mdefs.NextRound) error {
 // byte slice
 func (b *NextRound) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("NextRound.MarshalBinary; nr not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -67,7 +61,7 @@ func (b *NextRound) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *NextRound) MarshalCapn(seg *capnp.Segment) (mdefs.NextRound, error) {
 	if b == nil {
-		return mdefs.NextRound{}, errorz.ErrInvalid{}.New("NextRound.MarshalCapn; nr not initialized")
+		return mdefs.NextRound{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.NextRound
 	if seg == nil {
@@ -104,7 +98,7 @@ func (b *NextRound) MarshalCapn(seg *capnp.Segment) (mdefs.NextRound, error) {
 
 func (b *NextRound) Sign(secpSigner *crypto.Secp256k1Signer, bnSigner *crypto.BNGroupSigner) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("NextRound.Sign; nr not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.NRClaims.Sign(bnSigner)
 	if err != nil {
@@ -127,7 +121,7 @@ func (b *NextRound) Sign(secpSigner *crypto.Secp256k1Signer, bnSigner *crypto.BN
 
 func (b *NextRound) ValidateSignatures(secpVal *crypto.Secp256k1Validator, bnVal *crypto.BNGroupValidator) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("NextRound.ValidateSignatures; nr not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.NRClaims.ValidateSignatures(bnVal)
 	if err != nil {

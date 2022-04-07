@@ -83,7 +83,7 @@ func (pt *Handler) Add(txnState *badger.Txn, txs []*objs.Tx, currentHeight uint3
 				utils.DebugTrace(pt.logger, err)
 				return nil
 			}
-			return errorz.ErrInvalid{}.New("ptHandler.Add; already mined")
+			return errorz.ErrInvalid{}.New("already mined")
 		}
 		return nil
 	})
@@ -229,7 +229,6 @@ func (pt *Handler) getTxsInternal(txnState *badger.Txn, ctx context.Context, cur
 	if len(txs) > 0 {
 		byteCount += constants.HashLen
 	}
-	dropKeys := [][]byte{}
 	err := pt.db.View(func(txn *badger.Txn) error {
 		it, prefix := pt.indexer.GetOrderedIter(txn)
 		err := func() error {
@@ -258,10 +257,7 @@ func (pt *Handler) getTxsInternal(txnState *badger.Txn, ctx context.Context, cur
 				ok, err := pt.checkTx(txnState, tx, currentHeight)
 				if err != nil {
 					utils.DebugTrace(pt.logger, err)
-					if len(dropKeys) < 1000 {
-						dropKeys = append(dropKeys, utils.CopySlice(txHash))
-					}
-					continue
+					return err
 				}
 				if !ok {
 					continue
@@ -319,21 +315,6 @@ func (pt *Handler) getTxsInternal(txnState *badger.Txn, ctx context.Context, cur
 		utils.DebugTrace(pt.logger, err)
 		return nil, 0, err
 	}
-
-	err = pt.db.Update(func(txn *badger.Txn) error {
-		for i := 0; i < len(dropKeys); i++ {
-			err := pt.deleteOneInternal(txn, dropKeys[i], false)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		utils.DebugTrace(pt.logger, err)
-		return nil, 0, err
-	}
-
 	out := []*objs.Tx{}
 	for i := 0; i < len(txs); i++ {
 		if txs[i] != nil {
@@ -458,7 +439,7 @@ func (pt *Handler) checkIsValid(txn *badger.Txn, txs objs.TxVec, currentHeight u
 	}
 	if len(spent) > 0 {
 		utils.DebugTrace(pt.logger, err)
-		return errorz.ErrInvalid{}.New("ptHandler.checkIsValid; spent")
+		return errorz.ErrInvalid{}.New("spent")
 	}
 	_, err = pt.UTXOHandler.IsValid(txn, txs, currentHeight, deposits)
 	if err != nil {
@@ -479,7 +460,7 @@ func (pt *Handler) getOneInternal(txn *badger.Txn, epoch uint32, txHash []byte) 
 	}
 	if expEpoch < epoch {
 		utils.DebugTrace(pt.logger, err)
-		return nil, errorz.ErrInvalid{}.New("ptHandler.getOneInternal; expired")
+		return nil, errorz.ErrInvalid{}.New("expired")
 	}
 	key := pt.makePendingTxKey(txHash)
 	tx, err := db.GetTx(txn, key)

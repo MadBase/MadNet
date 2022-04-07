@@ -6,7 +6,7 @@ import (
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // PreCommitNil ...
@@ -21,9 +21,6 @@ type PreCommitNil struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // PreCommitNil object
 func (b *PreCommitNil) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommitNil.UnmarshalBinary; pcn not initialized")
-	}
 	bh, err := precommitnil.Unmarshal(data)
 	if err != nil {
 		return err
@@ -34,9 +31,6 @@ func (b *PreCommitNil) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *PreCommitNil) UnmarshalCapn(bh mdefs.PreCommitNil) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommitNil.UnmarshalCapn; pcn not initialized")
-	}
 	b.RCert = &RCert{}
 	err := precommitnil.Validate(bh)
 	if err != nil {
@@ -54,7 +48,7 @@ func (b *PreCommitNil) UnmarshalCapn(bh mdefs.PreCommitNil) error {
 // byte slice
 func (b *PreCommitNil) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("PreCommitNil.MarshalBinary; pcn not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -67,7 +61,7 @@ func (b *PreCommitNil) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *PreCommitNil) MarshalCapn(seg *capnp.Segment) (mdefs.PreCommitNil, error) {
 	if b == nil {
-		return mdefs.PreCommitNil{}, errorz.ErrInvalid{}.New("PreCommitNil.MarshalCapn; pcn not initialized")
+		return mdefs.PreCommitNil{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.PreCommitNil
 	if seg == nil {
@@ -104,7 +98,7 @@ func (b *PreCommitNil) MarshalCapn(seg *capnp.Segment) (mdefs.PreCommitNil, erro
 
 func (b *PreCommitNil) ValidateSignatures(secpVal *crypto.Secp256k1Validator, bnVal *crypto.BNGroupValidator) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("PreCommitNil.ValidateSignatures; pcn not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.RCert.ValidateSignature(bnVal)
 	if err != nil {

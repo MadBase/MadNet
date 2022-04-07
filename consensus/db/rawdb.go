@@ -44,11 +44,8 @@ func (db *rawDataBase) Update(fn func(txn *badger.Txn) error) error {
 	if err := fn(txn); err != nil {
 		return err
 	}
-	err := txn.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return txn.Commit()
 }
 
 func (db *rawDataBase) Sync() error {

@@ -149,7 +149,3 @@ func PrefixPendingHdrLeafKeyCount() []byte {
 func PrefixCommittedBlockHeaderCount() []byte {
 	return []byte("A3")
 }
-
-func PrefixValidatorSetPostApplication() []byte {
-	return []byte("ZZ")
-}
