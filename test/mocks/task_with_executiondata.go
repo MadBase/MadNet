@@ -31,5 +31,6 @@ func NewMockTaskWithExecutionData(start uint64, end uint64) *MockTaskWithExecuti
 		}
 		return nil
 	})
+	task.DoRetryFunc.SetDefaultHook(task.DoWork)
 	return &MockTaskWithExecutionData{MockTask: task, ExecutionData: ed}
 }

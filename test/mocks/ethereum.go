@@ -34,7 +34,7 @@ func NewMockEthereum() *EthereumMock {
 	eth.GetCurrentHeightFunc.SetDefaultHook(func(context.Context) (uint64, error) { bh++; return bh, nil })
 	eth.GetFinalityDelayFunc.SetDefaultReturn(6)
 	eth.GetTransactionOptsFunc.SetDefaultReturn(&bind.TransactOpts{}, nil)
-	eth.GetTxCheckFrequencyFunc.SetDefaultReturn(3 * time.Millisecond)
+	eth.GetTxCheckFrequencyFunc.SetDefaultReturn(time.Millisecond)
 	eth.GetTxTimeoutForReplacementFunc.SetDefaultReturn(10 * time.Millisecond)
 	eth.RetryCountFunc.SetDefaultReturn(3)
 	eth.RetryDelayFunc.SetDefaultReturn(time.Millisecond)
