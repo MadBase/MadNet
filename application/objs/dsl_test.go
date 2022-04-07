@@ -359,19 +359,19 @@ func TestDSLinkerUTXOID(t *testing.T) {
 	}
 }
 
-func TestDSLinkerTxOutIdx(t *testing.T) {
+func TestDSLinkerTXOutIdx(t *testing.T) {
 	ds := &DataStore{}
-	_, err := ds.DSLinker.TxOutIdx()
+	_, err := ds.DSLinker.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should have raised error (1)")
 	}
 	dsl := &DSLinker{}
-	_, err = dsl.TxOutIdx()
+	_, err = dsl.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should have raised error (2)")
 	}
 	dsl.DSPreImage = &DSPreImage{}
-	idx, err := dsl.TxOutIdx()
+	idx, err := dsl.TXOutIdx()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,20 +380,20 @@ func TestDSLinkerTxOutIdx(t *testing.T) {
 	}
 }
 
-func TestDSLinkerSetTxOutIdx(t *testing.T) {
+func TestDSLinkerSetTXOutIdx(t *testing.T) {
 	idx := uint32(0)
 	ds := &DataStore{}
-	err := ds.DSLinker.SetTxOutIdx(idx)
+	err := ds.DSLinker.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should have raised error (1)")
 	}
 	dsl := &DSLinker{}
-	err = dsl.SetTxOutIdx(idx)
+	err = dsl.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should have raised error (2)")
 	}
 	dsl.DSPreImage = &DSPreImage{}
-	err = dsl.SetTxOutIdx(idx)
+	err = dsl.SetTXOutIdx(idx)
 	if err != nil {
 		t.Fatal(err)
 	}

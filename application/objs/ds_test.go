@@ -657,28 +657,28 @@ func TestDSUTXOID(t *testing.T) {
 	}
 }
 
-func TestDSTxOutIdx(t *testing.T) {
+func TestDSTXOutIdx(t *testing.T) {
 	utxo := &TXOut{}
-	_, err := utxo.dataStore.TxOutIdx()
+	_, err := utxo.dataStore.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should have raised an error (1)")
 	}
 	ds := &DataStore{}
-	_, err = ds.TxOutIdx()
+	_, err = ds.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should have raised an error (2)")
 	}
 }
 
-func TestDSSetTxOutIdx(t *testing.T) {
+func TestDSSetTXOutIdx(t *testing.T) {
 	idx := uint32(0)
 	utxo := &TXOut{}
-	err := utxo.dataStore.SetTxOutIdx(idx)
+	err := utxo.dataStore.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should have raised an error (1)")
 	}
 	ds := &DataStore{}
-	err = ds.SetTxOutIdx(idx)
+	err = ds.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should have raised an error (2)")
 	}

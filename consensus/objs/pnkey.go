@@ -16,10 +16,10 @@ type PendingNodeKey struct {
 // PendingNodeKey object
 func (b *PendingNodeKey) UnmarshalBinary(data []byte) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("PendingNodeKey.UnmarshalBinary; pnk not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	if len(data) != constants.HashLen+2 {
-		return errorz.ErrInvalid{}.New("PendingNodeKey.UnmarshalBinary; incorrect data length")
+		return errorz.ErrInvalid{}.New("Invalid data for PendingNodeKey unmarshalling")
 	}
 	b.Prefix = utils.CopySlice(data[0:2])
 	b.Key = utils.CopySlice(data[2:])
@@ -29,14 +29,8 @@ func (b *PendingNodeKey) UnmarshalBinary(data []byte) error {
 // MarshalBinary takes the PendingNodeKey object and returns the canonical
 // byte slice
 func (b *PendingNodeKey) MarshalBinary() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("PendingNodeKey.MarshalBinary; pnk not initialized")
-	}
-	if len(b.Prefix) != 2 {
-		return nil, errorz.ErrInvalid{}.New("PendingNodeKey.MarshalBinary; incorrect Prefix length")
-	}
-	if len(b.Key) != constants.HashLen {
-		return nil, errorz.ErrInvalid{}.New("PendingNodeKey.MarshalBinary; incorrect key length")
+	if b == nil || len(b.Prefix) != 2 || len(b.Key) != constants.HashLen {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	key := []byte{}
 	key = append(key, utils.CopySlice(b.Prefix)...)

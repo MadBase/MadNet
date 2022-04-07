@@ -11,7 +11,7 @@ import (
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/interfaces"
 	"github.com/MadBase/MadNet/utils"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // EncryptedStore ...
@@ -27,9 +27,6 @@ type EncryptedStore struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // EncryptedStore object
 func (b *EncryptedStore) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("estore.UnmarshalBinary; estore not initialized")
-	}
 	bh, err := estore.Unmarshal(data)
 	if err != nil {
 		return err
@@ -39,9 +36,6 @@ func (b *EncryptedStore) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *EncryptedStore) UnmarshalCapn(bh mdefs.EncryptedStore) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("estore.UnmarshalCapn; estore not initialized")
-	}
 	err := estore.Validate(bh)
 	if err != nil {
 		return err
@@ -56,9 +50,6 @@ func (b *EncryptedStore) UnmarshalCapn(bh mdefs.EncryptedStore) error {
 // MarshalBinary takes the EncryptedStore object and returns the canonical
 // byte slice
 func (b *EncryptedStore) MarshalBinary() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("estore.MarshalBinary; estore not initialized")
-	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
 		return nil, err
@@ -73,7 +64,7 @@ func (b *EncryptedStore) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *EncryptedStore) MarshalCapn(seg *capnp.Segment) (mdefs.EncryptedStore, error) {
 	if b == nil {
-		return mdefs.EncryptedStore{}, errorz.ErrInvalid{}.New("estore.MarshalCapn; estore not initialized")
+		return mdefs.EncryptedStore{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.EncryptedStore
 	if seg == nil {
@@ -113,12 +104,9 @@ func (b *EncryptedStore) MarshalCapn(seg *capnp.Segment) (mdefs.EncryptedStore, 
 	return bh, nil
 }
 
-// Encrypt encrypts estore.ClearText and writes the result to estore.cypherText;
-// afterwards, it zeros estore.ClearText and sets its pointer to nil
+// Encrypt encrypts b.ClearText and writes the result to b.cypherText;
+// afterwards, it zeros b.ClearText and sets its pointer to nil
 func (b *EncryptedStore) Encrypt(resolver interfaces.KeyResolver) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("estore.Encrypt; estore not initialized")
-	}
 	key, err := resolver.GetKey(b.Kid)
 	if err != nil {
 		return err
@@ -144,11 +132,8 @@ func (b *EncryptedStore) Encrypt(resolver interfaces.KeyResolver) error {
 	return nil
 }
 
-// Decrypt decrypts estore.cypherText and saves the result to estore.ClearText
+// Decrypt decrypts b.cypherText and saves the result to b.ClearText
 func (b *EncryptedStore) Decrypt(resolver interfaces.KeyResolver) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("estore.Decrypt; estore not initialized")
-	}
 	key, err := resolver.GetKey(b.Kid)
 	if err != nil {
 		return err

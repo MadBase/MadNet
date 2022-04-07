@@ -1,6 +1,5 @@
 package blockchain_test
 
-/*
 import (
 	"bufio"
 	"context"
@@ -326,4 +325,3 @@ func processBlockHeader(t *testing.T, rawBlockHeader []byte) {
 	}
 	assert.True(t, foundIt, "Should have received SnapshotTaken event")
 }
-*/

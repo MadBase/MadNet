@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 
-	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/utils"
 )
@@ -20,17 +19,8 @@ type RoundStateHistoricKey struct {
 // MarshalBinary takes the RoundStateHistoricKey object and returns
 // the canonical byte slice
 func (b *RoundStateHistoricKey) MarshalBinary() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; rshk not initialized")
-	}
-	if b.Height == 0 {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; height is zero")
-	}
-	if b.Round == 0 {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; round is zero")
-	}
-	if b.Round > constants.DEADBLOCKROUND {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; round > DBR")
+	if b == nil || b.Height == 0 || b.Round == 0 {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	key := []byte{}
 	Prefix := utils.CopySlice(b.Prefix)
@@ -52,7 +42,7 @@ func (b *RoundStateHistoricKey) MarshalBinary() ([]byte, error) {
 // RoundStateHistoricKey object
 func (b *RoundStateHistoricKey) UnmarshalBinary(data []byte) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("RoundStateHistoricKey.UnmarshalBinary; rshk not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	splitData := bytes.Split(data, []byte("|"))
 	if len(splitData) != 4 {
@@ -64,7 +54,7 @@ func (b *RoundStateHistoricKey) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	if Height == 0 {
-		return errorz.ErrInvalid{}.New("RoundStateHistoricKey.UnmarshalBinary; height is zero")
+		return errorz.ErrInvalid{}.New("invalid height in unmarshalling")
 	}
 	b.Height = Height
 	Round, err := utils.UnmarshalUint32(splitData[2])
@@ -72,10 +62,7 @@ func (b *RoundStateHistoricKey) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	if Round == 0 {
-		return errorz.ErrInvalid{}.New("RoundStateHistoricKey.UnmarshalBinary; round is zero")
-	}
-	if Round > constants.DEADBLOCKROUND {
-		return errorz.ErrInvalid{}.New("RoundStateHistoricKey.UnmarshalBinary; round > DBR")
+		return errorz.ErrInvalid{}.New("invalid round in unmarshalling")
 	}
 	b.Round = Round
 	VAddr := make([]byte, hex.DecodedLen(len(splitData[3])))
@@ -89,11 +76,8 @@ func (b *RoundStateHistoricKey) UnmarshalBinary(data []byte) error {
 
 // MakeIterKey ...
 func (b *RoundStateHistoricKey) MakeIterKey() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; rshk not initialized")
-	}
-	if b.Height == 0 {
-		return nil, errorz.ErrInvalid{}.New("RoundStateHistoricKey.MarshalBinary; height is zero")
+	if b == nil || b.Height == 0 {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	key := []byte{}
 	Prefix := utils.CopySlice(b.Prefix)

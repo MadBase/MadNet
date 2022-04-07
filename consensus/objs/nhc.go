@@ -5,7 +5,7 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs/nhclaims"
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
-	capnp "github.com/MadBase/go-capnproto2/v2"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 // NHClaims ...
@@ -19,9 +19,6 @@ type NHClaims struct {
 // UnmarshalBinary takes a byte slice and returns the corresponding
 // NHClaims object
 func (b *NHClaims) UnmarshalBinary(data []byte) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("NHClaims.UnmarshalBinary; nhclaims not initialized")
-	}
 	bh, err := nhclaims.Unmarshal(data)
 	if err != nil {
 		return err
@@ -32,9 +29,6 @@ func (b *NHClaims) UnmarshalBinary(data []byte) error {
 
 // UnmarshalCapn unmarshals the capnproto definition of the object
 func (b *NHClaims) UnmarshalCapn(bh mdefs.NHClaims) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("NHClaims.UnmarshalCapn; nhclaims not initialized")
-	}
 	b.Proposal = &Proposal{}
 	err := nhclaims.Validate(bh)
 	if err != nil {
@@ -52,7 +46,7 @@ func (b *NHClaims) UnmarshalCapn(bh mdefs.NHClaims) error {
 // byte slice
 func (b *NHClaims) MarshalBinary() ([]byte, error) {
 	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("NHClaims.MarshalBinary; nhclaims not initialized")
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	bh, err := b.MarshalCapn(nil)
 	if err != nil {
@@ -65,7 +59,7 @@ func (b *NHClaims) MarshalBinary() ([]byte, error) {
 // MarshalCapn marshals the object into its capnproto definition
 func (b *NHClaims) MarshalCapn(seg *capnp.Segment) (mdefs.NHClaims, error) {
 	if b == nil {
-		return mdefs.NHClaims{}, errorz.ErrInvalid{}.New("NHClaims.MarshalCapn; nhclaims not initialized")
+		return mdefs.NHClaims{}, errorz.ErrInvalid{}.New("not initialized")
 	}
 	var bh mdefs.NHClaims
 	if seg == nil {
@@ -101,11 +95,8 @@ func (b *NHClaims) MarshalCapn(seg *capnp.Segment) (mdefs.NHClaims, error) {
 }
 
 func (b *NHClaims) ValidateSignatures(secpVal *crypto.Secp256k1Validator, bnVal *crypto.BNGroupValidator) error {
-	if b == nil {
-		return errorz.ErrInvalid{}.New("NHClaims.ValidateSignatures; nhclaims not initialized")
-	}
-	if b.Proposal == nil {
-		return errorz.ErrInvalid{}.New("NHClaims.ValidateSignatures; proposal not initialized")
+	if b == nil || b.Proposal == nil {
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	err := b.Proposal.ValidateSignatures(secpVal, bnVal)
 	if err != nil {

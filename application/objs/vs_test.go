@@ -435,47 +435,47 @@ func TestValueStoreUTXOID(t *testing.T) {
 	}
 }
 
-func TestValueStoreTxOutIdx(t *testing.T) {
+func TestValueStoreTXOutIdx(t *testing.T) {
 	utxo := &TXOut{}
-	_, err := utxo.valueStore.TxOutIdx()
+	_, err := utxo.valueStore.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should raise an error (1)")
 	}
 	vs := &ValueStore{}
-	_, err = vs.TxOutIdx()
+	_, err = vs.TXOutIdx()
 	if err == nil {
 		t.Fatal("Should raise an error (2)")
 	}
 	vs.VSPreImage = &VSPreImage{}
 	txOutIdx := uint32(17)
 	vs.VSPreImage.TXOutIdx = txOutIdx
-	out, err := vs.TxOutIdx()
+	out, err := vs.TXOutIdx()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out != txOutIdx {
-		t.Fatal("TxOutIndices do not match")
+		t.Fatal("TXOutIdxes do not match")
 	}
 }
 
-func TestValueStoreSetTxOutIdx(t *testing.T) {
+func TestValueStoreSetTXOutIdx(t *testing.T) {
 	idx := uint32(0)
 	utxo := &TXOut{}
-	err := utxo.valueStore.SetTxOutIdx(idx)
+	err := utxo.valueStore.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should raise an error (1)")
 	}
 	vs := &ValueStore{}
-	err = vs.SetTxOutIdx(idx)
+	err = vs.SetTXOutIdx(idx)
 	if err == nil {
 		t.Fatal("Should raise an error (2)")
 	}
 	vs.VSPreImage = &VSPreImage{}
-	err = vs.SetTxOutIdx(idx)
+	err = vs.SetTXOutIdx(idx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := vs.TxOutIdx()
+	out, err := vs.TXOutIdx()
 	if err != nil {
 		t.Fatal(err)
 	}

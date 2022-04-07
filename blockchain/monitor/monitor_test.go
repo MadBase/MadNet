@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"math"
 	"math/big"
 	"sync"
@@ -46,16 +45,12 @@ func setupEthereum(t *testing.T, mineInterval time.Duration) interfaces.Ethereum
 		time.Second*2,
 		time.Second*5,
 		0,
-		big.NewInt(math.MaxInt64),
-		50,
-		math.MaxInt64,
-		5*time.Second,
-		30*time.Second)
+		big.NewInt(math.MaxInt64))
 	assert.Nil(t, err, "Failed to build Ethereum endpoint...")
 	assert.True(t, eth.IsEthereumAccessible(), "Web3 endpoint is not available.")
 	defer eth.Close()
 
-	// c := eth.Contracts()
+	c := eth.Contracts()
 
 	go func() {
 		for {
@@ -69,9 +64,8 @@ func setupEthereum(t *testing.T, mineInterval time.Duration) interfaces.Ethereum
 	err = eth.UnlockAccount(acct)
 	assert.Nil(t, err, "Failed to unlock deploy account")
 
-	// _, _, err = c.DeployContracts(context.TODO(), acct)
-	// assert.Nil(t, err, "Failed to deploy contracts...")
-	panic("needs deployment")
+	_, _, err = c.DeployContracts(context.TODO(), acct)
+	assert.Nil(t, err, "Failed to deploy contracts...")
 
 	return eth
 }
@@ -104,19 +98,14 @@ func populateMonitor(state *objects.MonitorState, addr0 common.Address, EPOCH ui
 		Address: addr0,
 		URL: accounts.URL{
 			Scheme: "keystore",
-			Path:   ""}}
+			Path:   "/home/agdean/Projects/MadNet/assets/test/keys/UTC--2020-03-24T13-41-44.886736400Z--26d3d8ab74d62c26f1acc220da1646411c9880ac"}}
 	state.EthDKG.Index = 1
 	state.EthDKG.SecretValue = big.NewInt(512)
-	meAsAParticipant := &objects.Participant{
-		Address: state.EthDKG.Account.Address,
-		Index:   state.EthDKG.Index,
-	}
-	state.EthDKG.Participants[addr0] = meAsAParticipant
-	state.EthDKG.Participants[addr0].GPKj = [4]*big.Int{
+	state.EthDKG.GroupPublicKeys[addr0] = [4]*big.Int{
 		big.NewInt(44), big.NewInt(33), big.NewInt(22), big.NewInt(11)}
-	state.EthDKG.Participants[addr0].Commitments = make([][2]*big.Int, 3)
-	state.EthDKG.Participants[addr0].Commitments[0][0] = big.NewInt(5)
-	state.EthDKG.Participants[addr0].Commitments[0][1] = big.NewInt(2)
+	state.EthDKG.Commitments[addr0] = make([][2]*big.Int, 3)
+	state.EthDKG.Commitments[addr0][0][0] = big.NewInt(5)
+	state.EthDKG.Commitments[addr0][0][1] = big.NewInt(2)
 
 	state.ValidatorSets[EPOCH] = objects.ValidatorSet{
 		ValidatorCount:        4,
@@ -137,7 +126,6 @@ func populateMonitor(state *objects.MonitorState, addr0 common.Address, EPOCH ui
 type mockTask struct {
 	DoneCalled bool
 	State      *objects.DkgState
-	DkgTask    *dkgtasks.ExecutionData
 }
 
 func (mt *mockTask) DoDone(logger *logrus.Entry) {
@@ -158,10 +146,6 @@ func (mt *mockTask) Initialize(context.Context, *logrus.Entry, interfaces.Ethere
 
 func (mt *mockTask) ShouldRetry(context.Context, *logrus.Entry, interfaces.Ethereum) bool {
 	return false
-}
-
-func (mt *mockTask) GetExecutionData() interface{} {
-	return mt.DkgTask
 }
 
 //
@@ -207,10 +191,6 @@ type mockEthereum struct {
 
 func (eth *mockEthereum) ChainID() *big.Int {
 	return nil
-}
-
-func (eth *mockEthereum) GetFinalityDelay() uint64 {
-	return 12
 }
 
 func (eth *mockEthereum) Close() error {
@@ -327,22 +307,6 @@ func (eth *mockEthereum) Contracts() interfaces.Contracts {
 	return nil
 }
 
-func (eth *mockEthereum) GetTxFeePercentageToIncrease() int {
-	return 50
-}
-
-func (eth *mockEthereum) GetTxMaxFeeThresholdInGwei() uint64 {
-	return math.MaxInt64
-}
-
-func (eth *mockEthereum) GetTxCheckFrequency() time.Duration {
-	return 5 * time.Second
-}
-
-func (eth *mockEthereum) GetTxTimeoutForReplacement() time.Duration {
-	return 30 * time.Second
-}
-
 //
 // Actual tests
 //
@@ -393,24 +357,21 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.Nil(t, err)
 	populateMonitor(mon.State, addr0, EPOCH)
 
-	mockTsk := &mockTask{
-		DkgTask: dkgtasks.NewExecutionData(nil, 1, 40),
-	}
 	// Schedule some tasks
-	_, err = mon.State.Schedule.Schedule(1, 2, mockTsk)
+	_, err = mon.State.Schedule.Schedule(1, 2, &mockTask{})
 	assert.Nil(t, err)
 
-	_, err = mon.State.Schedule.Schedule(3, 4, mockTsk)
+	_, err = mon.State.Schedule.Schedule(3, 4, &mockTask{})
 	assert.Nil(t, err)
 
-	_, err = mon.State.Schedule.Schedule(5, 6, mockTsk)
+	_, err = mon.State.Schedule.Schedule(5, 6, &mockTask{})
 	assert.Nil(t, err)
 
-	_, err = mon.State.Schedule.Schedule(7, 8, mockTsk)
+	_, err = mon.State.Schedule.Schedule(7, 8, &mockTask{})
 	assert.Nil(t, err)
 
 	// Marshal
-	mon.TypeRegistry.RegisterInstanceType(mockTsk)
+	mon.TypeRegistry.RegisterInstanceType(&mockTask{})
 	raw, err := json.Marshal(mon)
 	assert.Nil(t, err)
 	t.Logf("RawData:%v", string(raw))
@@ -419,7 +380,7 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	newMon, err := monitor.NewMonitor(&db.Database{}, &db.Database{}, adminHandler, depositHandler, eth, 2*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
-	newMon.TypeRegistry.RegisterInstanceType(mockTsk)
+	newMon.TypeRegistry.RegisterInstanceType(&mockTask{})
 	err = json.Unmarshal(raw, newMon)
 	assert.Nil(t, err)
 
@@ -433,7 +394,7 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	validator0 := createValidator("0x546F99F244b7B58B855330AE0E2BC1b30b41302F", 1)
 
 	assert.Equal(t, 0, validator0.SharedKey[0].Cmp(newMon.State.Validators[EPOCH][0].SharedKey[0]))
-	assert.Equal(t, 0, big.NewInt(44).Cmp(newMon.State.EthDKG.Participants[addr0].GPKj[0]))
+	assert.Equal(t, 0, big.NewInt(44).Cmp(newMon.State.EthDKG.GroupPublicKeys[addr0][0]))
 
 	// Compare the schedules
 	_, err = newMon.State.Schedule.Find(9)

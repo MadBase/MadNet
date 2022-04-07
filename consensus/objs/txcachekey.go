@@ -18,14 +18,8 @@ type TxCacheKey struct {
 // MarshalBinary takes the TxCacheKey object and returns
 // the canonical byte slice
 func (b *TxCacheKey) MarshalBinary() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("TxCacheKey.MarshalBinary; tck not initialized")
-	}
-	if b.Height == 0 {
-		return nil, errorz.ErrInvalid{}.New("TxCacheKey.MarshalBinary; height is zero")
-	}
-	if len(b.TxHash) != constants.HashLen {
-		return nil, errorz.ErrInvalid{}.New("TxCacheKey.MarshalBinary; incorrect txhash length")
+	if b == nil || b.Height == 0 || len(b.TxHash) != constants.HashLen {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	key := []byte{}
 	Prefix := utils.CopySlice(b.Prefix)
@@ -43,7 +37,7 @@ func (b *TxCacheKey) MarshalBinary() ([]byte, error) {
 // TxCacheKey object
 func (b *TxCacheKey) UnmarshalBinary(data []byte) error {
 	if b == nil {
-		return errorz.ErrInvalid{}.New("TxCacheKey.UnmarshalBinary; tck not initialized")
+		return errorz.ErrInvalid{}.New("not initialized")
 	}
 	splitData := bytes.Split(data, []byte("|"))
 	if len(splitData) != 3 {
@@ -55,12 +49,12 @@ func (b *TxCacheKey) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	if Height == 0 {
-		return errorz.ErrInvalid{}.New("TxCacheKey.UnmarshalBinary; height is zero")
+		return errorz.ErrInvalid{}.New("invalid height for unmarshalling")
 	}
 	b.Height = Height
 	TxHash := utils.CopySlice(splitData[2])
 	if len(TxHash) != constants.HashLen {
-		return errorz.ErrInvalid{}.New("TxCacheKey.UnmarshalBinary; incorrect txhash length")
+		return errorz.ErrInvalid{}.New("invalid txhash for unmarshalling; incorrect length")
 	}
 	b.TxHash = TxHash
 	return nil
@@ -68,11 +62,8 @@ func (b *TxCacheKey) UnmarshalBinary(data []byte) error {
 
 // MakeIterKey ...
 func (b *TxCacheKey) MakeIterKey() ([]byte, error) {
-	if b == nil {
-		return nil, errorz.ErrInvalid{}.New("TxCacheKey.MakeIterKey; tck not initialized")
-	}
-	if b.Height == 0 {
-		return nil, errorz.ErrInvalid{}.New("TxCacheKey.MakeIterKey; height is zero")
+	if b == nil || b.Height == 0 {
+		return nil, errorz.ErrInvalid{}.New("not initialized")
 	}
 	key := []byte{}
 	Prefix := utils.CopySlice(b.Prefix)
