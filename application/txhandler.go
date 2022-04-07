@@ -131,7 +131,7 @@ func (tm *txHandler) GetTxsForProposal(txn *badger.Txn, chainID uint32, height u
 			utils.DebugTrace(tm.logger, err)
 			return nil, nil, err
 		}
-		if err := tx.PostValidatePending(height, consumedUTXOs); err != nil {
+		if err := tx.PostValidatePending(height, consumedUTXOs, tm.storage); err != nil {
 			utils.DebugTrace(tm.logger, err)
 			return nil, nil, err
 		}
@@ -161,10 +161,10 @@ func (tm *txHandler) GetTxsForProposal(txn *badger.Txn, chainID uint32, height u
 		return nil, nil, err
 	}
 	if len(missing) > 0 {
-		return nil, nil, errorz.ErrInvalid{}.New("missing transactions")
+		return nil, nil, errorz.ErrInvalid{}.New("txhandler.GetTxsForProposal; missing transactions")
 	}
 	if len(spent) > 0 {
-		return nil, nil, errorz.ErrInvalid{}.New("spent transactions")
+		return nil, nil, errorz.ErrInvalid{}.New("txhandler.GetTxsForProposal; spent transactions")
 	}
 	if _, err := tm.uHdlr.IsValid(txn, txs, height, found); err != nil {
 		utils.DebugTrace(tm.logger, err)
@@ -211,7 +211,7 @@ func (tm *txHandler) PendingTxAdd(txn *badger.Txn, chainID uint32, height uint32
 		return err
 	}
 	if len(missing) == 0 {
-		return errorz.ErrInvalid{}.New("duplicate")
+		return errorz.ErrInvalid{}.New("txhandler.PendingTxAdd; duplicate")
 	}
 	missingMap := make(map[string]int)
 	for i := 0; i < len(txHashes); i++ {
@@ -222,7 +222,7 @@ func (tm *txHandler) PendingTxAdd(txn *badger.Txn, chainID uint32, height uint32
 		utils.DebugTrace(tm.logger, err)
 		return err
 	}
-	if err := txs.PostValidatePending(height, consumedUTXOs); err != nil {
+	if err := txs.PostValidatePending(height, consumedUTXOs, tm.storage); err != nil {
 		utils.DebugTrace(tm.logger, err)
 		return err
 	}

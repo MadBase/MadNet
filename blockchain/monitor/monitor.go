@@ -80,13 +80,17 @@ func NewMonitor(cdb *db.Database,
 	tr := &objects.TypeRegistry{}
 
 	tr.RegisterInstanceType(&dkgtasks.CompletionTask{})
-	tr.RegisterInstanceType(&dkgtasks.DisputeTask{})
-	tr.RegisterInstanceType(&dkgtasks.GPKJDisputeTask{})
-	tr.RegisterInstanceType(&dkgtasks.GPKSubmissionTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeShareDistributionTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeMissingShareDistributionTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeMissingKeySharesTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeMissingGPKjTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeGPKjTask{})
+	tr.RegisterInstanceType(&dkgtasks.GPKjSubmissionTask{})
 	tr.RegisterInstanceType(&dkgtasks.KeyshareSubmissionTask{})
 	tr.RegisterInstanceType(&dkgtasks.MPKSubmissionTask{})
 	tr.RegisterInstanceType(&dkgtasks.PlaceHolder{})
 	tr.RegisterInstanceType(&dkgtasks.RegisterTask{})
+	tr.RegisterInstanceType(&dkgtasks.DisputeMissingRegistrationTask{})
 	tr.RegisterInstanceType(&dkgtasks.ShareDistributionTask{})
 
 	eventMap := objects.NewEventMap()
@@ -300,10 +304,10 @@ func (m *monitor) MarshalJSON() ([]byte, error) {
 	rawData, err := json.Marshal(m.State)
 
 	if err != nil {
-		fmt.Errorf("Could not marshal state: %v", err)
+		return nil, fmt.Errorf("could not marshal state: %v", err)
 	}
 
-	return rawData, err
+	return rawData, nil
 }
 
 func (m *monitor) UnmarshalJSON(raw []byte) error {
@@ -329,7 +333,7 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 		"EthereumInSync": monitorState.EthereumInSync})
 
 	c := eth.Contracts()
-	addresses := []common.Address{c.ValidatorsAddress(), c.DepositAddress(), c.EthdkgAddress(), c.GovernorAddress()}
+	addresses := []common.Address{c.EthdkgAddress(), c.SnapshotsAddress(), c.BTokenAddress()}
 
 	// 1. Check if our Ethereum endpoint is sync with sufficient peers
 	inSync, peerCount, err := EndpointInSync(ctx, eth, logger)
@@ -387,7 +391,7 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 	if err != nil {
 		return err
 	}
-	// set the current block inital value
+	// set the current block initial value
 	// this value is incremented at head of
 	// each loop iteration, so it is initialized
 	// as one less than the expected value at this
@@ -400,29 +404,13 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 
 		logs := logsList[i]
 
-		// Check all the logs for an event we want to process
-		for _, log := range logs {
-
-			eventID := log.Topics[0].String()
-			logEntry := logEntry.WithField("EventID", eventID)
-
-			info, present := eventMap.Lookup(eventID)
-			if present {
-				logEntry = logEntry.WithField("Event", info.Name)
-				if info.Processor != nil {
-					err := info.Processor(eth, logEntry, monitorState, log)
-					if err != nil {
-						logEntry.Errorf("Failed processing event: %v", err)
-						return err
-					}
-				} else {
-					logEntry.Info("No processor configured.")
-				}
-
-			} else {
-				logEntry.Debug("Found unkown event")
+		currentBlock, err = ProcessEvents(eth, monitorState, logs, logger, currentBlock, eventMap)
+		var forceExit bool
+		if err != nil {
+			if !errors.Is(err, context.DeadlineExceeded) {
+				return err
 			}
-
+			forceExit = true
 		}
 
 		// Check if any tasks are scheduled
@@ -437,7 +425,7 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 				"TaskID":   uuid.String(),
 				"TaskName": taskName})
 
-			tasks.StartTask(log, wg, eth, task, monitorState.EthDKG)
+			tasks.StartTask(log, wg, eth, task, nil)
 
 			monitorState.Schedule.Remove(uuid)
 		} else if err == objects.ErrNothingScheduled {
@@ -446,11 +434,42 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 			logEntry.Warnf("Error retrieving scheduled task: %v", err)
 		}
 		processed = currentBlock
+
+		if forceExit {
+			break
+		}
 	}
 
 	// Only after batch is processed do we update monitor State
 	monitorState.HighestBlockProcessed = processed
 	return nil
+}
+
+func ProcessEvents(eth interfaces.Ethereum, monitorState *objects.MonitorState, logs []types.Log, logger *logrus.Entry, currentBlock uint64, eventMap *objects.EventMap) (uint64, error) {
+	logEntry := logger.WithField("Block", currentBlock)
+
+	// Check all the logs for an event we want to process
+	for _, log := range logs {
+
+		eventID := log.Topics[0].String()
+		logEntry := logEntry.WithField("EventID", eventID)
+
+		info, present := eventMap.Lookup(eventID)
+		if present {
+			logEntry = logEntry.WithField("Event", info.Name)
+			if info.Processor != nil {
+				err := info.Processor(eth, logEntry, monitorState, log)
+				if err != nil {
+					logEntry.Errorf("Failed processing event: %v", err)
+					return currentBlock - 1, err
+				}
+			} else {
+				panic(fmt.Errorf("no processor configured for %v", info.Name))
+			}
+		}
+	}
+
+	return currentBlock, nil
 }
 
 // PersistSnapshot should be registered as a callback and be kicked off automatically by badger when appropriate

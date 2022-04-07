@@ -1,5 +1,6 @@
 package deploy
 
+/*
 import (
 	"bytes"
 	"context"
@@ -37,7 +38,11 @@ func deployNode(cmd *cobra.Command, args []string) {
 		config.Configuration.Ethereum.Timeout,
 		config.Configuration.Ethereum.RetryCount,
 		config.Configuration.Ethereum.RetryDelay,
-		config.Configuration.Ethereum.FinalityDelay)
+		config.Configuration.Ethereum.FinalityDelay,
+		config.Configuration.Ethereum.TxFeePercentageToIncrease,
+		config.Configuration.Ethereum.TxMaxFeeThresholdInGwei,
+		config.Configuration.Ethereum.TxCheckFrequency,
+		config.Configuration.Ethereum.TxTimeoutForReplacement)
 	if err != nil {
 		logger.Errorf("Could not connect to Ethereum: %v", err)
 	}
@@ -206,16 +211,8 @@ func deployMigrations(eth interfaces.Ethereum) error {
 	eth.Queue().QueueGroupTransaction(ctx, MIGRATION_GRP, vu.Add("addValidatorImmediate(address,uint256[2])", migrateParticipantsAddr))
 	eth.Queue().QueueGroupTransaction(ctx, MIGRATION_GRP, vu.Add("removeValidatorImmediate(address,uint256[2])", migrateParticipantsAddr))
 
-	// Wire EthDKG migration contract
-	ethdkgUpdater, err := bindings.NewDiamondUpdateFacet(c.EthdkgAddress(), client)
-	if err != nil {
-		logger.Errorf("failed to bind diamond updater to ethdkg: %v", err)
-		return err
-	}
-	eu := &blockchain.Updater{Updater: ethdkgUpdater, TxnOpts: txnOpts, Logger: logger}
-	eth.Queue().QueueGroupTransaction(ctx, MIGRATION_GRP, eu.Add("migrate(uint256,uint32,uint32,uint256[4],address[],uint256[4][])", migrateEthDKGAddr))
-
 	eth.Queue().WaitGroupTransactions(ctx, MIGRATION_GRP)
 
 	return nil
 }
+*/

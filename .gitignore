@@ -19,3 +19,17 @@ local-geth/*
 **/thumbs.db
 **/desktop.ini
 **/.directory
+.idea/
+
+# generated files
+scripts/generated
+localstate.swagger.json
+**/swagger-bindata/bindata.go
+**/*.pb.go
+**/*.capnp.go
+**/*.pb.gw.go
+**/*_mngen.go
+**/*_mngen_test.go
+node_modules/
+**/package-lock.json
+package.json

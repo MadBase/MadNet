@@ -1,0 +1,34 @@
+.vscode/*
+
+# Local History for Visual Studio Code
+.history/
+
+# dapp debug folders
+./hevm/*
+**.DS_Store
+hevm.libs.*
+**/artifacts/**
+outTests/*
+truffle_output/*
+
+node_modules/*
+artifacts/*
+cache/*
+typechain-types/*
+
+.env
+coverage
+coverage.json
+typechain
+bin
+
+.openzeppelin/.session
+
+deployments/*
+bindings/*
+bindings-artifacts/*
+bindings/generate.go
+!deployments/dev/deploymentArgsTemplate.json
+!deployments/dev/deployList.json
+package-lock.json
+**/generated/*

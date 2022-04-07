@@ -2,23 +2,26 @@ package blockchain
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/logging"
-	"github.com/MadBase/bridge/bindings"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -36,29 +39,35 @@ var (
 	ErrPasscodeNotFound = errors.New("could not find specified passcode")
 )
 
+var ETH_MAX_PRIORITY_FEE_PER_GAS_NOT_FOUND string = "Method eth_maxPriorityFeePerGas not found"
+
 type EthereumDetails struct {
-	logger         *logrus.Logger
-	endpoint       string
-	keystore       *keystore.KeyStore
-	finalityDelay  uint64
-	accounts       map[common.Address]accounts.Account
-	accountIndex   map[common.Address]int
-	coinbase       common.Address
-	defaultAccount accounts.Account
-	keys           map[common.Address]*keystore.Key
-	passcodes      map[common.Address]string
-	timeout        time.Duration
-	retryCount     int
-	retryDelay     time.Duration
-	contracts      interfaces.Contracts
-	client         interfaces.GethClient
-	close          func() error
-	commit         func()
-	chainID        *big.Int
-	syncing        func(ctx context.Context) (*ethereum.SyncProgress, error)
-	peerCount      func(ctx context.Context) (uint64, error)
-	queue          interfaces.TxnQueue
-	selectors      interfaces.SelectorMap
+	logger                    *logrus.Logger
+	endpoint                  string
+	keystore                  *keystore.KeyStore
+	finalityDelay             uint64
+	accounts                  map[common.Address]accounts.Account
+	accountIndex              map[common.Address]int
+	coinbase                  common.Address
+	defaultAccount            accounts.Account
+	keys                      map[common.Address]*keystore.Key
+	passcodes                 map[common.Address]string
+	timeout                   time.Duration
+	retryCount                int
+	retryDelay                time.Duration
+	contracts                 interfaces.Contracts
+	client                    interfaces.GethClient
+	close                     func() error
+	commit                    func()
+	chainID                   *big.Int
+	syncing                   func(ctx context.Context) (*ethereum.SyncProgress, error)
+	peerCount                 func(ctx context.Context) (uint64, error)
+	queue                     interfaces.TxnQueue
+	selectors                 interfaces.SelectorMap
+	txFeePercentageToIncrease int
+	txMaxFeeThresholdInGwei   uint64
+	txCheckFrequency          time.Duration
+	txTimeoutForReplacement   time.Duration
 }
 
 //NewEthereumSimulator returns a simulator for testing
@@ -68,7 +77,11 @@ func NewEthereumSimulator(
 	retryDelay time.Duration,
 	timeout time.Duration,
 	finalityDelay int,
-	wei *big.Int) (*EthereumDetails, error) {
+	wei *big.Int,
+	txFeePercentageToIncrease int,
+	txMaxFeeThresholdInGwei uint64,
+	txCheckFrequency time.Duration,
+	txTimeoutForReplacement time.Duration) (*EthereumDetails, error) {
 	logger := logging.GetLogger("ethereum")
 
 	if len(privateKeys) < 1 {
@@ -93,6 +106,10 @@ func NewEthereumSimulator(
 	eth.retryDelay = retryDelay
 	eth.timeout = timeout
 	eth.selectors = NewKnownSelectors()
+	eth.txFeePercentageToIncrease = txFeePercentageToIncrease
+	eth.txMaxFeeThresholdInGwei = txMaxFeeThresholdInGwei
+	eth.txCheckFrequency = txCheckFrequency
+	eth.txTimeoutForReplacement = txTimeoutForReplacement
 
 	for idx, privateKey := range privateKeys {
 		account, err := eth.keystore.ImportECDSA(privateKey, "abc123")
@@ -123,10 +140,12 @@ func NewEthereumSimulator(
 		genAlloc[address] = core.GenesisAccount{Balance: wei}
 	}
 
-	gasLimit := uint64(150000000)
-	sim := backends.NewSimulatedBackend(genAlloc, gasLimit)
-	eth.client = sim
-	eth.queue = NewTxnQueue(sim, eth.selectors, timeout)
+	client, err := ethclient.Dial("http://127.0.0.1:8545")
+	if err != nil {
+		return nil, err
+	}
+	eth.client = client
+	eth.queue = NewTxnQueue(client, eth.selectors, timeout)
 	eth.queue.StartLoop()
 
 	eth.chainID = big.NewInt(1337)
@@ -137,16 +156,99 @@ func NewEthereumSimulator(
 		return nil, nil
 	}
 
-	eth.close = func() error {
+	eth.SetClose(func() error {
 		os.RemoveAll(pathKeystore)
-		return sim.Close()
-	}
+		client.Close()
+		return nil
+	})
 
 	eth.commit = func() {
-		sim.Commit()
+		c := http.Client{}
+		msg := &JsonrpcMessage{
+			Version: "2.0",
+			ID:      []byte("1"),
+			Method:  "evm_mine",
+			Params:  make([]byte, 0),
+		}
+
+		if msg.Params, err = json.Marshal(make([]string, 0)); err != nil {
+			panic(err)
+		}
+
+		var buff bytes.Buffer
+		err := json.NewEncoder(&buff).Encode(msg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		retryCount := 5
+		var worked bool
+		for i := 0; i < retryCount; i++ {
+			reader := bytes.NewReader(buff.Bytes())
+			resp, err := c.Post(
+				"http://127.0.0.1:8545",
+				"application/json",
+				reader,
+			)
+
+			if err != nil {
+				log.Printf("error calling evm_mine rpc: %v", err)
+				<-time.After(5 * time.Second)
+				continue
+			}
+
+			_, err = io.ReadAll(resp.Body)
+			if err != nil {
+				log.Printf("error reading response from evm_mine rpc: %v", err)
+				<-time.After(5 * time.Second)
+				continue
+			}
+
+			worked = true
+			break
+		}
+
+		if !worked {
+			panic(fmt.Errorf("error commiting evm_mine on rpc: %v", err))
+		}
 	}
 
 	return eth, nil
+}
+
+func (eth *EthereumDetails) SetContractFactory(ctx context.Context, contractFactoryAddress common.Address) error {
+	c := &ContractDetails{eth: eth}
+	err := c.LookupContracts(ctx, contractFactoryAddress)
+	if err != nil {
+		return err
+	}
+
+	eth.contracts = c
+	return nil
+}
+
+// A value of this type can a JSON-RPC request, notification, successful response or
+// error response. Which one it is depends on the fields.
+type JsonrpcMessage struct {
+	Version string          `json:"jsonrpc,omitempty"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+	Error   *jsonError      `json:"error,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+}
+
+type jsonError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+func (err *jsonError) Error() string {
+	if err.Message == "" {
+		return fmt.Sprintf("json-rpc error %d", err.Code)
+	}
+	return err.Message
 }
 
 // NewEthereumEndpoint creates a new Ethereum abstraction
@@ -158,21 +260,29 @@ func NewEthereumEndpoint(
 	timeout time.Duration,
 	retryCount int,
 	retryDelay time.Duration,
-	finalityDelay int) (*EthereumDetails, error) {
+	finalityDelay int,
+	txFeePercentageToIncrease int,
+	txMaxFeeThresholdInGwei uint64,
+	txCheckFrequency time.Duration,
+	txTimeoutForReplacement time.Duration) (*EthereumDetails, error) {
 
 	logger := logging.GetLogger("ethereum")
 
 	eth := &EthereumDetails{
-		endpoint:      endpoint,
-		logger:        logger,
-		accounts:      make(map[common.Address]accounts.Account),
-		keys:          make(map[common.Address]*keystore.Key),
-		passcodes:     make(map[common.Address]string),
-		finalityDelay: uint64(finalityDelay),
-		timeout:       timeout,
-		retryCount:    retryCount,
-		retryDelay:    retryDelay,
-		selectors:     NewKnownSelectors()}
+		endpoint:                  endpoint,
+		logger:                    logger,
+		accounts:                  make(map[common.Address]accounts.Account),
+		keys:                      make(map[common.Address]*keystore.Key),
+		passcodes:                 make(map[common.Address]string),
+		finalityDelay:             uint64(finalityDelay),
+		timeout:                   timeout,
+		retryCount:                retryCount,
+		retryDelay:                retryDelay,
+		selectors:                 NewKnownSelectors(),
+		txFeePercentageToIncrease: txFeePercentageToIncrease,
+		txMaxFeeThresholdInGwei:   txMaxFeeThresholdInGwei,
+		txCheckFrequency:          txCheckFrequency,
+		txTimeoutForReplacement:   txTimeoutForReplacement}
 
 	eth.contracts = &ContractDetails{eth: eth}
 
@@ -230,6 +340,10 @@ func NewEthereumEndpoint(
 	return eth, nil
 }
 
+func (eth *EthereumDetails) GetFinalityDelay() uint64 {
+	return eth.finalityDelay
+}
+
 func (eth *EthereumDetails) KnownSelectors() interfaces.SelectorMap {
 	return eth.selectors
 }
@@ -237,6 +351,22 @@ func (eth *EthereumDetails) KnownSelectors() interfaces.SelectorMap {
 func (eth *EthereumDetails) Close() error {
 	eth.queue.Close()
 	return eth.close()
+}
+
+func (eth *EthereumDetails) SetClose(fn func() error) {
+	if eth.close != nil {
+		var prevClose (func() error) = eth.close
+		eth.close = func() error {
+			err := prevClose()
+			if err != nil {
+				return err
+			}
+
+			return fn()
+		}
+	} else {
+		eth.close = fn
+	}
 }
 
 func (eth *EthereumDetails) Commit() {
@@ -507,22 +637,66 @@ func (eth *EthereumDetails) Timeout() time.Duration {
 	return eth.timeout
 }
 
+func (eth *EthereumDetails) GetTxFeePercentageToIncrease() int {
+	return eth.txFeePercentageToIncrease
+}
+
+func (eth *EthereumDetails) GetTxMaxFeeThresholdInGwei() uint64 {
+	return eth.txMaxFeeThresholdInGwei
+}
+
+func (eth *EthereumDetails) GetTxCheckFrequency() time.Duration {
+	return eth.txCheckFrequency
+}
+
+func (eth *EthereumDetails) GetTxTimeoutForReplacement() time.Duration {
+	return eth.txTimeoutForReplacement
+}
+
 func (eth *EthereumDetails) GetTransactionOpts(ctx context.Context, account accounts.Account) (*bind.TransactOpts, error) {
 	opts, err := bind.NewKeyStoreTransactorWithChainID(eth.keystore, account, eth.chainID)
 	if err != nil {
 		eth.logger.Errorf("could not create transactor for %v: %v", account.Address.Hex(), err)
-	} else {
-		opts.Context = ctx
-		opts.Nonce = nil
-		opts.Value = big.NewInt(0)
-		opts.GasLimit = uint64(0)
-		opts.GasPrice = nil
+		return nil, err
+	}
+	subCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	block, err := eth.client.BlockByNumber(subCtx, nil)
+	if err != nil && block == nil {
+		return nil, fmt.Errorf("could not get block number: %w", err)
 	}
 
-	return opts, err
+	eth.logger.Infof("Previous BaseFee:%v GasUsed:%v GasLimit:%v",
+		block.BaseFee().String(),
+		block.GasUsed(),
+		block.GasLimit())
+
+	baseFee := block.BaseFee()
+
+	bmi64 := int64(100)
+	bm := new(big.Int).SetInt64(bmi64)
+	bf := new(big.Int).Set(baseFee)
+	baseFee2x := new(big.Int).Mul(bm, bf)
+
+	tipCap, err := eth.client.SuggestGasTipCap(subCtx)
+	if err != nil {
+		if err.Error() == ETH_MAX_PRIORITY_FEE_PER_GAS_NOT_FOUND {
+			tipCap = big.NewInt(1)
+		} else {
+			return nil, fmt.Errorf("could not get suggested gas tip cap: %w", err)
+		}
+	}
+	feeCap := new(big.Int).Add(baseFee2x, new(big.Int).Set(tipCap))
+
+	opts.Context = ctx
+	opts.GasFeeCap = new(big.Int).Set(feeCap)
+	opts.GasTipCap = new(big.Int).Set(tipCap)
+	return opts, nil
 }
 
 func (eth *EthereumDetails) GetCallOpts(ctx context.Context, account accounts.Account) *bind.CallOpts {
+
 	return &bind.CallOpts{
 		BlockNumber: nil,
 		Context:     ctx,
@@ -548,7 +722,7 @@ func (eth *EthereumDetails) TransferEther(from common.Address, to common.Address
 
 	block, err := eth.client.BlockByNumber(ctx, nil)
 	if err != nil && block == nil {
-		return nil, fmt.Errorf("Could not get block number: %w", err)
+		return nil, fmt.Errorf("could not get block number: %w", err)
 	}
 
 	eth.logger.Infof("Previous BaseFee:%v GasUsed:%v GasLimit:%v",
@@ -567,7 +741,11 @@ func (eth *EthereumDetails) TransferEther(from common.Address, to common.Address
 	baseFee2x := new(big.Int).Mul(bm, bf)
 	tipCap, err := eth.client.SuggestGasTipCap(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get suggested gas tip cap: %w", err)
+		if err.Error() == ETH_MAX_PRIORITY_FEE_PER_GAS_NOT_FOUND {
+			tipCap = big.NewInt(1)
+		} else {
+			return nil, fmt.Errorf("could not get suggested gas tip cap: %w", err)
+		}
 	}
 	feeCap := new(big.Int).Add(baseFee2x, new(big.Int).Set(tipCap))
 
@@ -629,7 +807,7 @@ func (eth *EthereumDetails) GetSnapshot() ([]byte, error) {
 
 func (eth *EthereumDetails) GetValidators(ctx context.Context) ([]common.Address, error) {
 	c := eth.contracts
-	validatorAddresses, err := c.Validators().GetValidators(eth.GetCallOpts(ctx, eth.defaultAccount))
+	validatorAddresses, err := c.ValidatorPool().GetValidatorsAddresses(eth.GetCallOpts(ctx, eth.defaultAccount))
 	if err != nil {
 		eth.logger.Warnf("Could not call contract:%v", err)
 		return nil, err
@@ -658,6 +836,7 @@ func logAndEat(logger *logrus.Logger, err error) {
 	}
 }
 
+/*
 type Updater struct {
 	err     error
 	Logger  *logrus.Logger
@@ -680,3 +859,4 @@ func (u *Updater) Add(signature string, facet common.Address) *types.Transaction
 	u.err = err
 	return txn
 }
+*/

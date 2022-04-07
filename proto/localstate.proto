@@ -4,7 +4,7 @@ package proto;
 
 import "google/api/annotations.proto";
 import "localstatetypes.proto";
-//option go_package = "github.com/MadBase/MadNet/proto";
+option go_package = "/;proto";
 
 
 service LocalState {
@@ -48,6 +48,13 @@ service LocalState {
     rpc GetUTXO(UTXORequest) returns (UTXOResponse) {
       option (google.api.http) = {
           post: "/v1/get-utxo"
+          body: "*"
+        };
+    }
+    // Get transaction status by hash
+    rpc GetTransactionStatus(TransactionStatusRequest) returns (TransactionStatusResponse) {
+      option (google.api.http) = {
+          post: "/v1/get-transaction-status"
           body: "*"
         };
     }
@@ -108,6 +115,14 @@ service LocalState {
           body: "*"
         };
     }
+
+    rpc GetFees(FeeRequest) returns (FeeResponse) {
+      option (google.api.http) = {
+        post: "/v1/get-fees"
+        body: "*"
+      };
+    }
+
 }
 
 

@@ -1,9 +1,9 @@
 package wrapper
 
 import (
-	"github.com/MadBase/MadNet/dynamics"
-
 	"github.com/MadBase/MadNet/application/objs/uint256"
+	"github.com/MadBase/MadNet/dynamics"
+	"github.com/MadBase/MadNet/errorz"
 )
 
 // Storage wraps the dynamics.StorageGetter interface to make
@@ -26,6 +26,12 @@ func (s *Storage) GetMaxBytes() uint32 {
 
 // GetAtomicSwapFee returns the fee for AtomicSwap
 func (s *Storage) GetAtomicSwapFee() (*uint256.Uint256, error) {
+	if s == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetAtomicSwapFee; struct not initialized")
+	}
+	if s.storage == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetAtomicSwapFee; storage not initialized")
+	}
 	fee := s.storage.GetAtomicSwapFee()
 	feeUint256 := &uint256.Uint256{}
 	_, err := feeUint256.FromBigInt(fee)
@@ -37,6 +43,12 @@ func (s *Storage) GetAtomicSwapFee() (*uint256.Uint256, error) {
 
 // GetDataStoreEpochFee returns the per-epoch fee of DataStore
 func (s *Storage) GetDataStoreEpochFee() (*uint256.Uint256, error) {
+	if s == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetDataStoreEpochFee; struct not initialized")
+	}
+	if s.storage == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetDataStoreEpochFee; storage not initialized")
+	}
 	fee := s.storage.GetDataStoreEpochFee()
 	feeUint256 := &uint256.Uint256{}
 	_, err := feeUint256.FromBigInt(fee)
@@ -48,6 +60,12 @@ func (s *Storage) GetDataStoreEpochFee() (*uint256.Uint256, error) {
 
 // GetValueStoreFee returns the fee of ValueStore
 func (s *Storage) GetValueStoreFee() (*uint256.Uint256, error) {
+	if s == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetValueStoreFee; struct not initialized")
+	}
+	if s.storage == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetValueStoreFee; storage not initialized")
+	}
 	fee := s.storage.GetValueStoreFee()
 	feeUint256 := &uint256.Uint256{}
 	_, err := feeUint256.FromBigInt(fee)
@@ -59,6 +77,12 @@ func (s *Storage) GetValueStoreFee() (*uint256.Uint256, error) {
 
 // GetMinTxFee returns the minimum TxFee
 func (s *Storage) GetMinTxFee() (*uint256.Uint256, error) {
+	if s == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetMinTxFee; struct not initialized")
+	}
+	if s.storage == nil {
+		return nil, errorz.ErrInvalid{}.New("storage.GetMinTxFee; storage not initialized")
+	}
 	fee := s.storage.GetMinTxFee()
 	feeUint256 := &uint256.Uint256{}
 	_, err := feeUint256.FromBigInt(fee)

@@ -61,7 +61,11 @@ func initEthereumConnection(logger *logrus.Logger) (interfaces.Ethereum, *keysto
 		config.Configuration.Ethereum.Timeout,
 		config.Configuration.Ethereum.RetryCount,
 		config.Configuration.Ethereum.RetryDelay,
-		config.Configuration.Ethereum.FinalityDelay)
+		config.Configuration.Ethereum.FinalityDelay,
+		config.Configuration.Ethereum.TxFeePercentageToIncrease,
+		config.Configuration.Ethereum.TxMaxFeeThresholdInGwei,
+		config.Configuration.Ethereum.TxCheckFrequency,
+		config.Configuration.Ethereum.TxTimeoutForReplacement)
 
 	if err != nil {
 		logger.Fatalf("NewEthereumEndpoint(...) failed: %v", err)
@@ -166,6 +170,7 @@ func initLocalStateServer(localStateHandler *localrpc.Handlers) *localrpc.Handle
 	localStateDispatch.RegisterLocalStateSendTransaction(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetValueForOwner(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetUTXO(localStateHandler)
+	localStateDispatch.RegisterLocalStateGetTransactionStatus(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetMinedTransaction(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetPendingTransaction(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetRoundStateForValidator(localStateHandler)
@@ -173,6 +178,7 @@ func initLocalStateServer(localStateHandler *localrpc.Handlers) *localrpc.Handle
 	localStateDispatch.RegisterLocalStateIterateNameSpace(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetData(localStateHandler)
 	localStateDispatch.RegisterLocalStateGetTxBlockNumber(localStateHandler)
+	localStateDispatch.RegisterLocalStateGetFees(localStateHandler)
 
 	return localStateServer
 }
@@ -257,8 +263,6 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	// stdout logger
 	statusLogger := &status.Logger{}
 
-	localStateHandler := &localrpc.Handlers{}
-	localStateServer := initLocalStateServer(localStateHandler)
 	peerManager := initPeerManager(consGossipHandlers, consReqHandler)
 
 	ipcServer := ipc.NewServer(config.Configuration.Firewalld.SocketFile)
@@ -280,6 +284,9 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	if err := storage.Init(consDB, logger); err != nil {
 		panic(err)
 	}
+
+	localStateHandler := &localrpc.Handlers{}
+	localStateServer := initLocalStateServer(localStateHandler)
 
 	// Initialize consensus
 	consReqClient.Init(peerManager.P2PClient(), storage)
@@ -310,7 +317,7 @@ func validatorNode(cmd *cobra.Command, args []string) {
 	}
 
 	consSync.Init(consDB, mDB, tDB, consGossipClient, consGossipHandlers, consTxPool, consLSEngine, app, consAdminHandlers, peerManager, storage)
-	localStateHandler.Init(consDB, app, consGossipHandlers, publicKey, consSync.Safe)
+	localStateHandler.Init(consDB, app, consGossipHandlers, publicKey, consSync.Safe, storage)
 	statusLogger.Init(consLSEngine, peerManager, consAdminHandlers, mon)
 
 	//////////////////////////////////////////////////////////////////////////////

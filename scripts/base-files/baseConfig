@@ -1,0 +1,64 @@
+logging = "main=info,ethereum=info,consensus=debug"
+
+[loglevel]
+blockchain = "debug"
+consensus = "debug"
+admin = "debug"
+
+[chain]
+id = 1337
+stateDB = ""
+stateDBInMemory = false
+transactionDB = ""
+transactionDBInMemory = true
+monitorDB = ""
+monitorDBInMemory = true
+
+[bootnode]
+listeningAddress = ""
+cacheSize = 20
+
+[transport]
+upnp = false
+originLimit = 50
+privateKey = ""
+bootNodeAddresses = "0000002a|029570051a8573e865af31a066eb100e7744bcbd05d814e899a763500163675be9@127.0.0.1:4242"
+p2pListeningAddress = ""
+discoveryListeningAddress = ""
+localStateListeningAddress = ""
+peerLimitMax = 24
+peerLimitMin = 3
+
+[monitor]
+batchSize = 1_000
+interval = "7s"
+timeout = "1h"
+
+[ethereum]
+defaultAccount = ""
+endpoint = "http://localhost:8545"
+endpointPeers = 0
+keystore = ""
+timeout = "1h"
+passcodes = ""
+testEther = "f000000000000000000"
+finalityDelay = 6
+retryCount = 10
+retryDelay = "5s"
+startingBlock = 1
+registryAddress = "0x0b1f9c2b7bed6db83295c7b5158e3806d67ec5bc"
+txFeePercentageToIncrease = 50
+txMaxFeeThresholdInGwei = 1000000
+txCheckFrequency = "5s"
+txTimeoutForReplacement = "30s"
+
+[edge]
+ethTimeout = "5s"
+
+[utils]
+status = true
+
+[validator]
+rewardAccount = ""
+rewardCurveSpec = 1
+symmetricKey = "someSuperFancySecretThatWillBeHashed"

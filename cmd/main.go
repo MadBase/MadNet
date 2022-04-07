@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/MadBase/MadNet/cmd/bootnode"
-	"github.com/MadBase/MadNet/cmd/deploy"
 	"github.com/MadBase/MadNet/cmd/firewalld"
 	"github.com/MadBase/MadNet/cmd/utils"
 	"github.com/MadBase/MadNet/cmd/validator"
@@ -137,6 +136,10 @@ func main() {
 			{"ethereum.passcodes", "", "Passcodes for keystore", &config.Configuration.Ethereum.Passcodes},
 			{"ethereum.startingBlock", "", "The first block we care about", &config.Configuration.Ethereum.StartingBlock},
 			{"ethereum.registryAddress", "", "", &config.Configuration.Ethereum.RegistryAddress},
+			{"ethereum.txFeePercentageToIncrease", "", "", &config.Configuration.Ethereum.TxFeePercentageToIncrease},
+			{"ethereum.txMaxFeeThresholdInGwei", "", "", &config.Configuration.Ethereum.TxMaxFeeThresholdInGwei},
+			{"ethereum.txCheckFrequency", "", "", &config.Configuration.Ethereum.TxCheckFrequency},
+			{"ethereum.txTimeoutForReplacement", "", "", &config.Configuration.Ethereum.TxTimeoutForReplacement},
 			{"monitor.batchSize", "", "", &config.Configuration.Monitor.BatchSize},
 			{"monitor.interval", "", "", &config.Configuration.Monitor.Interval},
 			{"monitor.timeout", "", "", &config.Configuration.Monitor.Timeout},
@@ -160,14 +163,8 @@ func main() {
 		&utils.Command: {
 			{"utils.status", "", "", &config.Configuration.Utils.Status}},
 
-		&utils.ApproveTokensCommand:  {},
-		&utils.DepositCommand:        {},
-		&utils.EthdkgCommand:         {},
-		&utils.RegisterCommand:       {},
-		&utils.SendWeiCommand:        {},
-		&utils.TransferTokensCommand: {},
-		&utils.UnregisterCommand:     {},
-		&utils.UpdateValueCommand:    {},
+		&utils.EthdkgCommand:  {},
+		&utils.SendWeiCommand: {},
 
 		&bootnode.Command: {
 			{"bootnode.listeningAddress", "", "", &config.Configuration.BootNode.ListeningAddress},
@@ -179,26 +176,21 @@ func main() {
 			{"validator.rewardAccount", "", "", &config.Configuration.Validator.RewardAccount},
 			{"validator.rewardCurveSpec", "", "", &config.Configuration.Validator.RewardCurveSpec}},
 
-		&deploy.Command: {
-			{"deploy.migrations", "", "", &config.Configuration.Deploy.Migrations},
-			{"deploy.testMigrations", "", "", &config.Configuration.Deploy.TestMigrations}},
+		// &deploy.Command: {
+		// 	{"deploy.migrations", "", "", &config.Configuration.Deploy.Migrations},
+		// 	{"deploy.testMigrations", "", "", &config.Configuration.Deploy.TestMigrations}},
 	}
 
 	// Establish command hierarchy
 	hierarchy := map[*cobra.Command]*cobra.Command{
-		&firewalld.Command:           &rootCommand,
-		&bootnode.Command:            &rootCommand,
-		&validator.Command:           &rootCommand,
-		&deploy.Command:              &rootCommand,
-		&utils.Command:               &rootCommand,
-		&utils.ApproveTokensCommand:  &utils.Command,
-		&utils.EthdkgCommand:         &utils.Command,
-		&utils.RegisterCommand:       &utils.Command,
-		&utils.UpdateValueCommand:    &utils.Command,
-		&utils.SendWeiCommand:        &utils.Command,
-		&utils.TransferTokensCommand: &utils.Command,
-		&utils.UnregisterCommand:     &utils.Command,
-		&utils.DepositCommand:        &utils.Command}
+		&firewalld.Command: &rootCommand,
+		&bootnode.Command:  &rootCommand,
+		&validator.Command: &rootCommand,
+		// &deploy.Command:              &rootCommand,
+		&utils.Command:        &rootCommand,
+		&utils.EthdkgCommand:  &utils.Command,
+		&utils.SendWeiCommand: &utils.Command,
+	}
 
 	// Convert option abstraction into concrete settings for Cobra and Viper
 	for c := range options {
