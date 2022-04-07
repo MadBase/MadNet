@@ -23,7 +23,7 @@ describe("PublicStaking: Only Mint", async () => {
   });
 
   it("Mint a NFT position", async function () {
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     const tx = await fixture.publicStaking.connect(adminSigner).mint(1000);
     const blockNumber = BigInt(tx.blockNumber as number);
     const tokenID = await getTokenIdFromTx(tx);
@@ -39,7 +39,7 @@ describe("PublicStaking: Only Mint", async () => {
   });
 
   it("Mint many NFT positions for a user", async function () {
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     for (let i = 0; i < 10; i++) {
       const tx = await fixture.publicStaking.connect(adminSigner).mint(100);
       const blockNumber = BigInt(tx.blockNumber as number);
@@ -76,7 +76,7 @@ describe("PublicStaking: Only Mint", async () => {
   });
 
   it("Should not be able to mint NFT positions without having tokens", async function () {
-    await fixture.madToken
+    await fixture.aToken
       .connect(notAdminSigner)
       .approve(fixture.publicStaking.address, 1000);
     await expect(
@@ -87,9 +87,7 @@ describe("PublicStaking: Only Mint", async () => {
   it("Should not be able to mint NFT position with more tokens than will ever exist", async function () {
     await expect(
       fixture.publicStaking.connect(adminSigner).mint(2n ** 224n)
-    ).to.revertedWith(
-      "PublicStaking: The amount exceeds the maximum number of MadTokens that will ever exist!"
-    );
+    ).to.revertedWith("605");
   });
 
   it("Should not be able to mintTo a NFT position with more tokens than will ever exist", async function () {
@@ -97,13 +95,11 @@ describe("PublicStaking: Only Mint", async () => {
       fixture.publicStaking
         .connect(adminSigner)
         .mintTo(notAdminSigner.address, 2n ** 224n, 1)
-    ).to.revertedWith(
-      "PublicStaking: The amount exceeds the maximum number of MadTokens that will ever exist!"
-    );
+    ).to.revertedWith("605");
   });
 
   it("MintTo a NFT position to another user without lock", async function () {
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     const tx = await fixture.publicStaking
       .connect(adminSigner)
       .mintTo(notAdminSigner.address, 1000, 0);
@@ -121,7 +117,7 @@ describe("PublicStaking: Only Mint", async () => {
   });
 
   it("MintTo a NFT position to another user with time lock", async function () {
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     const tx = await fixture.publicStaking
       .connect(adminSigner)
       .mintTo(notAdminSigner.address, 1000, 10);
@@ -146,7 +142,7 @@ describe("PublicStaking: Only Mint", async () => {
   });
 
   it("Should not be able to mintTo a NFT position with lock duration greater than _MAX_MINT_LOCK", async function () {
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     await expect(
       fixture.publicStaking
         .connect(adminSigner)
@@ -155,8 +151,6 @@ describe("PublicStaking: Only Mint", async () => {
           1000,
           (await fixture.publicStaking.getMaxMintLock()).toBigInt() + 1n
         )
-    ).to.revertedWith(
-      "PublicStaking: The lock duration must be less or equal than the maxMintLock!"
-    );
+    ).to.revertedWith("602");
   });
 });

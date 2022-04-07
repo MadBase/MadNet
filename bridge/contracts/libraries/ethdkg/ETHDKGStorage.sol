@@ -48,14 +48,15 @@ abstract contract ETHDKGStorage is
     uint16 internal _phaseLength;
     uint16 internal _confirmationLength;
 
-    // Madnet height used to start the new validator set in arbitrary height points if the Madnet
+    // AliceNet height used to start the new validator set in arbitrary height points if the AliceNet
     // Consensus is halted
-    uint256 internal _customMadnetHeight;
+    uint256 internal _customAliceNetHeight;
 
     address internal _admin;
 
     uint256[4] internal _masterPublicKey;
     uint256[2] internal _mpkG1;
+    bytes32 internal _masterPublicKeyHash;
 
     mapping(address => Participant) internal _participants;
 

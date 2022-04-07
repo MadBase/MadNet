@@ -17,6 +17,7 @@ import "contracts/interfaces/IERC20Transferable.sol";
 import "contracts/interfaces/IStakingNFT.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ValidatorPoolErrorCodes} from "contracts/libraries/errorCodes/ValidatorPoolErrorCodes.sol";
 
 /// @custom:salt ValidatorPool
 /// @custom:deploy-type deployUpgradeable
@@ -32,19 +33,25 @@ contract ValidatorPool is
     using CustomEnumerableMaps for ValidatorDataMap;
 
     modifier onlyValidator() {
-        require(_isValidator(msg.sender), "ValidatorPool: Only validators allowed!");
+        require(
+            _isValidator(msg.sender),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_CALLER_NOT_VALIDATOR))
+        );
         _;
     }
 
     modifier assertNotConsensusRunning() {
-        require(!_isConsensusRunning, "ValidatorPool: Error Madnet Consensus should be halted!");
+        require(
+            !_isConsensusRunning,
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_CONSENSUS_RUNNING))
+        );
         _;
     }
 
     modifier assertNotETHDKGRunning() {
         require(
             !IETHDKG(_ethdkgAddress()).isETHDKGRunning(),
-            "ValidatorPool: There's an ETHDKG round running!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETHDKG_ROUND_RUNNING))
         );
         _;
     }
@@ -54,7 +61,7 @@ contract ValidatorPool is
     receive() external payable {
         require(
             msg.sender == _validatorStakingAddress() || msg.sender == _publicStakingAddress(),
-            "Only NFT contracts allowed to send ethereum!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ONLY_CONTRACTS_ALLOWED))
         );
     }
 
@@ -103,20 +110,22 @@ contract ValidatorPool is
         _isConsensusRunning = true;
     }
 
-    // todo: check async in Madnet
+    // todo: check async in AliceNet
     function pauseConsensus() public onlySnapshots {
         _isConsensusRunning = false;
     }
 
-    function pauseConsensusOnArbitraryHeight(uint256 madnetHeight_) public onlyFactory {
+    function pauseConsensusOnArbitraryHeight(uint256 aliceNetHeight_) public onlyFactory {
         require(
             block.number >
                 ISnapshots(_snapshotsAddress()).getCommittedHeightFromLatestSnapshot() +
                     MAX_INTERVAL_WITHOUT_SNAPSHOTS,
-            "ValidatorPool: Condition not met to stop consensus!"
+            string(
+                abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_MIN_BLOCK_INTERVAL_NOT_MET)
+            )
         );
         _isConsensusRunning = false;
-        IETHDKG(_ethdkgAddress()).setCustomMadnetHeight(madnetHeight_);
+        IETHDKG(_ethdkgAddress()).setCustomAliceNetHeight(aliceNetHeight_);
     }
 
     function registerValidators(address[] memory validators_, uint256[] memory stakerTokenIDs_)
@@ -127,17 +136,25 @@ contract ValidatorPool is
     {
         require(
             validators_.length + _validators.length() <= _maxNumValidators,
-            "ValidatorPool: There are not enough free spots for all new validators!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_MAX_VALIDATORS_MET))
         );
         require(
             validators_.length == stakerTokenIDs_.length,
-            "ValidatorPool: Both input array should have same length!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_REGISTRATION_PARAMETER_LENGTH_MISMATCH
+                )
+            )
         );
 
         for (uint256 i = 0; i < validators_.length; i++) {
             require(
                 msg.sender == IERC721(_publicStakingAddress()).ownerOf(stakerTokenIDs_[i]),
-                "ValidatorPool: The factory should be the owner of the PublicStaking position!"
+                string(
+                    abi.encodePacked(
+                        ValidatorPoolErrorCodes.VALIDATORPOOL_FACTORY_SHOULD_OWN_POSITION
+                    )
+                )
             );
             _registerValidator(validators_[i], stakerTokenIDs_[i]);
         }
@@ -151,7 +168,11 @@ contract ValidatorPool is
     {
         require(
             validators_.length <= _validators.length(),
-            "ValidatorPool: There are not enough validators to be removed!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_VALIDATORS_GREATER_THAN_AVAILABLE
+                )
+            )
         );
         for (uint256 i = 0; i < validators_.length; i++) {
             _unregisterValidator(validators_[i]);
@@ -177,12 +198,14 @@ contract ValidatorPool is
     {
         require(
             _isConsensusRunning,
-            "ValidatorPool: Profits can only be claimable when consensus is running!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_PROFITS_ONLY_CLAIMABLE_DURING_CONSENSUS
+                )
+            )
         );
 
-        uint256 balanceBeforeToken = IERC20Transferable(_madTokenAddress()).balanceOf(
-            address(this)
-        );
+        uint256 balanceBeforeToken = IERC20Transferable(_aTokenAddress()).balanceOf(address(this));
         uint256 balanceBeforeEth = address(this).balance;
 
         uint256 validatorTokenID = _validators.get(msg.sender)._tokenID;
@@ -196,12 +219,12 @@ contract ValidatorPool is
         );
 
         require(
-            balanceBeforeToken == IERC20Transferable(_madTokenAddress()).balanceOf(address(this)),
-            "ValidatorPool: Invalid transaction, token balance of the contract changed!"
+            balanceBeforeToken == IERC20Transferable(_aTokenAddress()).balanceOf(address(this)),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_TOKEN_BALANCE_CHANGED))
         );
         require(
             balanceBeforeEth == address(this).balance,
-            "ValidatorPool: Invalid transaction, eth balance of the contract changed!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETH_BALANCE_CHANGED))
         );
 
         return (payoutEth, payoutToken);
@@ -209,10 +232,15 @@ contract ValidatorPool is
 
     function claimExitingNFTPosition() public returns (uint256) {
         ExitingValidatorData memory data = _exitingValidatorsData[msg.sender];
-        require(data._freeAfter > 0, "ValidatorPool: Address not in the exitingQueue!");
+        require(
+            data._freeAfter > 0,
+            string(
+                abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_SENDER_NOT_IN_EXITING_QUEUE)
+            )
+        );
         require(
             ISnapshots(_snapshotsAddress()).getEpoch() > data._freeAfter,
-            "ValidatorPool: The waiting period is not over yet!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_WAITING_PERIOD_NOT_MET))
         );
 
         _removeExitingQueueData(msg.sender);
@@ -231,11 +259,13 @@ contract ValidatorPool is
     function majorSlash(address dishonestValidator_, address disputer_) public onlyETHDKG {
         require(
             _isAccusable(dishonestValidator_),
-            "ValidatorPool: DishonestValidator should be a validator or be in the exiting line!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_DISHONEST_VALIDATOR_NOT_ACCUSABLE
+                )
+            )
         );
-        uint256 balanceBeforeToken = IERC20Transferable(_madTokenAddress()).balanceOf(
-            address(this)
-        );
+        uint256 balanceBeforeToken = IERC20Transferable(_aTokenAddress()).balanceOf(address(this));
         uint256 balanceBeforeEth = address(this).balance;
 
         (uint256 minerShares, uint256 payoutEth, uint256 payoutToken) = _slash(dishonestValidator_);
@@ -248,19 +278,19 @@ contract ValidatorPool is
         }
         // redistribute the dishonest staking equally with the other validators
 
-        IERC20Transferable(_madTokenAddress()).approve(_validatorStakingAddress(), minerShares);
+        IERC20Transferable(_aTokenAddress()).approve(_validatorStakingAddress(), minerShares);
         IStakingNFT(_validatorStakingAddress()).depositToken(_getMagic(), minerShares);
         // transfer to the disputer any profit that the dishonestValidator had when his
         // position was burned + the disputerReward
         _transferEthAndTokens(disputer_, payoutEth, payoutToken);
 
         require(
-            balanceBeforeToken == IERC20Transferable(_madTokenAddress()).balanceOf(address(this)),
-            "ValidatorPool: Invalid transaction, token balance of the contract changed!"
+            balanceBeforeToken == IERC20Transferable(_aTokenAddress()).balanceOf(address(this)),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_TOKEN_BALANCE_CHANGED))
         );
         require(
             balanceBeforeEth == address(this).balance,
-            "ValidatorPool: Invalid transaction, eth balance of the contract changed!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETH_BALANCE_CHANGED))
         );
 
         emit ValidatorMajorSlashed(dishonestValidator_);
@@ -269,11 +299,13 @@ contract ValidatorPool is
     function minorSlash(address dishonestValidator_, address disputer_) public onlyETHDKG {
         require(
             _isAccusable(dishonestValidator_),
-            "ValidatorPool: DishonestValidator should be a validator or be in the exiting line!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_DISHONEST_VALIDATOR_NOT_ACCUSABLE
+                )
+            )
         );
-        uint256 balanceBeforeToken = IERC20Transferable(_madTokenAddress()).balanceOf(
-            address(this)
-        );
+        uint256 balanceBeforeToken = IERC20Transferable(_aTokenAddress()).balanceOf(address(this));
         uint256 balanceBeforeEth = address(this).balance;
 
         (uint256 minerShares, uint256 payoutEth, uint256 payoutToken) = _slash(dishonestValidator_);
@@ -293,12 +325,12 @@ contract ValidatorPool is
         _transferEthAndTokens(disputer_, payoutEth, payoutToken);
 
         require(
-            balanceBeforeToken == IERC20Transferable(_madTokenAddress()).balanceOf(address(this)),
-            "ValidatorPool: Invalid transaction, token balance of the contract changed!"
+            balanceBeforeToken == IERC20Transferable(_aTokenAddress()).balanceOf(address(this)),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_TOKEN_BALANCE_CHANGED))
         );
         require(
             balanceBeforeEth == address(this).balance,
-            "ValidatorPool: Invalid transaction, eth balance of the contract changed!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETH_BALANCE_CHANGED))
         );
 
         emit ValidatorMinorSlashed(dishonestValidator_, stakeTokenID);
@@ -316,13 +348,13 @@ contract ValidatorPool is
         return excess;
     }
 
-    /// skimExcessToken will allow the Admin role to refund any MadToken sent to this contract in error
+    /// skimExcessToken will allow the Admin role to refund any AToken sent to this contract in error
     /// by a user.
     function skimExcessToken(address to_) public onlyFactory returns (uint256 excess) {
         // This contract shouldn't held any token balance.
-        IERC20Transferable madToken = IERC20Transferable(_madTokenAddress());
-        excess = madToken.balanceOf(address(this));
-        _safeTransferERC20(madToken, to_, excess);
+        IERC20Transferable aToken = IERC20Transferable(_aTokenAddress());
+        excess = aToken.balanceOf(address(this));
+        _safeTransferERC20(aToken, to_, excess);
         return excess;
     }
 
@@ -347,12 +379,18 @@ contract ValidatorPool is
     }
 
     function getValidator(uint256 index_) public view returns (address) {
-        require(index_ < _validators.length(), "Index out boundaries!");
+        require(
+            index_ < _validators.length(),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_INVALID_INDEX))
+        );
         return _validators.at(index_)._address;
     }
 
     function getValidatorData(uint256 index_) public view returns (ValidatorData memory) {
-        require(index_ < _validators.length(), "Index out boundaries!");
+        require(
+            index_ < _validators.length(),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_INVALID_INDEX))
+        );
         return _validators.at(index_);
     }
 
@@ -416,7 +454,7 @@ contract ValidatorPool is
         uint256 payoutEth_,
         uint256 payoutToken_
     ) internal {
-        _safeTransferERC20(IERC20Transferable(_madTokenAddress()), to_, payoutToken_);
+        _safeTransferERC20(IERC20Transferable(_aTokenAddress()), to_, payoutToken_);
         _safeTransferEth(to_, payoutEth_);
     }
 
@@ -430,16 +468,16 @@ contract ValidatorPool is
     {
         require(
             _validators.length() <= _maxNumValidators,
-            "ValidatorPool: There are no free spots for new validators!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_MAX_VALIDATORS_MET))
         );
         require(
             !_isAccusable(validator_),
-            "ValidatorPool: Address is already a validator or it is in the exiting line!"
+            string(
+                abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ADDRESS_ALREADY_VALIDATOR)
+            )
         );
 
-        uint256 balanceBeforeToken = IERC20Transferable(_madTokenAddress()).balanceOf(
-            address(this)
-        );
+        uint256 balanceBeforeToken = IERC20Transferable(_aTokenAddress()).balanceOf(address(this));
         uint256 balanceBeforeEth = address(this).balance;
         (validatorTokenID, payoutEth, payoutToken) = _swapPublicStakingForValidatorStaking(
             msg.sender,
@@ -451,12 +489,12 @@ contract ValidatorPool is
         // burned it
         _transferEthAndTokens(validator_, payoutEth, payoutToken);
         require(
-            balanceBeforeToken == IERC20Transferable(_madTokenAddress()).balanceOf(address(this)),
-            "ValidatorPool: Invalid transaction, token balance of the contract changed!"
+            balanceBeforeToken == IERC20Transferable(_aTokenAddress()).balanceOf(address(this)),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_TOKEN_BALANCE_CHANGED))
         );
         require(
             balanceBeforeEth == address(this).balance,
-            "ValidatorPool: Invalid transaction, eth balance of the contract changed!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETH_BALANCE_CHANGED))
         );
 
         emit ValidatorJoined(validator_, validatorTokenID);
@@ -470,11 +508,12 @@ contract ValidatorPool is
             uint256 payoutToken
         )
     {
-        require(_isValidator(validator_), "ValidatorPool: Address is not a validator_!");
-
-        uint256 balanceBeforeToken = IERC20Transferable(_madTokenAddress()).balanceOf(
-            address(this)
+        require(
+            _isValidator(validator_),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ADDRESS_NOT_VALIDATOR))
         );
+
+        uint256 balanceBeforeToken = IERC20Transferable(_aTokenAddress()).balanceOf(address(this));
         uint256 balanceBeforeEth = address(this).balance;
         (stakeTokenID, payoutEth, payoutToken) = _swapValidatorStakingForPublicStaking(validator_);
 
@@ -484,12 +523,12 @@ contract ValidatorPool is
         // burned it
         _transferEthAndTokens(validator_, payoutEth, payoutToken);
         require(
-            balanceBeforeToken == IERC20Transferable(_madTokenAddress()).balanceOf(address(this)),
-            "ValidatorPool: Invalid transaction, token balance of the contract changed!"
+            balanceBeforeToken == IERC20Transferable(_aTokenAddress()).balanceOf(address(this)),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_TOKEN_BALANCE_CHANGED))
         );
         require(
             balanceBeforeEth == address(this).balance,
-            "ValidatorPool: Invalid transaction, eth balance of the contract changed!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ETH_BALANCE_CHANGED))
         );
 
         emit ValidatorLeft(validator_, stakeTokenID);
@@ -509,7 +548,11 @@ contract ValidatorPool is
         uint256 stakeAmount = _stakeAmount;
         require(
             stakeShares >= stakeAmount,
-            "ValidatorPool: Error, the Stake position doesn't have enough funds!"
+            string(
+                abi.encodePacked(
+                    ValidatorPoolErrorCodes.VALIDATORPOOL_INSUFFICIENT_FUNDS_IN_STAKE_POSITION
+                )
+            )
         );
         IERC721Transferable(_publicStakingAddress()).safeTransferFrom(
             to_,
@@ -523,7 +566,7 @@ contract ValidatorPool is
         //payoutToken should always have the minerShares in it!
         require(
             payoutToken >= stakeShares,
-            "ValidatorPool: Miner shares greater then the total payout in tokens!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_PAYOUT_TOO_LOW))
         );
         payoutToken -= stakeAmount;
 
@@ -548,7 +591,7 @@ contract ValidatorPool is
         //payoutToken should always have the minerShares in it!
         require(
             payoutToken >= minerShares,
-            "ValidatorPool: Miner shares greater then the total payout in tokens!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_PAYOUT_TOO_LOW))
         );
         payoutToken -= minerShares;
 
@@ -562,7 +605,7 @@ contract ValidatorPool is
         returns (uint256 validatorTokenID)
     {
         // We should approve the validatorStaking to transferFrom the tokens of this contract
-        IERC20Transferable(_madTokenAddress()).approve(_validatorStakingAddress(), minerShares_);
+        IERC20Transferable(_aTokenAddress()).approve(_validatorStakingAddress(), minerShares_);
         validatorTokenID = IStakingNFT(_validatorStakingAddress()).mint(minerShares_);
     }
 
@@ -571,7 +614,7 @@ contract ValidatorPool is
         returns (uint256 stakeTokenID)
     {
         // We should approve the PublicStaking to transferFrom the tokens of this contract
-        IERC20Transferable(_madTokenAddress()).approve(_publicStakingAddress(), minerShares_);
+        IERC20Transferable(_aTokenAddress()).approve(_publicStakingAddress(), minerShares_);
         stakeTokenID = IStakingNFT(_publicStakingAddress()).mint(minerShares_);
     }
 
@@ -626,7 +669,10 @@ contract ValidatorPool is
             uint256 payoutToken
         )
     {
-        require(_isAccusable(dishonestValidator_), "ValidatorPool: Address is not accusable!");
+        require(
+            _isAccusable(dishonestValidator_),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_ADDRESS_NOT_ACCUSABLE))
+        );
         // If the user accused is a valid validator, we should burn is validatorStaking position,
         // otherwise we burn the user's PublicStaking in the exiting line
         if (_isValidator(dishonestValidator_)) {
@@ -649,7 +695,7 @@ contract ValidatorPool is
         //payoutToken should always have the minerShares in it!
         require(
             payoutToken >= minerShares,
-            "ValidatorPool: Miner shares greater then the total payout in tokens!"
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_PAYOUT_TOO_LOW))
         );
         payoutToken -= minerShares;
     }

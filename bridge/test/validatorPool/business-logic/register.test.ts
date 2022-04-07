@@ -37,7 +37,7 @@ describe("ValidatorPool: Registration logic", async () => {
     stakeAmount = (await fixture.validatorPool.getStakeAmount()).toBigInt();
   });
 
-  it("Should not allow registering validators if the PublicStaking position doesn’t have enough MADTokens staked", async function () {
+  it("Should not allow registering validators if the PublicStaking position doesn’t have enough Tokens staked", async function () {
     const rcpt = await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -50,9 +50,7 @@ describe("ValidatorPool: Registration logic", async () => {
         validators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Error, the Stake position doesn't have enough funds!"
-    );
+    ).to.be.revertedWith("821");
   });
 
   it("Should not allow registering more validators that the current number of free spots in the pool", async function () {
@@ -67,9 +65,7 @@ describe("ValidatorPool: Registration logic", async () => {
         validators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: There are not enough free spots for all new validators!"
-    );
+    ).to.be.revertedWith("805");
   });
 
   it("Should not allow registering validators if the size of the input data is not correct", async function () {
@@ -78,20 +74,16 @@ describe("ValidatorPool: Registration logic", async () => {
         validators.slice(0, 3),
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Both input array should have same length!"
-    );
+    ).to.be.revertedWith("806");
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
         stakingTokenIds.slice(0, 3),
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Both input array should have same length!"
-    );
+    ).to.be.revertedWith("806");
   });
 
-  it('Should not allow registering validators if "Madnet consensus is running" or ETHDKG round is running', async function () {
+  it('Should not allow registering validators if "AliceNet consensus is running" or ETHDKG round is running', async function () {
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -105,7 +97,7 @@ describe("ValidatorPool: Registration logic", async () => {
         validators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith("ValidatorPool: There's an ETHDKG round running!");
+    ).to.be.revertedWith("802");
     await completeETHDKGRound(validatorsSnapshots, {
       ethdkg: fixture.ethdkg,
       validatorPool: fixture.validatorPool,
@@ -115,9 +107,7 @@ describe("ValidatorPool: Registration logic", async () => {
         validators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Error Madnet Consensus should be halted!"
-    );
+    ).to.be.revertedWith("801");
   });
 
   it("Should not allow registering validators if the PublicStaking position was not given permissions for the ValidatorPool contract burn it", async function () {
@@ -143,7 +133,7 @@ describe("ValidatorPool: Registration logic", async () => {
     _validatorsSnapshots[1] = _validatorsSnapshots[0];
     const newValidators = await createValidators(fixture, _validatorsSnapshots);
     // Approve first validator for twice the amount
-    await fixture.madToken
+    await fixture.aToken
       .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
       .approve(fixture.publicStaking.address, stakeAmount * BigInt(2));
     await stakeValidators(fixture, newValidators);
@@ -152,9 +142,7 @@ describe("ValidatorPool: Registration logic", async () => {
         newValidators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Address is already a validator or it is in the exiting line!"
-    );
+    ).to.be.revertedWith("816");
   });
 
   it("Should not allow registering an address that is in the exiting queue", async function () {
@@ -178,9 +166,7 @@ describe("ValidatorPool: Registration logic", async () => {
         newValidators,
         newTokensIds,
       ])
-    ).to.be.revertedWith(
-      "ValidatorPool: Address is already a validator or it is in the exiting line!"
-    );
+    ).to.be.revertedWith("816");
   });
 
   it("Should successfully register validators if all conditions are met", async function () {
@@ -193,8 +179,8 @@ describe("ValidatorPool: Registration logic", async () => {
       expectedState.validators[index].Reg = true;
     }
     // Expect that all validators funds are transferred from PublicStaking to ValidatorStaking
-    expectedState.PublicStaking.MAD -= stakeAmount * BigInt(validators.length);
-    expectedState.ValidatorStaking.MAD +=
+    expectedState.PublicStaking.ATK -= stakeAmount * BigInt(validators.length);
+    expectedState.ValidatorStaking.ATK +=
       stakeAmount * BigInt(validators.length);
     // Register validators
     await factoryCallAnyFixture(
@@ -215,8 +201,8 @@ describe("ValidatorPool: Registration logic", async () => {
     // Mint a publicStaking and burn it to the ValidatorPool contract. Besides a contract self destructing
     // itself, this is a method to send eth accidentally to the validatorPool contract
     const etherAmount = ethers.utils.parseEther("1");
-    const madTokenAmount = ethers.utils.parseEther("2");
-    await burnStakeTo(fixture, etherAmount, madTokenAmount, adminSigner);
+    const aTokenAmount = ethers.utils.parseEther("2");
+    await burnStakeTo(fixture, etherAmount, aTokenAmount, adminSigner);
 
     const expectedState = await getCurrentState(fixture, validators);
     // Expect that NFTs are transferred from each validator from ValidatorPool to ValidatorStaking
@@ -227,9 +213,9 @@ describe("ValidatorPool: Registration logic", async () => {
       expectedState.validators[index].Reg = true;
     }
     // Expect that all validators funds are transferred from PublicStaking to ValidatorStaking
-    expectedState.PublicStaking.MAD -= stakeAmount * BigInt(validators.length);
+    expectedState.PublicStaking.ATK -= stakeAmount * BigInt(validators.length);
     expectedState.PublicStaking.ETH = BigInt(0);
-    expectedState.ValidatorStaking.MAD +=
+    expectedState.ValidatorStaking.ATK +=
       stakeAmount * BigInt(validators.length);
     // Register validators
     await factoryCallAnyFixture(
@@ -276,7 +262,7 @@ describe("ValidatorPool: Registration logic", async () => {
     // Position 5 is not a register validator
     await expect(
       fixture.validatorPool.connect(adminSigner).setLocation("1.1.1.1")
-    ).to.be.revertedWith("ValidatorPool: Only validators allowed!");
+    ).to.be.revertedWith("800");
   });
 
   it("Should not allow users to register reusing previous publicStaking that cannot be burned", async function () {
@@ -317,7 +303,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "After claiming:",
       await getCurrentState(fixture, validators)
     );
-    // After claiming, position is locked for a period of 172800 Madnet epochs
+    // After claiming, position is locked for a period of 172800 AliceNet epochs
     // To perform this test with no revert, POSITION_LOCK_PERIOD can be set to 3
     // in ValidatorPool and then take 4 snapshots
     // await commitSnapshots(fixture, 4)
@@ -326,8 +312,6 @@ describe("ValidatorPool: Registration logic", async () => {
         validators,
         stakingTokenIds,
       ])
-    ).to.be.revertedWith(
-      "PublicStaking: The position is not ready to be burned!"
-    );
+    ).to.be.revertedWith("606");
   });
 });

@@ -9,6 +9,7 @@ import "contracts/interfaces/IStakingNFT.sol";
 import "contracts/utils/CustomEnumerableMaps.sol";
 import "contracts/utils/DeterministicAddress.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ValidatorPoolErrorCodes} from "contracts/libraries/errorCodes/ValidatorPoolErrorCodes.sol";
 
 contract ValidatorPoolMock is
     Initializable,
@@ -17,7 +18,7 @@ contract ValidatorPoolMock is
     ImmutableSnapshots,
     ImmutableETHDKG,
     ImmutableValidatorStaking,
-    ImmutableMadToken
+    ImmutableAToken
 {
     using CustomEnumerableMaps for ValidatorDataMap;
 
@@ -49,11 +50,11 @@ contract ValidatorPoolMock is
         ImmutableValidatorStaking()
         ImmutableSnapshots()
         ImmutableETHDKG()
-        ImmutableMadToken()
+        ImmutableAToken()
     {}
 
     function initialize() public onlyFactory initializer {
-        //20000*10**18 MadWei = 20k MadTokens
+        //20000*10**18 ATokenWei = 20k ATokens
         _stakeAmount = 20000 * 10**18;
     }
 
@@ -63,47 +64,41 @@ contract ValidatorPoolMock is
 
     function setDisputerReward(uint256 disputerReward_) public {}
 
-    function pauseConsensusOnArbitraryHeight(uint256 madnetHeight_) public onlyFactory {
+    function pauseConsensusOnArbitraryHeight(uint256 aliceNetHeight_) public onlyFactory {
         require(
             block.number >
                 ISnapshots(_snapshotsAddress()).getCommittedHeightFromLatestSnapshot() +
                     MAX_INTERVAL_WITHOUT_SNAPSHOTS,
-            "ValidatorPool: Condition not met to stop consensus!"
+            string(
+                abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_MIN_BLOCK_INTERVAL_NOT_MET)
+            )
         );
         _isConsensusRunning = false;
-        IETHDKG(_ethdkgAddress()).setCustomMadnetHeight(madnetHeight_);
+        IETHDKG(_ethdkgAddress()).setCustomAliceNetHeight(aliceNetHeight_);
     }
 
     function mintValidatorStaking() public returns (uint256 stakeID_) {
-        IERC20Transferable(_madTokenAddress()).transferFrom(
-            msg.sender,
-            address(this),
-            _stakeAmount
-        );
-        IERC20Transferable(_madTokenAddress()).approve(_validatorStakingAddress(), _stakeAmount);
+        IERC20Transferable(_aTokenAddress()).transferFrom(msg.sender, address(this), _stakeAmount);
+        IERC20Transferable(_aTokenAddress()).approve(_validatorStakingAddress(), _stakeAmount);
         stakeID_ = IStakingNFT(_validatorStakingAddress()).mint(_stakeAmount);
     }
 
     function burnValidatorStaking(uint256 tokenID_)
         public
-        returns (uint256 payoutEth, uint256 payoutMadToken)
+        returns (uint256 payoutEth, uint256 payoutAToken)
     {
         return IStakingNFT(_validatorStakingAddress()).burn(tokenID_);
     }
 
     function mintToValidatorStaking(address to_) public returns (uint256 stakeID_) {
-        IERC20Transferable(_madTokenAddress()).transferFrom(
-            msg.sender,
-            address(this),
-            _stakeAmount
-        );
-        IERC20Transferable(_madTokenAddress()).approve(_validatorStakingAddress(), _stakeAmount);
+        IERC20Transferable(_aTokenAddress()).transferFrom(msg.sender, address(this), _stakeAmount);
+        IERC20Transferable(_aTokenAddress()).approve(_validatorStakingAddress(), _stakeAmount);
         stakeID_ = IStakingNFT(_validatorStakingAddress()).mintTo(to_, _stakeAmount, 1);
     }
 
     function burnToValidatorStaking(uint256 tokenID_, address to_)
         public
-        returns (uint256 payoutEth, uint256 payoutMadToken)
+        returns (uint256 payoutEth, uint256 payoutAToken)
     {
         return IStakingNFT(_validatorStakingAddress()).burnTo(to_, tokenID_);
     }
@@ -175,7 +170,10 @@ contract ValidatorPoolMock is
     }
 
     function getValidator(uint256 index_) public view returns (address) {
-        require(index_ < _validators.length(), "Index out boundaries!");
+        require(
+            index_ < _validators.length(),
+            string(abi.encodePacked(ValidatorPoolErrorCodes.VALIDATORPOOL_INVALID_INDEX))
+        );
         return _validators.at(index_)._address;
     }
 

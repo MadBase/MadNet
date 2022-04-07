@@ -18,7 +18,7 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
     notAdminSigner = await ethers.getSigner(notAdmin.address);
     validatorPool = fixture.validatorPool as ValidatorPoolMock;
     amount = await validatorPool.getStakeAmount();
-    await fixture.madToken.approve(validatorPool.address, amount);
+    await fixture.aToken.approve(validatorPool.address, amount);
   });
 
   describe("A user with admin role should be able to:", async () => {
@@ -35,7 +35,7 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
       await mineBlocks(1n);
       const rcpt = await (await validatorPool.burnValidatorStaking(1)).wait();
       expect(rcpt.status).to.be.equal(1);
-      expect(await fixture.madToken.balanceOf(validatorPool.address)).to.be.eq(
+      expect(await fixture.aToken.balanceOf(validatorPool.address)).to.be.eq(
         amount
       );
     });
@@ -57,7 +57,7 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
         await validatorPool.burnToValidatorStaking(1, notAdminSigner.address)
       ).wait();
       expect(rcpt.status).to.be.equal(1);
-      expect(await fixture.madToken.balanceOf(notAdminSigner.address)).to.be.eq(
+      expect(await fixture.aToken.balanceOf(notAdminSigner.address)).to.be.eq(
         amount
       );
     });
@@ -67,13 +67,13 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
     it("Mint a token", async function () {
       await expect(
         fixture.validatorStaking.connect(notAdminSigner).mint(amount)
-      ).to.be.revertedWith("onlyValidatorPool");
+      ).to.be.revertedWith("2010");
     });
 
     it("Burn a token", async function () {
       await expect(
         fixture.validatorStaking.connect(notAdminSigner).burn(42) // nonexistent
-      ).to.be.revertedWith("onlyValidatorPool");
+      ).to.be.revertedWith("2010");
     });
 
     it("Mint a token to an address", async function () {
@@ -81,7 +81,7 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
         fixture.validatorStaking
           .connect(notAdminSigner)
           .mintTo(notAdminSigner.address, amount, lockTime)
-      ).to.be.revertedWith("onlyValidatorPool");
+      ).to.be.revertedWith("2010");
     });
 
     it("Burn a token from an address", async function () {
@@ -89,7 +89,7 @@ describe("ValidatorStaking: Testing ValidatorStaking Access Control", async () =
         fixture.validatorStaking
           .connect(notAdminSigner)
           .burnTo(notAdminSigner.address, 42) // nonexistent
-      ).to.be.revertedWith("onlyValidatorPool");
+      ).to.be.revertedWith("2010");
     });
   });
 });

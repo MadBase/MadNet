@@ -58,7 +58,7 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
         "pauseConsensusOnArbitraryHeight",
         [1]
       )
-    ).to.be.revertedWith("ValidatorPool: Condition not met to stop consensus!");
+    ).to.be.revertedWith("804");
   });
 
   it("Pause consensus after 1.5 days without snapshot", async function () {
@@ -133,12 +133,12 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
         ).toBigInt() + BigInt(1)
       ),
     ]);
-    const arbitraryMadnetHeight = 42;
+    const arbitraryAliceNetHeight = 42;
     const tx = await factoryCallAnyFixture(
       fixture,
       "validatorPool",
       "pauseConsensusOnArbitraryHeight",
-      [arbitraryMadnetHeight]
+      [arbitraryAliceNetHeight]
     );
     const transaction = await ethers.provider.getTransaction(
       tx.transactionHash
@@ -153,7 +153,7 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
       1,
       0,
       0,
-      arbitraryMadnetHeight,
+      arbitraryAliceNetHeight,
       [0, 0, 0, 0]
     );
     await factoryCallAnyFixture(
@@ -184,7 +184,7 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
         validatorPool: fixture.validatorPool,
       },
       undefined,
-      arbitraryMadnetHeight
+      arbitraryAliceNetHeight
     );
     expect(await fixture.validatorPool.isConsensusRunning()).to.be.equals(true);
   });
@@ -225,16 +225,14 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
     await factoryCallAnyFixture(fixture, "validatorPool", "initializeETHDKG");
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "initializeETHDKG")
-    ).to.be.revertedWith("ValidatorPool: There's an ETHDKG round running!");
+    ).to.be.revertedWith("802");
     await completeETHDKGRound(validatorsSnapshots, {
       ethdkg: fixture.ethdkg,
       validatorPool: fixture.validatorPool,
     });
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "initializeETHDKG")
-    ).to.be.revertedWith(
-      "ValidatorPool: Error Madnet Consensus should be halted!"
-    );
+    ).to.be.revertedWith("801");
   });
 
   it("Register validators, run ethdkg, schedule maintenance, do a snapshot, replace some validators, and rerun ethdkg", async function () {
@@ -312,6 +310,6 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
         to: fixture.validatorPool.address,
         value: 1000,
       })
-    ).to.be.revertedWith("Only NFT contracts allowed to send ethereum!");
+    ).to.be.revertedWith("803");
   });
 });

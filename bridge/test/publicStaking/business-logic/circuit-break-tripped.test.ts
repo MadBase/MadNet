@@ -15,7 +15,7 @@ describe("PublicStaking: Call functions with Circuit Breaker tripped", async () 
   beforeEach(async function () {
     fixture = await getBaseTokensFixture();
     [adminSigner, notAdminSigner] = await ethers.getSigners();
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     await fixture.publicStaking.connect(adminSigner).mint(1000);
     await factoryCallAnyFixture(fixture, "publicStaking", "tripCB");
   });
@@ -24,39 +24,39 @@ describe("PublicStaking: Call functions with Circuit Breaker tripped", async () 
     it("Lock Position", async function () {
       await expect(
         fixture.publicStaking.lockPosition(adminSigner.address, 1, 1)
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
     it("Lock Own Position", async function () {
       await expect(
         fixture.publicStaking.lockOwnPosition(1, 1)
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
     it("Lock Withdraw", async function () {
       await expect(fixture.publicStaking.lockWithdraw(1, 1)).to.be.rejectedWith(
-        "CircuitBreaker: The Circuit breaker is opened!"
+        "500"
       );
     });
     it("DepositToken", async function () {
       await expect(
         fixture.publicStaking.depositToken(42, 10)
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
     it("DepositEth", async function () {
       await expect(
         fixture.publicStaking.connect(adminSigner).depositEth(42, { value: 10 })
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
     it("Mint", async function () {
       await expect(
         fixture.publicStaking.connect(adminSigner).mint(100)
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
     it("MintTo", async function () {
       await expect(
         fixture.publicStaking
           .connect(adminSigner)
           .mintTo(notAdminSigner.address, 100, 1)
-      ).to.be.rejectedWith("CircuitBreaker: The Circuit breaker is opened!");
+      ).to.be.rejectedWith("500");
     });
   });
   describe("Users should be able to:", async () => {

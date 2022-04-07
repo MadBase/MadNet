@@ -14,7 +14,10 @@ describe("Snapshots: Tests Snapshots methods", () => {
   let adminSigner: Signer;
   let randomSigner: Signer;
   const stakeAmount = 20000;
-  const stakeAmountMadWei = ethers.utils.parseUnits(stakeAmount.toString(), 18);
+  const stakeAmountATokenWei = ethers.utils.parseUnits(
+    stakeAmount.toString(),
+    18
+  );
   const lockTime = 1;
   let validators: any[];
   let stakingTokenIds: any[];
@@ -31,19 +34,19 @@ describe("Snapshots: Tests Snapshots methods", () => {
       validators.push(validator.address);
     }
 
-    await fixture.madToken.approve(
+    await fixture.aToken.approve(
       fixture.validatorPool.address,
-      stakeAmountMadWei.mul(validators.length)
+      stakeAmountATokenWei.mul(validators.length)
     );
-    await fixture.madToken.approve(
+    await fixture.aToken.approve(
       fixture.publicStaking.address,
-      stakeAmountMadWei.mul(validators.length)
+      stakeAmountATokenWei.mul(validators.length)
     );
 
     for (const validator of validatorsSnapshots) {
       const tx = await fixture.publicStaking
         .connect(adminSigner)
-        .mintTo(validator.address, stakeAmountMadWei, lockTime);
+        .mintTo(validator.address, stakeAmountATokenWei, lockTime);
       const tokenId = getTokenIdFromTx(tx);
       stakingTokenIds.push(tokenId);
       await fixture.publicStaking
@@ -61,7 +64,7 @@ describe("Snapshots: Tests Snapshots methods", () => {
       "0x0000000000000000000000000000000000000000000000000000006d6168616d";
     await expect(
       fixture.snapshots.connect(randomSigner).snapshot(junkData, junkData)
-    ).to.be.revertedWith("Snapshots: Only validators allowed!");
+    ).to.be.revertedWith("400");
   });
 
   it("Does not allow snapshot consensus is not running", async function () {
@@ -70,6 +73,6 @@ describe("Snapshots: Tests Snapshots methods", () => {
     const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
     await expect(
       fixture.snapshots.connect(validValidator).snapshot(junkData, junkData)
-    ).to.be.revertedWith(`Snapshots: Consensus is not running!`);
+    ).to.be.revertedWith(`401`);
   });
 });

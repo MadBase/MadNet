@@ -12,6 +12,10 @@ import "contracts/utils/MagicValue.sol";
 import "contracts/interfaces/ICBOpener.sol";
 import "contracts/interfaces/IStakingNFT.sol";
 import "contracts/interfaces/IStakingNFTDescriptor.sol";
+import {StakingNFTErrorCodes} from "contracts/libraries/errorCodes/StakingNFTErrorCodes.sol";
+import {
+    CircuitBreakerErrorCodes
+} from "contracts/libraries/errorCodes/CircuitBreakerErrorCodes.sol";
 
 abstract contract StakingNFT is
     Initializable,
@@ -25,7 +29,7 @@ abstract contract StakingNFT is
     IStakingNFT,
     ImmutableFactory,
     ImmutableValidatorPool,
-    ImmutableMadToken,
+    ImmutableAToken,
     ImmutableGovernance,
     ImmutableStakingPositionDescriptor
 {
@@ -34,14 +38,14 @@ abstract contract StakingNFT is
     modifier withCircuitBreaker() {
         require(
             _circuitBreaker == _CIRCUIT_BREAKER_CLOSED,
-            "CircuitBreaker: The Circuit breaker is opened!"
+            string(abi.encodePacked(CircuitBreakerErrorCodes.CIRCUIT_BREAKER_OPENED))
         );
         _;
     }
 
     constructor()
         ImmutableFactory(msg.sender)
-        ImmutableMadToken()
+        ImmutableAToken()
         ImmutableGovernance()
         ImmutableValidatorPool()
         ImmutableStakingPositionDescriptor()
@@ -78,14 +82,14 @@ abstract contract StakingNFT is
     }
 
     /// skimExcessToken will send to the address passed as to_ any amount of
-    /// MadToken held by this contract that is not tracked by the Accumulator
-    /// system. This function allows the Admin role to refund any MadToken sent to
+    /// AToken held by this contract that is not tracked by the Accumulator
+    /// system. This function allows the Admin role to refund any AToken sent to
     /// this contract in error by a user. This method can not return any funds
     /// sent to the contract via the depositToken method.
     function skimExcessToken(address to_) public onlyFactory returns (uint256 excess) {
-        IERC20Transferable madToken;
-        (madToken, excess) = _estimateExcessToken();
-        _safeTransferERC20(madToken, to_, excess);
+        IERC20Transferable aToken;
+        (aToken, excess) = _estimateExcessToken();
+        _safeTransferERC20(aToken, to_, excess);
         return excess;
     }
 
@@ -100,11 +104,15 @@ abstract contract StakingNFT is
     ) public override withCircuitBreaker onlyGovernance returns (uint256) {
         require(
             caller_ == ownerOf(tokenID_),
-            "PublicStaking: Error, token doesn't exist or doesn't belong to the caller!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         require(
             lockDuration_ <= _MAX_GOVERNANCE_LOCK,
-            "PublicStaking: Lock Duration is greater than the amount allowed!"
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_GREATER_THAN_GOVERNANCE_LOCK
+                )
+            )
         );
         return _lockPosition(tokenID_, lockDuration_);
     }
@@ -119,11 +127,15 @@ abstract contract StakingNFT is
     {
         require(
             msg.sender == ownerOf(tokenID_),
-            "PublicStaking: Error, token doesn't exist or doesn't belong to the caller!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         require(
             lockDuration_ <= _MAX_GOVERNANCE_LOCK,
-            "PublicStaking: Lock Duration is greater than the amount allowed!"
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_GREATER_THAN_GOVERNANCE_LOCK
+                )
+            )
         );
         return _lockPosition(tokenID_, lockDuration_);
     }
@@ -137,19 +149,23 @@ abstract contract StakingNFT is
     {
         require(
             msg.sender == ownerOf(tokenID_),
-            "PublicStaking: Error, token doesn't exist or doesn't belong to the caller!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         require(
             lockDuration_ <= _MAX_GOVERNANCE_LOCK,
-            "PublicStaking: Lock Duration is greater than the amount allowed!"
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_GREATER_THAN_GOVERNANCE_LOCK
+                )
+            )
         );
         return _lockWithdraw(tokenID_, lockDuration_);
     }
 
     /// DO NOT CALL THIS METHOD UNLESS YOU ARE MAKING A DISTRIBUTION AS ALL VALUE
-    /// WILL BE DISTRIBUTED TO STAKERS EVENLY. depositToken distributes MadToken
+    /// WILL BE DISTRIBUTED TO STAKERS EVENLY. depositToken distributes AToken
     /// to all stakers evenly should only be called during a slashing event. Any
-    /// MadToken sent to this method in error will be lost. This function will
+    /// AToken sent to this method in error will be lost. This function will
     /// fail if the circuit breaker is tripped. The magic_ parameter is intended
     /// to stop some one from successfully interacting with this method without
     /// first reading the source code and hopefully this comment
@@ -159,7 +175,7 @@ abstract contract StakingNFT is
         checkMagic(magic_)
     {
         // collect tokens
-        _safeTransferFromERC20(IERC20Transferable(_madTokenAddress()), msg.sender, amount_);
+        _safeTransferFromERC20(IERC20Transferable(_aTokenAddress()), msg.sender, amount_);
         // update state
         _tokenState = _deposit(_shares, amount_, _tokenState);
         _reserveToken += amount_;
@@ -167,7 +183,7 @@ abstract contract StakingNFT is
 
     /// DO NOT CALL THIS METHOD UNLESS YOU ARE MAKING A DISTRIBUTION ALL VALUE
     /// WILL BE DISTRIBUTED TO STAKERS EVENLY depositEth distributes Eth to all
-    /// stakers evenly should only be called by MadBytes contract any Eth sent to
+    /// stakers evenly should only be called by BTokens contract any Eth sent to
     /// this method in error will be lost this function will fail if the circuit
     /// breaker is tripped the magic_ parameter is intended to stop some one from
     /// successfully interacting with this method without first reading the
@@ -179,7 +195,7 @@ abstract contract StakingNFT is
 
     /// mint allows a staking position to be opened. This function
     /// requires the caller to have performed an approve invocation against
-    /// MadToken into this contract. This function will fail if the circuit
+    /// AToken into this contract. This function will fail if the circuit
     /// breaker is tripped.
     function mint(uint256 amount_) public virtual withCircuitBreaker returns (uint256 tokenID) {
         return _mintNFT(msg.sender, amount_);
@@ -188,7 +204,7 @@ abstract contract StakingNFT is
     /// mintTo allows a staking position to be opened in the name of an
     /// account other than the caller. This method also allows a lock to be
     /// placed on the position up to _MAX_MINT_LOCK . This function requires the
-    /// caller to have performed an approve invocation against MadToken into
+    /// caller to have performed an approve invocation against AToken into
     /// this contract. This function will fail if the circuit breaker is
     /// tripped.
     function mintTo(
@@ -198,7 +214,9 @@ abstract contract StakingNFT is
     ) public virtual withCircuitBreaker returns (uint256 tokenID) {
         require(
             lockDuration_ <= _MAX_MINT_LOCK,
-            "PublicStaking: The lock duration must be less or equal than the maxMintLock!"
+            string(
+                abi.encodePacked(StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_GREATER_THAN_MINT_LOCK)
+            )
         );
         tokenID = _mintNFT(to_, amount_);
         if (lockDuration_ > 0) {
@@ -212,7 +230,7 @@ abstract contract StakingNFT is
     function burn(uint256 tokenID_)
         public
         virtual
-        returns (uint256 payoutEth, uint256 payoutMadToken)
+        returns (uint256 payoutEth, uint256 payoutAToken)
     {
         return _burn(msg.sender, msg.sender, tokenID_);
     }
@@ -222,7 +240,7 @@ abstract contract StakingNFT is
     function burnTo(address to_, uint256 tokenID_)
         public
         virtual
-        returns (uint256 payoutEth, uint256 payoutMadToken)
+        returns (uint256 payoutEth, uint256 payoutAToken)
     {
         return _burn(msg.sender, to_, tokenID_);
     }
@@ -233,12 +251,16 @@ abstract contract StakingNFT is
         address owner = ownerOf(tokenID_);
         require(
             msg.sender == owner,
-            "PublicStaking: Error sender is not the owner of the tokenID!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         Position memory position = _positions[tokenID_];
         require(
             _positions[tokenID_].withdrawFreeAfter < block.number,
-            "PublicStaking: Cannot withdraw at the moment."
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_WITHDRAW_TIME_NOT_REACHED
+                )
+            )
         );
 
         // get values and update state
@@ -249,25 +271,29 @@ abstract contract StakingNFT is
         return payout;
     }
 
-    /// collectToken returns all due MadToken allocations to caller. The
+    /// collectToken returns all due AToken allocations to caller. The
     /// caller of this function must be the owner of the tokenID
     function collectToken(uint256 tokenID_) public returns (uint256 payout) {
         address owner = ownerOf(tokenID_);
         require(
             msg.sender == owner,
-            "PublicStaking: Error sender is not the owner of the tokenID!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         Position memory position = _positions[tokenID_];
         require(
             position.withdrawFreeAfter < block.number,
-            "PublicStaking: Cannot withdraw at the moment."
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_WITHDRAW_TIME_NOT_REACHED
+                )
+            )
         );
 
         // get values and update state
         (_positions[tokenID_], payout) = _collectToken(_shares, position);
         _reserveToken -= payout;
         // perform transfer and return amount paid out
-        _safeTransferERC20(IERC20Transferable(_madTokenAddress()), owner, payout);
+        _safeTransferERC20(IERC20Transferable(_aTokenAddress()), owner, payout);
         return payout;
     }
 
@@ -277,12 +303,16 @@ abstract contract StakingNFT is
         address owner = ownerOf(tokenID_);
         require(
             msg.sender == owner,
-            "PublicStaking: Error sender is not the owner of the tokenID!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         Position memory position = _positions[tokenID_];
         require(
             _positions[tokenID_].withdrawFreeAfter < block.number,
-            "PublicStaking: Cannot withdraw at the moment."
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_WITHDRAW_TIME_NOT_REACHED
+                )
+            )
         );
 
         // get values and update state
@@ -293,25 +323,29 @@ abstract contract StakingNFT is
         return payout;
     }
 
-    /// collectTokenTo returns all due MadToken allocations to the to_ address. The
+    /// collectTokenTo returns all due AToken allocations to the to_ address. The
     /// caller of this function must be the owner of the tokenID
     function collectTokenTo(address to_, uint256 tokenID_) public returns (uint256 payout) {
         address owner = ownerOf(tokenID_);
         require(
             msg.sender == owner,
-            "PublicStaking: Error sender is not the owner of the tokenID!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
         );
         Position memory position = _positions[tokenID_];
         require(
             position.withdrawFreeAfter < block.number,
-            "PublicStaking: Cannot withdraw at the moment."
+            string(
+                abi.encodePacked(
+                    StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_WITHDRAW_TIME_NOT_REACHED
+                )
+            )
         );
 
         // get values and update state
         (_positions[tokenID_], payout) = _collectToken(_shares, position);
         _reserveToken -= payout;
         // perform transfer and return amount paid out
-        _safeTransferERC20(IERC20Transferable(_madTokenAddress()), to_, payout);
+        _safeTransferERC20(IERC20Transferable(_aTokenAddress()), to_, payout);
         return payout;
     }
 
@@ -319,7 +353,7 @@ abstract contract StakingNFT is
         return _circuitBreaker;
     }
 
-    /// gets the total amount of MadToken staked in contract
+    /// gets the total amount of AToken staked in contract
     function getTotalShares() public view returns (uint256) {
         return _shares;
     }
@@ -329,28 +363,34 @@ abstract contract StakingNFT is
         return _reserveEth;
     }
 
-    /// gets the total amount of MadToken staked in contract
-    function getTotalReserveMadToken() public view returns (uint256) {
+    /// gets the total amount of AToken staked in contract
+    function getTotalReserveAToken() public view returns (uint256) {
         return _reserveToken;
     }
 
     /// estimateEthCollection returns the amount of eth a tokenID may withdraw
     function estimateEthCollection(uint256 tokenID_) public view returns (uint256 payout) {
-        require(_exists(tokenID_), "PublicStaking: Error, NFT token doesn't exist!");
+        require(
+            _exists(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         Position memory p = _positions[tokenID_];
         (, , , payout) = _collect(_shares, _ethState, p, p.accumulatorEth);
         return payout;
     }
 
-    /// estimateTokenCollection returns the amount of MadToken a tokenID may withdraw
+    /// estimateTokenCollection returns the amount of AToken a tokenID may withdraw
     function estimateTokenCollection(uint256 tokenID_) public view returns (uint256 payout) {
-        require(_exists(tokenID_), "PublicStaking: Error, NFT token doesn't exist!");
+        require(
+            _exists(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         Position memory p = _positions[tokenID_];
         (, , , payout) = _collect(_shares, _tokenState, p, p.accumulatorToken);
         return payout;
     }
 
-    /// estimateExcessToken returns the amount of MadToken that is held in the
+    /// estimateExcessToken returns the amount of AToken that is held in the
     /// name of this contract. The value returned is the value that would be
     /// returned by a call to skimExcessToken.
     function estimateExcessToken() public view returns (uint256 excess) {
@@ -378,7 +418,10 @@ abstract contract StakingNFT is
             uint256 accumulatorToken
         )
     {
-        require(_exists(tokenID_), "PublicStaking: Token ID doesn't exist!");
+        require(
+            _exists(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         Position memory p = _positions[tokenID_];
         shares = uint256(p.shares);
         freeAfter = uint256(p.freeAfter);
@@ -394,7 +437,10 @@ abstract contract StakingNFT is
         override(ERC721Upgradeable)
         returns (string memory)
     {
-        require(_exists(tokenId), "PublicStaking: Error, NFT token doesn't exist!");
+        require(
+            _exists(tokenId),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         return IStakingNFTDescriptor(_stakingPositionDescriptorAddress()).tokenURI(this, tokenId);
     }
 
@@ -422,7 +468,10 @@ abstract contract StakingNFT is
     // the number of shares in the locked Position so that governance vote
     // counting may be performed when setting a lock
     function _lockPosition(uint256 tokenID_, uint256 duration_) internal returns (uint256 shares) {
-        require(_exists(tokenID_), "PublicStaking: Token ID doesn't exist!");
+        require(
+            _exists(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         Position memory p = _positions[tokenID_];
         uint32 freeDur = uint32(block.number) + uint32(duration_);
         p.freeAfter = freeDur > p.freeAfter ? freeDur : p.freeAfter;
@@ -434,7 +483,10 @@ abstract contract StakingNFT is
     // by setting the withdrawFreeAfter field on the Position struct.
     // returns the number of shares in the locked Position so that
     function _lockWithdraw(uint256 tokenID_, uint256 duration_) internal returns (uint256 shares) {
-        require(_exists(tokenID_), "PublicStaking: Token ID doesn't exist!");
+        require(
+            _exists(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
+        );
         Position memory p = _positions[tokenID_];
         uint256 freeDur = block.number + duration_;
         p.withdrawFreeAfter = freeDur > p.withdrawFreeAfter ? freeDur : p.withdrawFreeAfter;
@@ -444,15 +496,15 @@ abstract contract StakingNFT is
 
     // _mintNFT performs the mint operation and invokes the inherited _mint method
     function _mintNFT(address to_, uint256 amount_) internal returns (uint256 tokenID) {
-        // this is to allow struct packing and is safe due to MadToken having a
+        // this is to allow struct packing and is safe due to AToken having a
         // total distribution of 220M
         require(
             amount_ <= 2**224 - 1,
-            "PublicStaking: The amount exceeds the maximum number of MadTokens that will ever exist!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_MINT_AMOUNT_EXCEEDS_MAX_SUPPLY))
         );
         // transfer the number of tokens specified by amount_ into contract
         // from the callers account
-        _safeTransferFromERC20(IERC20Transferable(_madTokenAddress()), msg.sender, amount_);
+        _safeTransferFromERC20(IERC20Transferable(_aTokenAddress()), msg.sender, amount_);
 
         // get local copy of storage vars to save gas
         uint256 shares = _shares;
@@ -484,14 +536,17 @@ abstract contract StakingNFT is
         address to_,
         uint256 tokenID_
     ) internal returns (uint256 payoutEth, uint256 payoutToken) {
-        require(from_ == ownerOf(tokenID_), "PublicStaking: User is not the owner of the tokenID!");
+        require(
+            from_ == ownerOf(tokenID_),
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_CALLER_NOT_TOKEN_OWNER))
+        );
 
         // collect state
         Position memory p = _positions[tokenID_];
         // enforce freeAfter to prevent burn during lock
         require(
             p.freeAfter < block.number && p.withdrawFreeAfter < block.number,
-            "PublicStaking: The position is not ready to be burned!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_FREE_AFTER_TIME_NOT_REACHED))
         );
 
         // get copy of storage to save gas
@@ -516,7 +571,7 @@ abstract contract StakingNFT is
         ERC721Upgradeable._burn(tokenID_);
 
         // transfer out all eth and tokens owed
-        _safeTransferERC20(IERC20Transferable(_madTokenAddress()), to_, payoutToken);
+        _safeTransferERC20(IERC20Transferable(_aTokenAddress()), to_, payoutToken);
         _safeTransferEth(to_, payoutEth);
         return (payoutEth, payoutToken);
     }
@@ -546,7 +601,7 @@ abstract contract StakingNFT is
     function _tripCB() internal {
         require(
             _circuitBreaker == _CIRCUIT_BREAKER_CLOSED,
-            "CircuitBreaker: The Circuit breaker is opened!"
+            string(abi.encodePacked(CircuitBreakerErrorCodes.CIRCUIT_BREAKER_OPENED))
         );
         _circuitBreaker = _CIRCUIT_BREAKER_OPENED;
     }
@@ -554,7 +609,7 @@ abstract contract StakingNFT is
     function _resetCB() internal {
         require(
             _circuitBreaker == _CIRCUIT_BREAKER_OPENED,
-            "CircuitBreaker: The Circuit breaker is closed!"
+            string(abi.encodePacked(CircuitBreakerErrorCodes.CIRCUIT_BREAKER_CLOSED))
         );
         _circuitBreaker = _CIRCUIT_BREAKER_CLOSED;
     }
@@ -574,27 +629,27 @@ abstract contract StakingNFT is
         uint256 balance = address(this).balance;
         require(
             balance >= reserve,
-            "PublicStaking: The balance of the contract is less then the tracked reserve!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_BALANCE_LESS_THAN_RESERVE))
         );
         excess = balance - reserve;
     }
 
-    // _estimateExcessToken returns the amount of MadToken that is held in the
+    // _estimateExcessToken returns the amount of AToken that is held in the
     // name of this contract
     function _estimateExcessToken()
         internal
         view
-        returns (IERC20Transferable madToken, uint256 excess)
+        returns (IERC20Transferable aToken, uint256 excess)
     {
         uint256 reserve = _reserveToken;
-        madToken = IERC20Transferable(_madTokenAddress());
-        uint256 balance = madToken.balanceOf(address(this));
+        aToken = IERC20Transferable(_aTokenAddress());
+        uint256 balance = aToken.balanceOf(address(this));
         require(
             balance >= reserve,
-            "PublicStaking: The balance of the contract is less then the tracked reserve!"
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_BALANCE_LESS_THAN_RESERVE))
         );
         excess = balance - reserve;
-        return (madToken, excess);
+        return (aToken, excess);
     }
 
     function _getCount() internal view returns (uint256) {
@@ -668,7 +723,10 @@ abstract contract StakingNFT is
         }
         // Slush should be never be above 2**167 to protect against overflow in
         // the later code.
-        require(state_.slush < 2**167, "PublicStaking: slush too large");
+        require(
+            state_.slush < 2**167,
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_SLUSH_TOO_LARGE))
+        );
         return state_;
     }
 

@@ -12,7 +12,7 @@ describe("PublicStaking: Basics", async () => {
   beforeEach(async function () {
     fixture = await getBaseTokensFixture();
     [adminSigner] = await ethers.getSigners();
-    await fixture.madToken.approve(fixture.publicStaking.address, 1000);
+    await fixture.aToken.approve(fixture.publicStaking.address, 1000);
     const tx = await fixture.publicStaking.connect(adminSigner).mint(1000);
     blockNumber = BigInt(tx.blockNumber as number);
   });
@@ -36,7 +36,7 @@ describe("PublicStaking: Basics", async () => {
 
   it("Should not be able to get a position that doesn't exist", async function () {
     await expect(fixture.publicStaking.getPosition(2)).to.be.rejectedWith(
-      "PublicStaking: Token ID doesn't exist!"
+      "604"
     );
   });
 });

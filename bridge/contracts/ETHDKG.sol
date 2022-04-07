@@ -9,7 +9,7 @@ import "contracts/interfaces/IETHDKGEvents.sol";
 import "contracts/libraries/ethdkg/ETHDKGStorage.sol";
 import "contracts/utils/ETHDKGUtils.sol";
 import "contracts/utils/ImmutableAuth.sol";
-
+import {ETHDKGErrorCodes} from "contracts/libraries/errorCodes/ETHDKGErrorCodes.sol";
 import "contracts/interfaces/IProxy.sol";
 
 /// @custom:salt ETHDKG
@@ -30,7 +30,7 @@ contract ETHDKG is
     modifier onlyValidator() {
         require(
             IValidatorPool(_validatorPoolAddress()).isValidator(msg.sender),
-            "ETHDKG: Only validators allowed!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_ONLY_VALIDATORS_ALLOWED))
         );
         _;
     }
@@ -68,7 +68,7 @@ contract ETHDKG is
     function setPhaseLength(uint16 phaseLength_) public onlyFactory {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _phaseLength = phaseLength_;
     }
@@ -76,19 +76,19 @@ contract ETHDKG is
     function setConfirmationLength(uint16 confirmationLength_) public onlyFactory {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _confirmationLength = confirmationLength_;
     }
 
-    function setCustomMadnetHeight(uint256 madnetHeight) public onlyValidatorPool {
-        _customMadnetHeight = madnetHeight;
+    function setCustomAliceNetHeight(uint256 aliceNetHeight) public onlyValidatorPool {
+        _customAliceNetHeight = aliceNetHeight;
         emit ValidatorSetCompleted(
             0,
             _nonce,
             ISnapshots(_snapshotsAddress()).getEpoch(),
             ISnapshots(_snapshotsAddress()).getCommittedHeightFromLatestSnapshot(),
-            madnetHeight,
+            aliceNetHeight,
             0x0,
             0x0,
             0x0,
@@ -288,15 +288,21 @@ contract ETHDKG is
     }
 
     function tryGetParticipantIndex(address participant) public view returns (bool, uint256) {
-        Participant memory participantData = _participants[participant];
-        if (participantData.nonce == _nonce && _nonce != 0) {
-            return (true, _participants[participant].index);
+        uint256 participantDataIndex = _participants[participant].index;
+        uint256 participantDataNonce = _participants[participant].nonce;
+        uint256 nonce = _nonce;
+        if (participantDataNonce == nonce && nonce != 0) {
+            return (true, participantDataIndex);
         }
         return (false, 0);
     }
 
     function getMasterPublicKey() public view returns (uint256[4] memory) {
         return _masterPublicKey;
+    }
+
+    function getMasterPublicKeyHash() public view returns (bytes32) {
+        return _masterPublicKeyHash;
     }
 
     function getMinValidators() public pure returns (uint256) {
@@ -336,17 +342,14 @@ contract ETHDKG is
         uint256 numberValidators = IValidatorPool(_validatorPoolAddress()).getValidatorsCount();
         require(
             numberValidators >= _MIN_VALIDATORS,
-            "ETHDKG: Minimum number of validators staked not met!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_MIN_VALIDATORS_NOT_MET))
         );
 
         _phaseStartBlock = uint64(block.number);
         _nonce++;
         _numParticipants = 0;
         _badParticipants = 0;
-        _mpkG1 = [uint256(0), uint256(0)];
         _ethdkgPhase = Phase.RegistrationOpen;
-
-        delete _masterPublicKey;
 
         emit RegistrationOpened(
             block.number,

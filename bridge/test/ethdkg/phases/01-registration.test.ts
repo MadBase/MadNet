@@ -15,8 +15,8 @@ describe("ETHDKG: Registration Open", () => {
     await expect(
       ethdkg
         .connect(await getValidatorEthAccount(validators4[0].address))
-        .register(validators4[0].madNetPublicKey)
-    ).to.be.revertedWith("ETHDKG: Cannot register at the moment");
+        .register(validators4[0].aliceNetPublicKey)
+    ).to.be.revertedWith("128");
   });
 
   it("does not let validators to register more than once", async function () {
@@ -30,17 +30,15 @@ describe("ETHDKG: Registration Open", () => {
     await expect(
       ethdkg
         .connect(await getValidatorEthAccount(validators4[0].address))
-        .register(validators4[0].madNetPublicKey)
+        .register(validators4[0].aliceNetPublicKey)
     ).to.emit(ethdkg, "AddressRegistered");
 
     // register that same validator again
     await expect(
       ethdkg
         .connect(await getValidatorEthAccount(validators4[0].address))
-        .register(validators4[0].madNetPublicKey)
-    ).to.be.revertedWith(
-      "ETHDKG: Participant is already participating in this ETHDKG round!"
-    );
+        .register(validators4[0].aliceNetPublicKey)
+    ).to.be.revertedWith("132");
   });
 
   it("does not let validators to register with an incorrect key", async function () {
@@ -58,25 +56,19 @@ describe("ETHDKG: Registration Open", () => {
       ethdkg
         .connect(signer0)
         .register([BigNumber.from("0"), BigNumber.from("1")])
-    ).to.be.revertedWith(
-      "ETHDKG: Registration failed - pubKey should be different from 0!"
-    );
+    ).to.be.revertedWith("130");
 
     await expect(
       ethdkg
         .connect(signer0)
         .register([BigNumber.from("1"), BigNumber.from("0")])
-    ).to.be.revertedWith(
-      "ETHDKG: Registration failed - pubKey should be different from 0!"
-    );
+    ).to.be.revertedWith("130");
 
     await expect(
       ethdkg
         .connect(signer0)
         .register([BigNumber.from("1"), BigNumber.from("1")])
-    ).to.be.revertedWith(
-      "ETHDKG: Registration failed - public key not on elliptic curve!"
-    );
+    ).to.be.revertedWith("131");
   });
 
   it("does not let non-validators to register", async function () {
@@ -97,6 +89,6 @@ describe("ETHDKG: Registration Open", () => {
           )
         )
         .register([BigNumber.from("0"), BigNumber.from("0")])
-    ).to.be.revertedWith("ETHDKG: Only validators allowed!");
+    ).to.be.revertedWith("100");
   });
 });
