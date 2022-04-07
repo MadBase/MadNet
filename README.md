@@ -1,35 +1,76 @@
 # MadNet
 
 ## Requirements
+
+Read the [documentation](./bridge/README.md) in the `bridge` folder.
+
 #### Always required
+
 * [Docker v20 with docker-compose](https://docs.docker.com/get-docker)
+
 #### Required for working on the Golang client (until it is Dockerized)
+
 * [Go 1.17](https://go.dev/dl/)
 * [Geth 1.10.8](https://geth.ethereum.org/docs/install-and-build/installing-geth)
+
 #### Required for working on Solidity contracts
+
 * [Node 16](https://nodejs.org/en/download/)
 
+### Docker permissions
+
+If running on Ubuntu machine, you will be able to run docker without sudo permission running these commands
+
+```shell
+$ sudo groupadd docker
+$ sudo usermod -aG docker $USER
+$ newgrp docker
+$ docker run hello-world 
+```
+
+In case you run in this error
+
+```text
+WARNING: Error loading config file: /home/user/.docker/config.json -
+stat /home/user/.docker/config.json: permission denied
+```
+
+then run the following
+
+```shell
+$ sudo chown "$USER":"$USER" /home/"$USER"/.docker -R
+$ sudo chmod g+rwx "$HOME/.docker" -R
+```
+
 ## Build MadNet
+
 First, this repository needs to be cloned, and be the current working dir.
 
 <br />
 
-Then, to generate all files necessary for the project to build (run with `sudo` if your `docker` is only installed for `root`):
+Then, to generate all files necessary for the project to build (run with `sudo` if your `docker` is only installed
+for `root`):
+
 ```
 make generate
 ```
-The generate command above may need to be rerun after making certain changes. Check the [File generation](#file-generation)
- section for more info on this.
+
+The generate command above may need to be rerun after making certain changes. Check
+the [File generation](#file-generation)
+section for more info on this.
 
 <br />
 
 Then, to compile an executable:
+
 ```
 make build
 ```
 
 ## File generation
+
 The `make generate` command runs two subcommands:
+
 * `make generate-bridge`
 * `make generate-go`
 
@@ -38,25 +79,32 @@ Both commands run in a Docker container, so that nothing needs to be installed o
 <br />
 
 ### Command: make generate-bridge
+
 This command:
+
 * (re)compiles all the solidity contracts
 * (re)compiles the Go bindings for the solidity contracts
 * (re)generates the ABI definitions for the solidity contracts
 
 Rerun this every time you made changes to the solidity contracts and want these to be used by the madnet binary
 
-Under the hood, this commend runs the `bridge` module's `compile` script to compile the contracts, and then the `bridge` module's `generate` script to generate the bindings and ABI definitions. These can also be run on the system directly, as long as the dependencies defined in `docker/generate-bridge` are installed.
+Under the hood, this commend runs the `bridge` module's `compile` script to compile the contracts, and then the `bridge`
+module's `generate` script to generate the bindings and ABI definitions. These can also be run on the system directly,
+as long as the dependencies defined in `docker/generate-bridge` are installed.
 
 <br />
 
 ### Command: make generate-go
+
 This command:
+
 * (re)compiles all the protobuf type definitions into Go sourcecode
 * (re)compiles all the capnproto type definitions into Go sourcecode
 * (re)compiles all the grpc endpoint definitions into Go sourcecode
 * (re)generates convenient wrapper functions for the grpc endpoints using `cmd/mngen`
 * (re)generates a new swagger json file based on the grpc endpoints
-* (re)generates a Go source file containing the swagger json file in binary format, so it can be baked into the final executable
+* (re)generates a Go source file containing the swagger json file in binary format, so it can be baked into the final
+  executable
 
 Rerun this command every time you made changes to the public API surface of MadNet.
 
@@ -85,8 +133,8 @@ Open another terminal to start geth with
 ./scripts/main.sh geth
 ```
 
-Open now another terminal to deploy the contracts. This command will also register validators in the ValidatorPool. If you are having problems in this step, 
-check [POSSIBLE TROUBLE SHOOTING](#TROUBLESHOOTING) section.
+Open now another terminal to deploy the contracts. This command will also register validators in the ValidatorPool. If
+you are having problems in this step, check [POSSIBLE TROUBLE SHOOTING](#TROUBLESHOOTING) section.
 
 ```
 ./scripts/main.sh deploy
@@ -132,11 +180,12 @@ to inject datastores.
 ./scripts/main.sh deposit
 ```
 
-Note that DataStores are injected in the [Wallet-JS tests](https://github.com/MadBase/MadNetWallet-v2), so submitting 
-these deposits are required for the tests to be successful. 
-At this point, the testnet should now be ready to run the standard tests.
+Note that DataStores are injected in the [Wallet-JS tests](https://github.com/MadBase/MadNetWallet-v2), so submitting
+these deposits are required for the tests to be successful. At this point, the testnet should now be ready to run the
+standard tests.
 
-To list other commands from the script simply run 
+To list other commands from the script simply run
+
 ```
 ./scripts/main.sh 
 ```
@@ -179,6 +228,7 @@ make: *** [build] Error 1
 > now open the file `./scripts/getDeployList.ts` and move `"contracts/ETHDKG.sol:ETHDKG"` as the latest element in the `deployments` array.
 
 # Different Node versions
+
 In case you are using a different version of Node and you need to keep it you can choose to use one of many Node.js
 version managements system such as [n - link](https://www.npmjs.com/package/n). Quick snippet to get the right version
 

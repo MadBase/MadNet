@@ -7,7 +7,7 @@ This repository contains all solidity smart contracts used by the MadNet.
 * HardHat (following)
 
 To install hardhat and all requirements to compile and test the smart contracts in this repository, run the following
-command at the root of this repository
+command at the root of this repository. It might require sudo permission
 
 ```bash
 $ npm i -g hardhat-shorthand
@@ -18,14 +18,13 @@ $ hardhat-completion install
 
 ### Install dependencies
 
-Install all the necessary dependencies
+Install all the necessary dependencies, and compile.
 
 ```bash
 $ npm ci
-$ npm run init 
+$ npm run compile 
+$ npm run generate 
 ```
-
-It is mandatory to run this latest command `npm run init`, every time you run the `clean` command.
 
 ### Running unit tests
 
