@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT-open-group
 pragma solidity ^0.8.11;
 
+import {CryptoLibraryErrorCodes} from "contracts/libraries/errorCodes/CryptoLibraryErrorCodes.sol";
+
 /*
     Author: Philipp Schindler
     Source code and documentation available on Github: https://github.com/PhilippSchindler/ethdkg
@@ -171,7 +173,10 @@ library CryptoLibrary {
             // 64       size of call return value, i.e. 64 bytes / 512 bit for a BN256 curve point
             success := staticcall(not(0), 0x06, input, 128, result, 64)
         }
-        require(success, "elliptic curve addition failed");
+        require(
+            success,
+            string(abi.encodePacked(CryptoLibraryErrorCodes.CRYPTOLIB_ELLIPTIC_CURVE_ADDITION))
+        );
     }
 
     function bn128Multiply(uint256[3] memory input)
@@ -287,6 +292,34 @@ library CryptoLibrary {
         );
     }
 
+    // Optimized version written in ASM of the Verify function. It takes byte slice message, signature
+    // sig (element of G1), public key pubK (element of G2), and checks that sig is a valid signature
+    // for pubK for message. Also look at the definition of H2.
+    function verifySignatureASM(
+        bytes memory message,
+        uint256[2] memory sig,
+        uint256[4] memory pubK
+    ) internal view returns (bool v) {
+        uint256[2] memory hashPoint;
+        hashPoint = hashToG1ASM(message);
+        v = bn128CheckPairing(
+            [
+                sig[0],
+                sig[1],
+                H2_XI,
+                H2_X,
+                H2_YI,
+                H2_Y,
+                hashPoint[0],
+                hashPoint[1],
+                pubK[0],
+                pubK[1],
+                pubK[2],
+                pubK[3]
+            ]
+        );
+    }
+
     // HashToG1 takes byte slice message and outputs an element of G1.
     // This function is based on the Fouque and Tibouchi 2012 paper
     // ``Indifferentiable Hashing to Barreto--Naehrig Curves''.
@@ -325,8 +358,208 @@ library CryptoLibrary {
         // Again, this is to ensure that even if something strange happens, we
         // will not return an invalid curvepoint.
         h = bn128Add([h0[0], h0[1], h1[0], h1[1]]);
-        require(bn128IsOnCurve(h), "Invalid hash point: not on elliptic curve");
-        require(safeSigningPoint(h), "Dangerous hash point: not safe for signing");
+        require(
+            bn128IsOnCurve(h),
+            string(abi.encodePacked(CryptoLibraryErrorCodes.CRYPTOLIB_HASH_POINT_NOT_ON_CURVE))
+        );
+        require(
+            safeSigningPoint(h),
+            string(abi.encodePacked(CryptoLibraryErrorCodes.CRYPTOLIB_HASH_POINT_UNSAFE))
+        );
+    }
+
+    /// HashToG1 takes byte slice message and outputs an element of G1. Optimized version of `hashToG1`
+    /// written in EVM assembly.
+    function hashToG1ASM(bytes memory message) internal view returns (uint256[2] memory h) {
+        assembly {
+            function memCopy(dest, src, len) {
+                if lt(len, 32) {
+                    mstore(0, "invalid len")
+                    revert(0, 32)
+                }
+                // Copy word-length chunks while possible
+                for {
+
+                } gt(len, 31) {
+                    len := sub(len, 32)
+                } {
+                    mstore(dest, mload(src))
+                    src := add(src, 32)
+                    dest := add(dest, 32)
+                }
+
+                if iszero(eq(len, 0)) {
+                    // Copy remaining bytes
+                    let mask := sub(exp(256, sub(32, len)), 1)
+                    // e.g len = 4, yields
+                    // mask    = 00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+                    // notMask = ffffffff00000000000000000000000000000000000000000000000000000000
+                    let srcpart := and(mload(src), not(mask))
+                    let destpart := and(mload(dest), mask)
+                    mstore(dest, or(destpart, srcpart))
+                }
+            }
+
+            function bn128CheckPairing(ptr, paramPtr, x, y) -> result {
+                mstore(add(ptr, 0xb0), x)
+                mstore(add(ptr, 0xc0), y)
+                memCopy(ptr, paramPtr, 0xb0)
+                let success := staticcall(gas(), 0x08, ptr, 384, ptr, 32)
+                if iszero(success) {
+                    revert(0, 0)
+                }
+                result := mload(ptr)
+            }
+
+            function bn128IsOnCurve(p0, p1) -> result {
+                let o1 := mulmod(p0, p0, FIELD_MODULUS)
+                o1 := mulmod(p0, o1, FIELD_MODULUS)
+                o1 := addmod(o1, 3, FIELD_MODULUS)
+                let o2 := mulmod(p1, p1, FIELD_MODULUS)
+                result := eq(o1, o2)
+            }
+
+            function baseToG1(ptr, t, output) {
+                let fp := add(ptr, 0xc0)
+                let ap1 := mulmod(t, t, FIELD_MODULUS)
+
+                let alpha := mulmod(ap1, addmod(ap1, HASH_CONST_4, FIELD_MODULUS), FIELD_MODULUS)
+                // invert alpha
+                mstore(add(ptr, 0x60), alpha)
+                mstore(add(ptr, 0x80), P_MINUS2)
+                if iszero(staticcall(gas(), 0x05, ptr, 0xc0, fp, 0x20)) {
+                    mstore(0, "exp mod failed at 1")
+                    revert(0, 0x20)
+                }
+                alpha := mload(fp)
+
+                ap1 := mulmod(ap1, ap1, FIELD_MODULUS)
+
+                let x := mulmod(ap1, HASH_CONST_2, FIELD_MODULUS)
+                x := mulmod(x, alpha, FIELD_MODULUS)
+                // negating x
+                x := sub(FIELD_MODULUS, x)
+                x := addmod(x, HASH_CONST_1, FIELD_MODULUS)
+
+                let x_three := mulmod(x, x, FIELD_MODULUS)
+                x_three := mulmod(x_three, x, FIELD_MODULUS)
+                x_three := addmod(x_three, 3, FIELD_MODULUS)
+                mstore(add(ptr, 0x80), P_PLUS1_OVER4)
+                mstore(add(ptr, 0x60), x_three)
+                if iszero(staticcall(gas(), 0x05, ptr, 0xc0, fp, 0x20)) {
+                    mstore(0, "exp mod failed at 2")
+                    revert(0, 0x20)
+                }
+
+                let ymul := 1
+                if gt(t, P_MINUS1_OVER2) {
+                    ymul := P_MINUS1
+                }
+                let y := mulmod(mload(fp), ymul, FIELD_MODULUS)
+                let y_two := mulmod(y, y, FIELD_MODULUS)
+                if eq(x_three, y_two) {
+                    mstore(output, x)
+                    mstore(add(output, 0x20), y)
+                    leave
+                }
+                x := addmod(x, 1, FIELD_MODULUS)
+                x := sub(FIELD_MODULUS, x)
+                x_three := mulmod(x, x, FIELD_MODULUS)
+                x_three := mulmod(x_three, x, FIELD_MODULUS)
+                x_three := addmod(x_three, 3, FIELD_MODULUS)
+                mstore(add(ptr, 0x60), x_three)
+                if iszero(staticcall(gas(), 0x05, ptr, 0xc0, fp, 0x20)) {
+                    mstore(0, "exp mod failed at 3")
+                    revert(0, 0x20)
+                }
+                y := mulmod(mload(fp), ymul, FIELD_MODULUS)
+                y_two := mulmod(y, y, FIELD_MODULUS)
+                if eq(x_three, y_two) {
+                    mstore(output, x)
+                    mstore(add(output, 0x20), y)
+                    leave
+                }
+                ap1 := addmod(mulmod(t, t, FIELD_MODULUS), 4, FIELD_MODULUS)
+                x := mulmod(ap1, ap1, FIELD_MODULUS)
+                x := mulmod(x, ap1, FIELD_MODULUS)
+                x := mulmod(x, HASH_CONST_3, FIELD_MODULUS)
+                x := mulmod(x, alpha, FIELD_MODULUS)
+                x := sub(FIELD_MODULUS, x)
+                x := addmod(x, 1, FIELD_MODULUS)
+                x_three := mulmod(x, x, FIELD_MODULUS)
+                x_three := mulmod(x_three, x, FIELD_MODULUS)
+                x_three := addmod(x_three, 3, FIELD_MODULUS)
+                mstore(add(ptr, 0x60), x_three)
+                if iszero(staticcall(gas(), 0x05, ptr, 0xc0, fp, 0x20)) {
+                    mstore(0, "exp mod failed at 4")
+                    revert(0, 0x20)
+                }
+                y := mulmod(mload(fp), ymul, FIELD_MODULUS)
+                mstore(output, x)
+                mstore(add(output, 0x20), y)
+            }
+
+            function hashToG1(ptr, messageptr, messagesize, output) {
+                let size := add(messagesize, 1)
+                memCopy(add(ptr, 1), messageptr, messagesize)
+                mstore8(ptr, 0x00)
+                let h0 := keccak256(ptr, size)
+                mstore8(ptr, 0x01)
+                let h1 := keccak256(ptr, size)
+                mstore8(ptr, 0x02)
+                let h2 := keccak256(ptr, size)
+                mstore8(ptr, 0x03)
+                let h3 := keccak256(ptr, size)
+                mstore(ptr, 0x20)
+                mstore(add(ptr, 0x20), 0x20)
+                mstore(add(ptr, 0x40), 0x20)
+                mstore(add(ptr, 0xa0), FIELD_MODULUS)
+                h1 := addmod(h1, mulmod(h0, TWO_256_MOD_P, FIELD_MODULUS), FIELD_MODULUS)
+                h2 := addmod(h3, mulmod(h2, TWO_256_MOD_P, FIELD_MODULUS), FIELD_MODULUS)
+                baseToG1(ptr, h1, output)
+                let x1 := mload(output)
+                let y1 := mload(add(output, 0x20))
+                let success := bn128IsOnCurve(x1, y1)
+                if iszero(success) {
+                    mstore(0, "x1 y1 not in curve")
+                    revert(0, 0x20)
+                }
+                baseToG1(ptr, h2, output)
+                let x2 := mload(output)
+                let y2 := mload(add(output, 0x20))
+                success := bn128IsOnCurve(x2, y2)
+                if iszero(success) {
+                    mstore(0, "x2 y2 not in curve")
+                    revert(0, 0x20)
+                }
+                mstore(ptr, x1)
+                mstore(add(ptr, 0x20), y1)
+                mstore(add(ptr, 0x40), x2)
+                mstore(add(ptr, 0x60), y2)
+                if iszero(staticcall(gas(), 0x06, ptr, 128, ptr, 64)) {
+                    mstore(0, "bn256 add failed")
+                    revert(0, 0x20)
+                }
+                let x := mload(ptr)
+                let y := mload(add(ptr, 0x20))
+                success := bn128IsOnCurve(x, y)
+                if iszero(success) {
+                    mstore(0, "x2 y2 not in curve")
+                    revert(0, 0x20)
+                }
+                if or(iszero(x), eq(y, 1)) {
+                    mstore(0, "point not safe to sign")
+                    revert(0, 0x20)
+                }
+                mstore(output, x)
+                mstore(add(output, 0x20), y)
+            }
+
+            let messageptr := add(message, 0x20)
+            let messagesize := mload(message)
+            let ptr := mload(0x40)
+            hashToG1(ptr, messageptr, messagesize, h)
+        }
     }
 
     // baseToG1 is a deterministic map from the base field F_p to the elliptic
@@ -505,7 +738,10 @@ library CryptoLibrary {
         // From Fouque-Tibouchi 2012, the only way to get an invalid point is
         // when t == 0, but we have already taken care of that to ensure that
         // when t == 0, we still return a valid curve point.
-        require(bn128IsOnCurve([x, y]), "Invalid point: not on elliptic curve");
+        require(
+            bn128IsOnCurve([x, y]),
+            string(abi.encodePacked(CryptoLibraryErrorCodes.CRYPTOLIB_POINT_NOT_ON_CURVE))
+        );
 
         h[0] = x;
         h[1] = y;
@@ -559,14 +795,25 @@ library CryptoLibrary {
     ) internal view returns (uint256[2] memory) {
         require(
             sigs.length == indices.length,
-            "Mismatch between length of signatures and index array"
+            string(
+                abi.encodePacked(
+                    CryptoLibraryErrorCodes.CRYPTOLIB_SIGNATURES_INDICES_LENGTH_MISMATCH
+                )
+            )
         );
         require(
             sigs.length > threshold,
-            "Failed to meet required number of signatures for threshold"
+            string(
+                abi.encodePacked(
+                    CryptoLibraryErrorCodes.CRYPTOLIB_SIGNATURES_LENGTH_THRESHOLD_NOT_MET
+                )
+            )
         );
         uint256 maxIndex = computeArrayMax(indices);
-        require(checkInverses(invArray, maxIndex), "invArray does not include correct inverses");
+        require(
+            checkInverses(invArray, maxIndex),
+            string(abi.encodePacked(CryptoLibraryErrorCodes.CRYPTOLIB_INVERSE_ARRAY_INCORRECT))
+        );
         uint256[2] memory grpsig;
         grpsig = lagrangeInterpolationG1(sigs, indices, threshold, invArray);
         return grpsig;
