@@ -17,7 +17,6 @@ cp ../scripts/base-files/deploymentList ../scripts/generated/deploymentList
 
 npx hardhat --network "$NETWORK" --show-stack-traces deployContracts --input-folder ../scripts/generated
 addr="$(grep -Pzo "\[$NETWORK\]\ndefaultFactoryAddress = \".*\"\n" ../scripts/generated/factoryState | grep -a "defaultFactoryAddress = .*" | awk '{print $NF}')"
-
 export FACTORY_ADDRESS=$addr
 for filePath in $(ls ../scripts/generated/config | xargs); do
     sed -e "s/registryAddress = .*/registryAddress = $FACTORY_ADDRESS/" "../scripts/generated/config/$filePath" > "../scripts/generated/config/$filePath".bk &&\
