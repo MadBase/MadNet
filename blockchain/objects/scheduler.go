@@ -3,7 +3,6 @@ package objects
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -18,10 +17,9 @@ var (
 )
 
 type Block struct {
-	Start     uint64          `json:"start"`
-	End       uint64          `json:"end"`
-	Task      interfaces.Task `json:"-"`
-	IsRunning bool            `json:"isRunning"`
+	Start uint64          `json:"start"`
+	End   uint64          `json:"end"`
+	Task  interfaces.Task `json:"-"`
 }
 
 type innerBlock struct {
@@ -78,25 +76,6 @@ func (s *SequentialSchedule) PurgePrior(now uint64) {
 	}
 }
 
-func (s *SequentialSchedule) SetRunning(taskId uuid.UUID, running bool) error {
-	block, present := s.Ranges[taskId.String()]
-	if !present {
-		return ErrNotScheduled
-	}
-
-	block.IsRunning = running
-	return nil
-}
-
-func (s *SequentialSchedule) IsRunning(taskId uuid.UUID) (bool, error) {
-	block, present := s.Ranges[taskId.String()]
-	if !present {
-		return false, ErrNotScheduled
-	}
-
-	return block.IsRunning, nil
-}
-
 func (s *SequentialSchedule) Find(now uint64) (uuid.UUID, error) {
 
 	for taskId, block := range s.Ranges {
@@ -147,7 +126,6 @@ func (ss *SequentialSchedule) MarshalJSON() ([]byte, error) {
 	for k, v := range ss.Ranges {
 		wt, err := ss.marshaller.WrapInstance(v.Task)
 		if err != nil {
-			fmt.Printf("error marshalling wrapinstance1: %v", err)
 			return []byte{}, err
 		}
 		ws.Ranges[k] = &innerBlock{Start: v.Start, End: v.End, WrappedTask: wt}
@@ -155,7 +133,6 @@ func (ss *SequentialSchedule) MarshalJSON() ([]byte, error) {
 
 	raw, err := json.Marshal(&ws)
 	if err != nil {
-		fmt.Printf("error marshalling wrapinstance2: %v", err)
 		return []byte{}, err
 	}
 

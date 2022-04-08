@@ -187,7 +187,7 @@ func ProcessRegistrationComplete(eth interfaces.Ethereum, logger *logrus.Entry, 
 	logger.WithFields(logrus.Fields{
 		"PhaseStart": shareDistributionStart,
 		"PhaseEnd":   shareDistributionEnd,
-	}).Infof("Scheduling NewShareDistributionTask: %p %p\n", shareDistributionTask.State, state.EthDKG)
+	}).Info("Scheduling NewShareDistributionTask")
 
 	state.Schedule.Schedule(shareDistributionStart, shareDistributionEnd, shareDistributionTask)
 

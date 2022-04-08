@@ -30,13 +30,6 @@ func (t *DisputeMissingRegistrationTask) Initialize(ctx context.Context, logger 
 
 	logger.Info("DisputeMissingRegistrationTask Initializing...")
 
-	dkgData, ok := state.(objects.ETHDKGTaskData)
-	if !ok {
-		return objects.ErrCanNotContinue
-	}
-
-	t.State = dkgData.State
-
 	return nil
 }
 
@@ -171,7 +164,7 @@ func (t *DisputeMissingRegistrationTask) getAccusableParticipants(ctx context.Co
 
 		if isValidator && (!ok ||
 			participant.Nonce != t.State.Nonce ||
-			participant.Phase != objects.RegistrationOpen ||
+			participant.Phase != uint8(objects.RegistrationOpen) ||
 			(participant.PublicKey[0].Cmp(big.NewInt(0)) == 0 &&
 				participant.PublicKey[1].Cmp(big.NewInt(0)) == 0)) {
 

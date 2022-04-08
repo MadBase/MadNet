@@ -33,13 +33,6 @@ func NewGPKjSubmissionTask(state *objects.DkgState, start uint64, end uint64, ad
 // Here, we construct our gpkj and associated signature.
 // We will submit them in DoWork.
 func (t *GPKjSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
-	dkgData, ok := state.(objects.ETHDKGTaskData)
-	if !ok {
-		return objects.ErrCanNotContinue
-	}
-
-	t.State = dkgData.State
-
 	t.State.Lock()
 	defer t.State.Unlock()
 

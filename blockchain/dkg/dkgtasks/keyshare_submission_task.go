@@ -29,13 +29,6 @@ func NewKeyshareSubmissionTask(state *objects.DkgState, start uint64, end uint64
 // Here, the G1 key share, G1 proof, and G2 key share are constructed
 // and stored for submission.
 func (t *KeyshareSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
-	dkgData, ok := state.(objects.ETHDKGTaskData)
-	if !ok {
-		return objects.ErrCanNotContinue
-	}
-
-	t.State = dkgData.State
-
 	t.State.Lock()
 	defer t.State.Unlock()
 
