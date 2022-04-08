@@ -20,6 +20,15 @@ type wrappedMock struct {
 	closeChan chan struct{}
 }
 
+type fields struct {
+	RWMutex   sync.RWMutex
+	canClose  bool
+	store     map[string]interfaces.P2PClient
+	pid       map[string]uint64
+	closeChan chan struct{}
+	closeOnce sync.Once
+}
+
 func (wm *wrappedMock) CloseChan() <-chan struct{} {
 	wm.MockP2PClient.CloseChan()
 	return wm.closeChan
@@ -54,18 +63,18 @@ func TestActive(t *testing.T) {
 		closeChan: make(chan struct{}),
 		closeOnce: sync.Once{},
 	}
-	randomAddr, err := transport.RandomNodeAddr()
+	randomNodeAddr, err := transport.RandomNodeAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
 	clientOne.EXPECT().CloseChan()
 	activePeerStoreObj.add(clientOne)
 	time.Sleep(3 * time.Second)
 
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
 	clientOne.EXPECT().CloseChan()
 	clientTwo.EXPECT().Close()
 	activePeerStoreObj.add(clientTwo)
@@ -77,9 +86,9 @@ func TestActive(t *testing.T) {
 	}
 	time.Sleep(3 * time.Second)
 
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
-	clientOne.EXPECT().NodeAddr().Return(randomAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr)
 	close(P2PClientOneChannel)
 	time.Sleep(3 * time.Second)
 
@@ -93,16 +102,16 @@ func TestActive(t *testing.T) {
 	// reset the close channel
 	clientTwo.closeChan = make(chan struct{})
 
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
 	clientTwo.EXPECT().CloseChan()
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
 	activePeerStoreObj.add(clientTwo)
 	time.Sleep(3 * time.Second)
 
 	clientTwo.EXPECT().Close()
-	activePeerStoreObj.del(randomAddr)
+	activePeerStoreObj.del(randomNodeAddr)
 	time.Sleep(3 * time.Second)
 
 	if len(activePeerStoreObj.store) != 0 {
@@ -115,9 +124,9 @@ func TestActive(t *testing.T) {
 	// reset the close channel
 	clientTwo.closeChan = make(chan struct{})
 
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
-	clientTwo.EXPECT().NodeAddr().Return(randomAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
+	clientTwo.EXPECT().NodeAddr().Return(randomNodeAddr)
 	clientTwo.EXPECT().CloseChan()
 	activePeerStoreObj.add(clientTwo)
 	time.Sleep(3 * time.Second)
@@ -137,21 +146,13 @@ func Test_activePeerStore_add(t *testing.T) {
 		P2PClientOne,
 		P2PClientOneChannel,
 	}
-	randomAddr, err := transport.RandomNodeAddr()
+	randomNodeAddr, err := transport.RandomNodeAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientOne.EXPECT().NodeAddr().Return(randomAddr).Times(3)
+	clientOne.EXPECT().NodeAddr().Return(randomNodeAddr).Times(3)
 	clientOne.EXPECT().CloseChan()
 
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
 	type args struct {
 		c interfaces.P2PClient
 	}
@@ -186,17 +187,11 @@ func Test_activePeerStore_add(t *testing.T) {
 			assert.Equal(t, 1, ps.len())
 		})
 	}
+	time.Sleep(3 * time.Second)
 }
 
 func Test_activePeerStore_close(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -229,19 +224,11 @@ func Test_activePeerStore_close(t *testing.T) {
 }
 
 func Test_activePeerStore_contains(t *testing.T) {
-	randomAddr, err := transport.RandomNodeAddr()
+	randomNodeAddr, err := transport.RandomNodeAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
 	type args struct {
 		c interfaces.NodeAddr
 	}
@@ -268,7 +255,7 @@ func Test_activePeerStore_contains(t *testing.T) {
 				closeChan: make(chan struct{}),
 				closeOnce: sync.Once{},
 			},
-			args:        struct{ c interfaces.NodeAddr }{c: randomAddr},
+			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 			want:        true,
 		},
@@ -288,7 +275,7 @@ func Test_activePeerStore_contains(t *testing.T) {
 				closeChan: make(chan struct{}),
 				closeOnce: sync.Once{},
 			},
-			args:        struct{ c interfaces.NodeAddr }{c: randomAddr},
+			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: false,
 			want:        false,
 		},
@@ -312,18 +299,11 @@ func Test_activePeerStore_contains(t *testing.T) {
 }
 
 func Test_activePeerStore_del(t *testing.T) {
-	randomAddr, err := transport.RandomNodeAddr()
+	randomNodeAddr, err := transport.RandomNodeAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
+
 	type args struct {
 		c interfaces.NodeAddr
 	}
@@ -349,7 +329,7 @@ func Test_activePeerStore_del(t *testing.T) {
 				closeChan: make(chan struct{}),
 				closeOnce: sync.Once{},
 			},
-			args:        struct{ c interfaces.NodeAddr }{c: randomAddr},
+			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 		},
 		{
@@ -368,7 +348,7 @@ func Test_activePeerStore_del(t *testing.T) {
 				closeChan: make(chan struct{}),
 				closeOnce: sync.Once{},
 			},
-			args:        struct{ c interfaces.NodeAddr }{c: randomAddr},
+			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 		},
 	}
@@ -389,217 +369,242 @@ func Test_activePeerStore_del(t *testing.T) {
 				assert.Equal(t, 0, len(ps.store))
 			}
 			ps.del(tt.args.c)
-			_, ok := ps.store[randomAddr.Identity()]
+			_, ok := ps.store[randomNodeAddr.Identity()]
 			assert.False(t, ok)
 			assert.Equal(t, 0, len(ps.store))
 		})
 	}
 }
 
-func Test_activePeerStore_get(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
-	type args struct {
-		c interfaces.NodeAddr
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   interfaces.P2PClient
-		want1  bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
-			}
-			got, got1 := ps.get(tt.args.c)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("get() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("get() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
 func Test_activePeerStore_getPeers(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   []interfaces.P2PClient
-		want1  bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
-			}
-			got, got1 := ps.getPeers()
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getPeers() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("getPeers() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
+	randomNodeAddrFirst, _ := transport.RandomNodeAddr()
+	randomNodeAddrSecond, _ := transport.RandomNodeAddr()
 
-func Test_activePeerStore_len(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
-			}
-			if got := ps.len(); got != tt.want {
-				t.Errorf("len() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_activePeerStore_onExit(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
-	}
 	type args struct {
-		pid uint64
-		c   interfaces.P2PClient
+		addresses []string
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
+		want   int
+		want1  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Testing get Peers with 2 peers",
+			fields: struct {
+				RWMutex   sync.RWMutex
+				canClose  bool
+				store     map[string]interfaces.P2PClient
+				pid       map[string]uint64
+				closeChan chan struct{}
+				closeOnce sync.Once
+			}{
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
+			},
+			args: struct{ addresses []string }{addresses: []string{
+				randomNodeAddrFirst.Identity(),
+				randomNodeAddrSecond.Identity(),
+			}},
+			want:  2,
+			want1: true,
+		},
+		{
+			name: "Testing get Peers with no peers",
+			fields: struct {
+				RWMutex   sync.RWMutex
+				canClose  bool
+				store     map[string]interfaces.P2PClient
+				pid       map[string]uint64
+				closeChan chan struct{}
+				closeOnce sync.Once
+			}{
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
+			},
+			args:  struct{ addresses []string }{addresses: []string{}},
+			want:  0,
+			want1: false,
+		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		P2PClient := NewMockP2PClient(ctrl)
+		P2PClientChannel := make(chan struct{})
+
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
 				canClose:  tt.fields.canClose,
 				store:     tt.fields.store,
 				pid:       tt.fields.pid,
 				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
 			}
-			ps.onExit(tt.args.pid, tt.args.c)
+			for _, identity := range tt.args.addresses {
+				client := &wrappedMock{P2PClient, P2PClientChannel}
+				ps.store[identity] = client
+			}
+			p2pClients, booleanVal := ps.getPeers()
+			if !reflect.DeepEqual(len(p2pClients), tt.want) {
+				t.Errorf("getPeers() got = %v, want %v", p2pClients, tt.want)
+			}
+			if booleanVal != tt.want1 {
+				t.Errorf("getPeers() got1 = %v, want %v", booleanVal, tt.want1)
+			}
 		})
 	}
 }
 
 func Test_activePeerStore_random(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
+	randomNodeAddrFirst, _ := transport.RandomNodeAddr()
+
+	type args struct {
+		addresses []string
 	}
+
 	tests := []struct {
-		name   string
-		fields fields
-		want   string
-		want1  bool
+		name      string
+		fields    fields
+		args      args
+		populated bool
+		want      string
+		want1     bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:  "Testing randomness with no peers",
+			args:  struct{ addresses []string }{addresses: []string{}},
+			want:  "",
+			want1: false,
+		},
+		{
+			name: "Testing randomness with peers",
+			fields: struct {
+				RWMutex   sync.RWMutex
+				canClose  bool
+				store     map[string]interfaces.P2PClient
+				pid       map[string]uint64
+				closeChan chan struct{}
+				closeOnce sync.Once
+			}{
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
+			},
+			args: struct{ addresses []string }{addresses: []string{
+				randomNodeAddrFirst.Identity(),
+			}},
+			populated: true,
+			want:      "",
+			want1:     true,
+		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		P2PClient := NewMockP2PClient(ctrl)
+		P2PClientChannel := make(chan struct{})
+
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
 				canClose:  tt.fields.canClose,
 				store:     tt.fields.store,
 				pid:       tt.fields.pid,
 				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
 			}
-			got, got1 := ps.random()
-			if got != tt.want {
-				t.Errorf("random() got = %v, want %v", got, tt.want)
+
+			if tt.populated {
+				client := &wrappedMock{P2PClient, P2PClientChannel}
+				ps.store[tt.args.addresses[0]] = client
+				gomock.InOrder(
+					client.EXPECT().NodeAddr().Return(randomNodeAddrFirst),
+				)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("random() got1 = %v, want %v", got1, tt.want1)
+			nodeAddress, booleanVal := ps.random()
+			if nodeAddress != tt.want && !tt.populated {
+				t.Errorf("random() got = %v, want %v", nodeAddress, tt.want)
+			}
+			if tt.populated && nodeAddress == "" {
+				t.Errorf("random() got = %v, want %v", nodeAddress, tt.want)
+			}
+			if booleanVal != tt.want1 {
+				t.Errorf("random() got1 = %v, want %v", booleanVal, tt.want1)
 			}
 		})
 	}
 }
 
 func Test_activePeerStore_randomClient(t *testing.T) {
-	type fields struct {
-		RWMutex   sync.RWMutex
-		canClose  bool
-		store     map[string]interfaces.P2PClient
-		pid       map[string]uint64
-		closeChan chan struct{}
-		closeOnce sync.Once
+	randomNodeAddrFirst, _ := transport.RandomNodeAddr()
+	randomNodeAddrSecond, _ := transport.RandomNodeAddr()
+
+	type args struct {
+		addresses []string
 	}
 	tests := []struct {
 		name   string
 		fields fields
+		args   args
 		want   interfaces.P2PClient
 		want1  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Testing random client with no nodes",
+			fields: struct {
+				RWMutex   sync.RWMutex
+				canClose  bool
+				store     map[string]interfaces.P2PClient
+				pid       map[string]uint64
+				closeChan chan struct{}
+				closeOnce sync.Once
+			}{
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
+			},
+			want:  nil,
+			want1: false,
+		},
+		{
+			name: "Testing random client with nodes",
+			fields: struct {
+				RWMutex   sync.RWMutex
+				canClose  bool
+				store     map[string]interfaces.P2PClient
+				pid       map[string]uint64
+				closeChan chan struct{}
+				closeOnce sync.Once
+			}{
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
+			},
+			args: struct{ addresses []string }{addresses: []string{
+				randomNodeAddrFirst.Identity(),
+				randomNodeAddrSecond.Identity(),
+			}},
+			want:  nil,
+			want1: true,
+		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		P2PClient := NewMockP2PClient(ctrl)
+		P2PClientChannel := make(chan struct{})
+
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
 				RWMutex:   tt.fields.RWMutex,
@@ -609,12 +614,21 @@ func Test_activePeerStore_randomClient(t *testing.T) {
 				closeChan: tt.fields.closeChan,
 				closeOnce: tt.fields.closeOnce,
 			}
-			got, got1 := ps.randomClient()
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("randomClient() got = %v, want %v", got, tt.want)
+			for _, identity := range tt.args.addresses {
+				client := &wrappedMock{P2PClient, P2PClientChannel}
+				ps.store[identity] = client
 			}
-			if got1 != tt.want1 {
-				t.Errorf("randomClient() got1 = %v, want %v", got1, tt.want1)
+			got, got1 := ps.randomClient()
+			if len(tt.args.addresses) > 0 {
+				assert.NotNilf(t, got, "Should return a client")
+				assert.Truef(t, got1, "Should return true")
+			} else {
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("randomClient() got = %v, want %v", got, tt.want)
+				}
+				if got1 != tt.want1 {
+					t.Errorf("randomClient() got1 = %v, want %v", got1, tt.want1)
+				}
 			}
 		})
 	}
