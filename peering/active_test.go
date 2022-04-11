@@ -241,14 +241,7 @@ func Test_activePeerStore_contains(t *testing.T) {
 	}{
 		{
 			name: "Test active peer store contains identity",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  true,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -261,14 +254,7 @@ func Test_activePeerStore_contains(t *testing.T) {
 		},
 		{
 			name: "Test active peer store contains identity with empty active peer store",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  true,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -315,14 +301,7 @@ func Test_activePeerStore_del(t *testing.T) {
 	}{
 		{
 			name: "Test delete peer from store",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -334,14 +313,7 @@ func Test_activePeerStore_del(t *testing.T) {
 		},
 		{
 			name: "Test delete peer from store with empty store",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -392,14 +364,7 @@ func Test_activePeerStore_getPeers(t *testing.T) {
 	}{
 		{
 			name: "Testing get Peers with 2 peers",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -415,14 +380,7 @@ func Test_activePeerStore_getPeers(t *testing.T) {
 		},
 		{
 			name: "Testing get Peers with no peers",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -485,14 +443,7 @@ func Test_activePeerStore_random(t *testing.T) {
 		},
 		{
 			name: "Testing randomness with peers",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -558,14 +509,7 @@ func Test_activePeerStore_randomClient(t *testing.T) {
 	}{
 		{
 			name: "Testing random client with no nodes",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
@@ -577,14 +521,7 @@ func Test_activePeerStore_randomClient(t *testing.T) {
 		},
 		{
 			name: "Testing random client with nodes",
-			fields: struct {
-				RWMutex   sync.RWMutex
-				canClose  bool
-				store     map[string]interfaces.P2PClient
-				pid       map[string]uint64
-				closeChan chan struct{}
-				closeOnce sync.Once
-			}{
+			fields: fields{
 				canClose:  false,
 				store:     make(map[string]interfaces.P2PClient),
 				pid:       make(map[string]uint64),
