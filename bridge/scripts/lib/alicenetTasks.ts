@@ -1,8 +1,9 @@
 import toml from "@iarna/toml";
-import { BigNumber } from "ethers";
+import { BigNumber, Transaction } from "ethers";
 import fs from "fs";
+import { ethers } from "hardhat";
 import { task, types } from "hardhat/config";
-import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
+import { ALICENET_FACTORY, DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
 function delay(milliseconds: number) {
@@ -449,3 +450,42 @@ task(
         .callAny(validatorPool.address, 0, input)
     ).wait();
   });
+
+
+  task(
+    "transferEth",
+    "Forcing consensus to stop on block number defined by --input"
+  )
+    .addParam("receiver", "address of the account to fund")
+    .addParam("amount", "amount of eth to transfer")
+    .setAction(async (taskArgs, hre) => {
+      let accounts = await hre.ethers.getSigners();
+      let ownerBal = await hre.ethers.provider.getBalance(accounts[0].address)
+      let wei = BigNumber.from(parseInt(taskArgs.amount, 16)).mul(BigNumber.from("10").pow(BigInt(18)))
+      let amount = wei
+      const target = taskArgs.receiver
+      console.log(`previous owner balance: ${ownerBal.toString()}`);
+      let receiverBal = await hre.ethers.provider.getBalance(target)
+      console.log(`previous receiver balance: ${receiverBal.toString()}`)
+      let txRequest = await accounts[0].populateTransaction({from:accounts[0].address, value: amount, to: target});
+      let txResponse = await accounts[0].sendTransaction(txRequest);
+      receiverBal = await hre.ethers.provider.getBalance(target)
+      console.log(`new receiver balance: ${receiverBal}`);
+      let ownerBal2 = await hre.ethers.provider.getBalance(accounts[0].address)
+      console.log(`new owner balance: ${ownerBal.sub(ownerBal2).toString()}`);
+    });
+
+  task(
+    "mintATokenTo",
+    "mints A token to an address"
+  )
+    .addParam("factoryAddress", "AlicenetFactory address")
+    .addParam("aTokenMinter", "proxyAddress of Atoken minter")
+    .setAction(async (taskArgs, hre) => {
+      let accounts = await hre.ethers.getSigners();
+      const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
+      const factory = factoryBase.attach(taskArgs.factoryAddress);
+      let aTokenMinterBase = hre.ethers.getContractFactory("ATokenMinter")
+      let txResponse = await factory.callAny(taskArgs.aTokenMinter, 0, )
+    });
+
