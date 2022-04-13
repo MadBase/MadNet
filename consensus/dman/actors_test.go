@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -74,9 +75,15 @@ type testingProxy struct {
 	skipCallCheck bool
 }
 
+// assert struct `testingProxy` implements `reqBusView` , `txMarshaller`, `databaseView` and `typeProxyIface` interfaces
+var _ reqBusView = &testingProxy{}
+var _ txMarshaller = &testingProxy{}
+var _ databaseView = &testingProxy{}
+var _ typeProxyIface = &testingProxy{}
+
 func (trb *testingProxy) checkExpect() error {
 	if trb.callIndex != len(trb.expectedCalls) {
-		return fmt.Errorf("Missing calls: %v", trb.expectedCalls[trb.callIndex:])
+		return fmt.Errorf("Missing calls: %v, callIndex: %v, expectedCalls: %v", trb.expectedCalls[trb.callIndex:], trb.callIndex, len(trb.expectedCalls))
 	}
 	return nil
 }
@@ -154,13 +161,14 @@ func (trb *testingProxy) RequestP2PGetBlockHeaders(ctx context.Context, blockNum
 		trb.callIndex++
 	}()
 	cType := blockHeaderCall
+	fmt.Println("RequestP2PGetBlockHeaders()")
 	trb.Lock()
 	defer trb.Unlock()
 	if trb.callIndex == len(trb.expectedCalls) {
-		panic(fmt.Sprintf("got unexpected call of type %s : expected calls %v", cType, trb.expectedCalls))
+		panic(fmt.Sprintf("got unexpected call of type %s : expected calls %v, callIndex %v", cType, trb.expectedCalls, trb.callIndex))
 	}
 	if trb.expectedCalls[trb.callIndex] != cType {
-		panic(fmt.Sprintf("got unexpcted call of type %s at index %v : expected calls %v", cType, trb.callIndex, trb.expectedCalls))
+		panic(fmt.Sprintf("got unexpcted call of type %s at index %v : expected calls %v, callIndex %v", cType, trb.callIndex, trb.expectedCalls, trb.callIndex))
 	}
 	if ctx == nil {
 		panic(fmt.Sprintf("ctx was nil in test mock object of call type %s", cType))
@@ -278,10 +286,13 @@ func TestRootActor_download(t *testing.T) {
 				defer ra.Close()
 				trb.expect(tt.proxyCalls, tt.proxyReturns)
 				ra.download(tt.args.b, false)
+				t.Log("waiting on download from RA2")
+				<-time.After(5 * time.Second) // allow some time for actors to do their thing
 			}()
 		})
 		if tt.args.check {
 			if err := trb.checkExpect(); err != nil {
+				// t.Logf("error %v", tt.name)
 				t.Fatal(err)
 			}
 		}

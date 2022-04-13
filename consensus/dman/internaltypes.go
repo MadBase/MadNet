@@ -82,6 +82,9 @@ type TxDownloadRequest struct {
 	responseChan chan DownloadResponse
 }
 
+// assert struct TxDownloadRequest implements DownloadRequest interface
+var _ DownloadRequest = &TxDownloadRequest{}
+
 func (r *TxDownloadRequest) DownloadType() DownloadType {
 	return r.Dtype
 }
@@ -126,6 +129,9 @@ type TxDownloadResponse struct {
 	Round  uint32 `json:"round,omitempty"`
 }
 
+// assert struct TxDownloadResponse implements DownloadResponse interface
+var _ DownloadResponse = &TxDownloadResponse{}
+
 func (r *TxDownloadResponse) DownloadType() DownloadType {
 	return r.Dtype
 }
@@ -159,6 +165,9 @@ type BlockHeaderDownloadRequest struct {
 	Round        uint32       `json:"round,omitempty"`
 	responseChan chan DownloadResponse
 }
+
+// assert struct BlockHeaderDownloadRequest implements DownloadRequest interface
+var _ DownloadRequest = &BlockHeaderDownloadRequest{}
 
 func (r *BlockHeaderDownloadRequest) DownloadType() DownloadType {
 	return r.Dtype
@@ -201,6 +210,9 @@ type BlockHeaderDownloadResponse struct {
 	Err    error  `json:"err,omitempty"`
 	Round  uint32 `json:"round,omitempty"`
 }
+
+// assert struct BlockHeaderDownloadResponse implements DownloadResponse interface
+var _ DownloadResponse = &BlockHeaderDownloadResponse{}
 
 func (r *BlockHeaderDownloadResponse) IsResponse() bool {
 	return true

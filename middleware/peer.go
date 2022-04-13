@@ -38,7 +38,9 @@ func (opt *PeerCallOption) setPeer(p PeerClient) {
 // NewPeerInterceptor is a function that builds a grpc.CallOption that will
 // return a peer ref to the caller
 func NewPeerInterceptor() *PeerCallOption {
-	opt := &PeerCallOption{EmptyCallOption: &grpc.EmptyCallOption{}, Peer: nil}
+	opt := &PeerCallOption{EmptyCallOption: &grpc.EmptyCallOption{}, Peer: func() PeerClient {
+		return peerClient{}
+	}}
 	return opt
 }
 
