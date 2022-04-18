@@ -75,6 +75,8 @@ contract Proxy {
                 // copy calldata into memory
                 calldatacopy(_ptr, 0x00, calldatasize())
                 let ret := delegatecall(gas(), sload(not(0x00)), _ptr, calldatasize(), 0x00, 0x00)
+                _ptr := mload(0x40)
+                mstore(0x40, add(_ptr, returndatasize()))
                 returndatacopy(_ptr, 0x00, returndatasize())
                 if iszero(ret) {
                     revert(_ptr, returndatasize())
