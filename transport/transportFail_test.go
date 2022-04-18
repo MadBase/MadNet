@@ -2,6 +2,7 @@ package transport
 
 import (
 	"testing"
+	"time"
 
 	"github.com/MadBase/MadNet/interfaces"
 	"github.com/sirupsen/logrus"
@@ -43,8 +44,14 @@ func TestTransportfail(t *testing.T) {
 	go accept2(transport2, complete3)
 
 	<-complete1
-	<-complete2
 	<-complete3
+
+	select {
+	case <-complete2:
+		t.Error("<- Complete 2 should not happen")
+	case <-time.After(testWaitForClose):
+		t.Logf("<- Complete 2 did not happened")
+	}
 }
 
 func dialer2(t *testing.T, transport interfaces.P2PTransport, addr interfaces.NodeAddr, complete chan struct{}) {

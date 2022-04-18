@@ -159,7 +159,8 @@ func TestMux(t *testing.T) {
 		go asyncSend2(wg, []byte(strings.Join([]string{"hi2", strconv.Itoa(i)}, ":")))
 	}
 	wg.Wait()
-	err = t1mc.ClientConn().Close()
+	// check close on transport close
+	err = t1mc.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,8 +268,8 @@ func TestMux2(t *testing.T) {
 		t.Fatal("t2 nil")
 	}
 
-	// check close on serverconn
-	err = t1mc.ServerConn().Close()
+	// check close on transport close
+	err = t1mc.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
