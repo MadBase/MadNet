@@ -1,0 +1,7 @@
+steps:
+- name: node:16
+  dir: ./bridge
+  entrypoint: npm
+  args:
+    - 'ci'
+    - 'run test-parallel'
