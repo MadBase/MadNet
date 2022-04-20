@@ -5,3 +5,6 @@ steps:
   args:
     - 'ci'
     - 'run test-parallel'
+
+options:
+  machineType: E2_HIGHCPU_32
