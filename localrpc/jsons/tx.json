@@ -1,0 +1,32 @@
+{
+  "Tx": {
+    "Vin": [
+      {
+        "TXInLinker": {
+          "TXInPreImage": {
+            "ChainID": 1337,
+            "ConsumedTxIdx": 0,
+            "ConsumedTxHash": "ac3bf75a5893fc3a40272c07c4c92b605c5e9e44e9af9af766a05b4189960a33"
+          },
+          "TxHash": "4c6333ca46f2f32b253109b3a76efcaba493a171bb9f5aafbc6473a2705fdc81"
+        },
+        "Signature": "01017cc24765347bbd3e0b2bcdad9cb05f89fb32789e72a55caa53d9b142a6b4f43a45b875b98ddebf023d010b40267827433af972adf0dcffeca3d4ff657be49a0500"
+      }
+    ],
+    "Vout": [
+      {
+        "ValueStore": {
+          "VSPreImage": {
+            "ChainID": 1337,
+            "Value": "1",
+            "TXOutIdx": 0,
+            "Owner": "010138e959391dd8598ae80d5d6d114a7822a09d313a",
+            "Fee": "1"
+          },
+          "TxHash": "4c6333ca46f2f32b253109b3a76efcaba493a171bb9f5aafbc6473a2705fdc81"
+        }
+      }
+    ],
+    "Fee": "4"
+  }
+}
