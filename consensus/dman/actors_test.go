@@ -286,7 +286,7 @@ func TestRootActor_download(t *testing.T) {
 				defer ra.Close()
 				trb.expect(tt.proxyCalls, tt.proxyReturns)
 				ra.download(tt.args.b, false)
-				t.Log("waiting on download from RA2")
+				t.Log("waiting on download from RA")
 				<-time.After(5 * time.Second) // allow some time for actors to do their thing
 			}()
 		})

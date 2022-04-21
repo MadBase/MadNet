@@ -74,6 +74,9 @@ type typeProxy struct {
 	databaseView
 }
 
+// assert struct typeProxy implements typeProxyIface interface
+var _ typeProxyIface = &typeProxy{}
+
 type TxDownloadRequest struct {
 	TxHash       []byte       `json:"tx_hash,omitempty"`
 	Dtype        DownloadType `json:"dtype,omitempty"`
