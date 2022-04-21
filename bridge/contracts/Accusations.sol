@@ -1,18 +1,31 @@
 // SPDX-License-Identifier: MIT-open-group
-pragma solidity ˆ0.8.11;
+pragma solidity ^0.8.11;
 
 import "contracts/utils/MerkleProofLibrary.sol";
-import "contracts/ValidatorPool.sol";
-import "contracts/Snapshots.sol";
+import "contracts/interfaces/IValidatorPool.sol";
+import "contracts/interfaces/ISnapshots.sol";
+import "contracts/interfaces/IETHDKG.sol";
 import "contracts/libraries/parsers/PClaimsParserLibrary.sol";
 import "contracts/libraries/parsers/RCertParserLibrary.sol";
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 import "contracts/libraries/parsers/TXInPreImageParserLibrary.sol";
 import "contracts/libraries/math/CryptoLibrary.sol";
+import "contracts/utils/ImmutableAuth.sol";
 
-contract Accusations {
-
+contract Accusations is
+    ImmutableFactory,
+    ImmutableSnapshots,
+    ImmutableETHDKG,
+    ImmutableValidatorPool
+{
     mapping(bytes32 => bool) internal _accusations;
+
+    constructor()
+        ImmutableFactory(msg.sender)
+        ImmutableSnapshots()
+        ImmutableETHDKG()
+        ImmutableValidatorPool()
+    {}
 
     /// @notice This function verifies the signature group of a BClaims.
     /// @param _bClaims the BClaims of the accusation
@@ -28,7 +41,11 @@ contract Accusations {
         // todo: check if the signature is equals to any of the previous master public key?
 
         require(
-            CryptoLibrary.verifySignature(abi.encodePacked(keccak256(_bClaims)), signature, publicKey),
+            CryptoLibrary.verifySignatureASM(
+                abi.encodePacked(keccak256(_bClaims)),
+                signature,
+                publicKey
+            ),
             "Accusations: Signature verification failed"
         );
     }
@@ -51,7 +68,7 @@ contract Accusations {
         bytes memory _bClaimsSigGroup,
         bytes memory _txInPreImage,
         bytes[3] memory _proofs
-    ) internal view returns (address) {
+    ) public view returns (address) {
         // Require that the previous block is signed by correct group key for validator set.
         _verifySignatureGroup(_bClaims, _bClaimsSigGroup);
 
@@ -70,15 +87,16 @@ contract Accusations {
 
         // Require that chainID is equal.
         require(
-            bClaims.chainId == pClaims.bClaims.chainId,
+            bClaims.chainId == pClaims.bClaims.chainId &&
+                bClaims.chainId == ISnapshots(_snapshotsAddress()).getChainId(),
             "Accusations: ChainId should be the same"
         );
 
         // Require that Proposal was signed by active validator.
         address signerAccount = recoverMadNetSigner(_pClaimsSig, _pClaims);
-        //todo: Once this is migrated to the new contracts, use isAccusable instead of isValidator!
+
         require(
-            ParticipantsLibrary.isValidator(signerAccount),
+            IValidatorPool(_validatorPoolAddress()).isAccusable(signerAccount),
             "Accusations: the signer of these proposal is not a valid validator!"
         );
 
@@ -112,7 +130,7 @@ contract Accusations {
             MerkleProofLibrary.verifyInclusion(proofAgainstStateRoot, bClaims.stateRoot);
             // todo: deposit that doesn't exist in the chain. Maybe split this in separate functions?
         } else {
-            //Consuming a non existing UTXO
+            // Consuming a non existing UTXO
             require(
                 computeUTXOID(txInPreImage.consumedTxHash, txInPreImage.consumedTxIdx) ==
                     proofAgainstStateRoot.key,
@@ -178,16 +196,15 @@ contract Accusations {
         );
 
         // ensure the chainid of blob0 is correct for this chain using RCert sub object of PClaims
-        uint32 chainId = ChainStatusLibrary.chainId();
+        uint256 chainId = ISnapshots(_snapshotsAddress()).getChainId();
         require(
             pClaims0.rCert.rClaims.chainId == chainId,
             "Accusations: the chainId is invalid for this chain!"
         );
 
         // ensure both accounts are applicable to a currently locked validator - Note<may be done in different layer?>
-        //todo: Once this is migrated to the new contracts, use isAccusable instead of isValidator!
         require(
-            ParticipantsLibrary.isValidator(signerAccount0),
+            IValidatorPool(_validatorPoolAddress()).isAccusable(signerAccount0),
             "Accusations: the signer of these proposals is not a valid validator!"
         );
 
@@ -213,7 +230,6 @@ contract Accusations {
         uint8 v;
 
         assembly {
-            // solium-disable-line
             r := mload(add(signature, 32))
             s := mload(add(signature, 64))
             v := byte(0, mload(add(signature, 96)))

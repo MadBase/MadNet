@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT-open-group
-pragma solidity ˆ0.8.11;
+pragma solidity ^0.8.11;
 
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 
