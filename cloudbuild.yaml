@@ -1,9 +1,7 @@
 - name: golang
   args: ['make', 'generate']
-  id: 'generate'
 - name: golang
   args: ['make', 'build']
-  id: 'build'
 artifacts:
   objects:
     location: 'gs://madnet-github-builds'
