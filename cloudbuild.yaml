@@ -4,8 +4,6 @@
 - name: golang
   args: ['make', 'build']
   id: 'build'
-  waitFor:
-  - 'generate'
 artifacts:
   objects:
     location: 'gs://madnet-github-builds'
