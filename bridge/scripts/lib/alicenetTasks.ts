@@ -1,8 +1,9 @@
 import toml from "@iarna/toml";
-import { BigNumber } from "ethers";
+import { BigNumber, BytesLike } from "ethers";
 import fs from "fs";
 import { task, types } from "hardhat/config";
-import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
+import { getEventVar } from "./alicenetFactoryTasks";
+import { CONTRACT_ADDR, DEFAULT_CONFIG_OUTPUT_DIR, DEPLOYED_STATIC } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
 function delay(milliseconds: number) {
@@ -449,3 +450,39 @@ task(
         .callAny(validatorPool.address, 0, input)
     ).wait();
   });
+
+task(
+  "testDepositNotifier",
+  "calls the DepositNotifier's emit function in a fully authorized way"
+)
+  .addParam(
+    "factoryAddress",
+    "the default factory address from factoryState will be used if not set"
+  )
+  .setAction(async (taskArgs, hre) => {
+    const { ethers, network } = hre;
+    const factory = await ethers.getContractAt("AliceNetFactory", taskArgs.factoryAddress);
+    
+    // CallAny needs to be deployed, because the DepositNotifier's emit function
+    // only allows contracts deployed by the same factory to call it
+    console.log("Deploying CallAny contract through the factory...")
+    const _Contract = await ethers.getContractFactory("CallAny");    
+    const contractTx = await factory.deployTemplate(_Contract.getDeployTransaction().data as BytesLike);
+    await ethers.provider.getTransactionReceipt(contractTx.hash)
+    const salt = ethers.utils.formatBytes32String(Math.random().toString().slice(2));
+    const tx = await factory.deployStatic(salt, '0x');
+    const receipt = await tx.wait();
+    const contractAddr = getEventVar(receipt, DEPLOYED_STATIC, CONTRACT_ADDR);    
+    const auxillaryContract = await ethers.getContractAt("CallAny", contractAddr);
+
+    console.log("Calling DepositNotifier through CallAny contract...")
+    const depositNotifier = await ethers.getContractAt("DepositNotifier", await factory.lookup(hre.ethers.utils.formatBytes32String("DepositNotifier")));
+    const encodedArgs = depositNotifier.interface.encodeFunctionData(
+      "doEmit", [ salt, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 1337, "0xcd3B766CCDd6AE721141F452C550Ca635964ce71" ]
+    )
+    const [admin] = await ethers.getSigners();
+    const receipt3 = await auxillaryContract.connect(admin).callAny(depositNotifier.address, 0, encodedArgs).then((resp : any) => resp.wait())
+    
+    console.log("Success!", depositNotifier.interface.parseLog(receipt3.events[0]))
+});
+
