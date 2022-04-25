@@ -2,7 +2,7 @@ steps:
 - name: docker
   args: ['version']
 - name: golang
-  args: ['make', 'generate']
+  args: ['make', 'generate-go']
 - name: golang
   args: ['make', 'build']
 artifacts:
