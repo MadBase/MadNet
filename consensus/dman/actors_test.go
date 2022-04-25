@@ -15,6 +15,7 @@ import (
 	"github.com/MadBase/MadNet/interfaces"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/dgraph-io/badger/v2"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
 
@@ -287,7 +288,7 @@ func TestRootActor_download(t *testing.T) {
 				trb.expect(tt.proxyCalls, tt.proxyReturns)
 				ra.download(tt.args.b, false)
 				t.Log("waiting on download from RA")
-				<-time.After(5 * time.Second) // allow some time for actors to do their thing
+				<-time.After(5 * time.Second) // allow some time for actors to do their work
 			}()
 		})
 		if tt.args.check {
@@ -301,6 +302,49 @@ func TestRootActor_download(t *testing.T) {
 		}
 		trb.callIndex = 0
 	}
+}
+
+func TestRootActor_FlushCacheToDisk(t *testing.T) {
+	trb := &testingProxy{}
+	ra := &RootActor{}
+	tlog := logging.GetLogger("Test")
+	err := ra.Init(tlog, trb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra.Start()
+	defer ra.Close()
+
+	// db
+	ctx := context.Background()
+	nodeCtx, cf := context.WithCancel(ctx)
+	defer cf()
+
+	// Initialize consensus db: stores all state the consensus mechanism requires to work
+	rawConsensusDb := initDatabase(nodeCtx, "", true)
+	defer rawConsensusDb.Close()
+
+	trb.callIndex = 0
+	trb.expectedCalls = []testingProxyCall{blockHeaderCall}
+	trb.returns = append([][]interface{}{}, []interface{}{makeGoodBlock(t), nil})
+
+	dlReq := NewBlockHeaderDownloadRequest(1, 1, BlockHeaderRequest)
+	ra.download(dlReq, false)
+
+	t.Log("waiting on download from RA")
+	<-time.After(5 * time.Second) // allow some time for actors to do their work
+
+	err = rawConsensusDb.Update(func(txn *badger.Txn) error {
+		err = ra.FlushCacheToDisk(txn, 1)
+		assert.Nil(t, err)
+
+		// todo: check with Troy
+		assert.False(t, ra.bhc.Contains(1))
+
+		return err
+	})
+
+	assert.Nil(t, err)
 }
 
 func makeGoodBlock(t *testing.T) []*objs.BlockHeader {

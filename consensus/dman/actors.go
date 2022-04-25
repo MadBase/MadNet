@@ -77,7 +77,6 @@ func (a *RootActor) Close() {
 	})
 }
 
-// TODO verify blockheader cache is being cleaned
 func (a *RootActor) FlushCacheToDisk(txn *badger.Txn, height uint32) error {
 	txList, txHashList := a.txc.GetHeight(height + 1)
 	for i := 0; i < len(txList); i++ {

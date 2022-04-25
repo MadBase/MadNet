@@ -49,6 +49,7 @@ func (p *dmanTestProxy) RequestP2PGetPendingTx(ctx context.Context, txHashes [][
 	defer func() {
 		p.callIndex++
 	}()
+	fmt.Println("RequestP2PGetPendingTx()")
 	// cType := pendingTxCall
 	p.Lock()
 	defer p.Unlock()
@@ -75,6 +76,7 @@ func (p *dmanTestProxy) RequestP2PGetMinedTxs(ctx context.Context, txHashes [][]
 	defer func() {
 		p.callIndex++
 	}()
+	fmt.Println("RequestP2PGetMinedTxs()")
 	// cType := minedTxCall
 	p.Lock()
 	defer p.Unlock()
@@ -266,12 +268,76 @@ func (m *MockTransaction) MarshalBinary() ([]byte, error) {
 //XXXIsTx is defined on the interface object
 func (m *MockTransaction) XXXIsTx() {}
 
+// test setup
+
 func initDatabase(ctx context.Context, path string, inMemory bool) *badger.DB {
 	db, err := utils.OpenBadger(ctx.Done(), path, inMemory)
 	if err != nil {
 		panic(err)
 	}
 	return db
+}
+
+func setupDmanTests(t *testing.T) (testProxy *dmanTestProxy, dman *DMan, ownerSigner aobjs.Signer, closeFn func()) {
+	logger := logging.GetLogger("Test")
+	deferables := make([]func(), 0)
+
+	closeFn = func() {
+		// iterate in reverse order because deferables behave like a stack:
+		// the last added deferable should be the first executed
+		totalDeferables := len(deferables)
+		for i := totalDeferables - 1; i >= 0; i-- {
+			deferables[i]()
+		}
+	}
+
+	ctx := context.Background()
+	nodeCtx, cf := context.WithCancel(ctx)
+	deferables = append(deferables, cf)
+
+	// Initialize consensus db: stores all state the consensus mechanism requires to work
+	rawConsensusDb := initDatabase(nodeCtx, "", true)
+	var closeDB func() = func() {
+		err := rawConsensusDb.Close()
+		if err != nil {
+			panic(fmt.Errorf("error closing rawConsensusDb: %v", err))
+		}
+	}
+	deferables = append(deferables, closeDB)
+
+	db := &db.Database{}
+	db.Init(rawConsensusDb)
+
+	testProxy = &dmanTestProxy{
+		db:     db,
+		logger: logger,
+	}
+
+	ra := &RootActor{}
+	err := ra.Init(logger, testProxy)
+	if err != nil {
+		closeFn()
+		t.Fatal(err)
+		return
+	}
+	ra.Start()
+	deferables = append(deferables, ra.Close)
+
+	dman = &DMan{
+		ra,
+		testProxy,
+		testProxy,
+		nil,
+		logger,
+	}
+	dman.Init(testProxy, testProxy, testProxy)
+	deferables = append(deferables, dman.Close)
+
+	dman.Start()
+
+	ownerSigner = testingOwner()
+
+	return
 }
 
 func Test_DMan(t *testing.T) {
@@ -281,168 +347,34 @@ func Test_DMan(t *testing.T) {
 	dman.Close()
 }
 
-func Test_Get(t *testing.T) {
-	ctx := context.Background()
-	nodeCtx, cf := context.WithCancel(ctx)
-	defer cf()
+func Test_GetNonExistent(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
 
-	// Initialize consensus db: stores all state the consensus mechanism requires to work
-	rawConsensusDb := initDatabase(nodeCtx, "", true)
-	defer rawConsensusDb.Close()
-
-	db := &db.Database{}
-	db.Init(rawConsensusDb)
-
-	var p *dmanTestProxy = &dmanTestProxy{db: db}
-
-	ra := &RootActor{}
-	err := ra.Init(logging.GetLogger("Test"), p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ra.Start()
-	defer ra.Close()
-
-	var dman *DMan = &DMan{
-		ra,
-		p,
-		p,
-		nil,
-		logging.GetLogger("Test"),
-	}
-	dman.Init(p, p, p)
-	defer dman.Close()
-
-	dman.Start()
-	defer dman.Close()
-
-	ownerSigner := testingOwner()
-	/*consumedUTXOs*/ _, tx := makeTxInitial(ownerSigner)
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
 
 	hash, err := tx.TxHash()
 	assert.Nil(t, err)
-	binary, err := tx.MarshalBinary()
-	assert.Nil(t, err)
 
-	txsToGet := make([][]byte, 0)
+	err = testProxy.db.View(func(txn *badger.Txn) error {
+		tx2Binary, err := dman.database.GetTxCacheItem(txn, 1, hash)
+		assert.NotNil(t, err)
+		assert.Nil(t, tx2Binary)
 
-	// test
-	err = db.Update(func(txn *badger.Txn) error {
-		// bclaimsList, txHashListList, err := generateFullChain(1)
-		// if err != nil {
-		// 	t.Fatal(err)
-		// }
-
-		// tx := interfaces.Transaction
-		// dman.appHandler.ApplyState(txn, 1, 1)
-
-		// _, err = dman.appHandler.ApplyState(txn, 1, 1, []interfaces.Transaction{tx})
-		// assert.Nil(t, err)
-		//assert.NotNil(t, stateHash)
-
-		//err = dman.AddTxs(txn, 1, []interfaces.Transaction{tx})
-		//assert.Nil(t, err)
-
-		//db.SetTxCacheItem(txn, 1, hash, binary)
-
-		err = dman.database.SetTxCacheItem(txn, 1, hash, binary)
-		assert.Nil(t, err)
-		//txsToGet := make([][]byte, 0)
-		txsToGet = append(txsToGet, hash)
-		//err = txn.Commit()
-		//assert.Nil(t, err)
-
-		//dman.database.GetTxCacheItem(
-
-		txs, err := dman.database.GetTxCacheItem(txn, 1, hash)
-		assert.Nil(t, err)
-		binary2, err := tx.MarshalBinary()
-		assert.Nil(t, err)
-		assert.NotNil(t, txs)
-		assert.Equal(t, binary, binary2)
-		//assert.Len(t, txMissing, 0)
-
-		return err
-	})
-
-	//dman.GetTxs()
-
-	assert.Nil(t, err)
-
-	err = db.View(func(txn *badger.Txn) error {
-		txs, err := dman.database.GetTxCacheItem(txn, 1, hash)
-		assert.Nil(t, err)
-		binary2, err := tx.MarshalBinary()
-		assert.Nil(t, err)
-		assert.NotNil(t, txs)
-		assert.Equal(t, binary, binary2)
-
-		// 	txs, txMissing, err := dman.GetTxs(txn, 1, 1, txsToGet)
-		// 	assert.Nil(t, err)
-		// 	assert.Len(t, txs, 1)
-		// 	assert.Len(t, txMissing, 0)
-
-		// 	return err
-
-		return err
+		return nil
 	})
 
 	assert.Nil(t, err)
-
-	// test
-	// db.Update(func(txn *badger.Txn) error {
-	// 	txs, txMissing, err := dman.GetTxs(txn, 1, 1, make([][]byte, 0))
-	// 	assert.Nil(t, err)
-	// 	assert.Len(t, txs, 1)
-	// 	assert.Len(t, txMissing, 0)
-
-	// 	return err
-	// })
 
 }
 
-func Test_Get2(t *testing.T) {
-	logger := logging.GetLogger("Test")
+func Test_SetAndGet(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
 
-	ctx := context.Background()
-	nodeCtx, cf := context.WithCancel(ctx)
-	defer cf()
-
-	// Initialize consensus db: stores all state the consensus mechanism requires to work
-	rawConsensusDb := initDatabase(nodeCtx, "", true)
-	defer rawConsensusDb.Close()
-
-	db := &db.Database{}
-	db.Init(rawConsensusDb)
-
-	var p *dmanTestProxy = &dmanTestProxy{
-		db:     db,
-		logger: logger,
-	}
-
-	ra := &RootActor{}
-	err := ra.Init(logger, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ra.Start()
-	defer ra.Close()
-
-	var dman *DMan = &DMan{
-		ra,
-		p,
-		p,
-		nil,
-		logger,
-	}
-	dman.Init(p, p, p)
-	defer dman.Close()
-
-	dman.Start()
-	defer dman.Close()
-
-	ownerSigner := testingOwner()
-	/*consumedUTXOs*/ _, tx := makeTxInitial(ownerSigner)
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
 
 	hash, err := tx.TxHash()
 	assert.Nil(t, err)
@@ -452,51 +384,174 @@ func Test_Get2(t *testing.T) {
 	txsToGet := make([][]byte, 0)
 
 	// test
-	err = db.Update(func(txn *badger.Txn) error {
+	err = testProxy.db.Update(func(txn *badger.Txn) error {
 		err = dman.database.SetTxCacheItem(txn, 1, hash, binary)
 		assert.Nil(t, err)
 		txsToGet = append(txsToGet, hash)
 
-		txs, err := dman.database.GetTxCacheItem(txn, 1, hash)
+		tx2Binary, err := dman.database.GetTxCacheItem(txn, 1, hash)
 		assert.Nil(t, err)
-		binary2, err := tx.MarshalBinary()
-		assert.Nil(t, err)
-		assert.NotNil(t, txs)
-		assert.Equal(t, binary, binary2)
+		assert.NotNil(t, tx2Binary)
 
+		tx2 := &aobjs.Tx{}
+		err = tx2.UnmarshalBinary(tx2Binary)
+		assert.Nil(t, err)
+
+		binary2, err := tx2.MarshalBinary()
+		assert.Nil(t, err)
+		assert.Equal(t, binary, binary2)
 		return err
 	})
 
 	assert.Nil(t, err)
 
-	err = db.View(func(txn *badger.Txn) error {
+	err = testProxy.db.View(func(txn *badger.Txn) error {
+		// read through dman.GetTxs
 		txs, missing, err := dman.GetTxs(txn, 1, 1, txsToGet)
-
 		assert.Nil(t, err)
 		assert.Len(t, txs, 1)
 		assert.Len(t, missing, 0)
+
 		binary2, err := txs[0].MarshalBinary()
 		assert.Nil(t, err)
 		assert.Equal(t, binary, binary2)
 
+		// read through dman.database.GetTxCacheItem
+		tx2Binary, err := dman.database.GetTxCacheItem(txn, 1, hash)
+		assert.Nil(t, err)
+		assert.NotNil(t, tx2Binary)
+
+		tx2 := &aobjs.Tx{}
+		err = tx2.UnmarshalBinary(tx2Binary)
+		assert.Nil(t, err)
+
+		binary2, err = tx2.MarshalBinary()
+		assert.Nil(t, err)
+		assert.Equal(t, binary, binary2)
+		assert.Equal(t, binary, tx2Binary)
+		assert.Equal(t, binary2, tx2Binary)
+
 		return err
 	})
 
 	assert.Nil(t, err)
 
-	err = db.View(func(txn *badger.Txn) error {
-		txs, err := dman.database.GetTxCacheItem(txn, 1, hash)
+}
+
+func Test_FlushCacheToDisk(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
+
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
+
+	hash, err := tx.TxHash()
+	assert.Nil(t, err)
+	binary, err := tx.MarshalBinary()
+	assert.Nil(t, err)
+
+	// test
+	err = testProxy.db.Update(func(txn *badger.Txn) error {
+		err = dman.database.SetTxCacheItem(txn, 1, hash, binary)
 		assert.Nil(t, err)
-		binary2, err := tx.MarshalBinary()
+
+		err := dman.FlushCacheToDisk(txn, 1)
+		assert.Nil(t, err)
+
+		// todo: check with Troy
+		assert.False(t, dman.downloadActor.bhc.Contains(1))
+
+		return err
+	})
+
+	assert.Nil(t, err)
+}
+
+func Test_CleanCache(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
+
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
+
+	hash, err := tx.TxHash()
+	assert.Nil(t, err)
+	binary, err := tx.MarshalBinary()
+	assert.Nil(t, err)
+
+	// test
+	err = testProxy.db.Update(func(txn *badger.Txn) error {
+		err = dman.database.SetTxCacheItem(txn, 1, hash, binary)
+		assert.Nil(t, err)
+
+		err := dman.CleanCache(txn, 1)
+		assert.Nil(t, err)
+
+		// todo: check with Troy
+		assert.False(t, dman.downloadActor.bhc.Contains(1))
+
+		return err
+	})
+
+	assert.Nil(t, err)
+}
+
+func Test_AddTxs(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
+
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
+	var txs []interfaces.Transaction = []interfaces.Transaction{tx}
+
+	hash, err := tx.TxHash()
+	assert.Nil(t, err)
+	binary, err := tx.MarshalBinary()
+	assert.Nil(t, err)
+
+	txsToGet := make([][]byte, 0)
+	txsToGet = append(txsToGet, hash)
+
+	// test
+	err = testProxy.db.Update(func(txn *badger.Txn) error {
+		err := dman.AddTxs(txn, 1, txs)
+		assert.Nil(t, err)
+
+		return err
+	})
+
+	assert.Nil(t, err)
+
+	err = testProxy.db.View(func(txn *badger.Txn) error {
+		// read through dman.GetTxs
+		txs, missing, err := dman.GetTxs(txn, 1, 1, txsToGet)
 		assert.Nil(t, err)
 		assert.Len(t, txs, 1)
+		assert.Len(t, missing, 0)
+
+		binary2, err := txs[0].MarshalBinary()
+		assert.Nil(t, err)
 		assert.Equal(t, binary, binary2)
+
+		// read through dman.database.GetTxCacheItem
+		tx2Binary, err := dman.database.GetTxCacheItem(txn, 1, hash)
+		assert.Nil(t, err)
+		assert.NotNil(t, tx2Binary)
+
+		tx2 := &aobjs.Tx{}
+		err = tx2.UnmarshalBinary(tx2Binary)
+		assert.Nil(t, err)
+
+		binary2, err = tx2.MarshalBinary()
+		assert.Nil(t, err)
+		assert.Equal(t, binary, binary2)
+		assert.Equal(t, binary, tx2Binary)
+		assert.Equal(t, binary2, tx2Binary)
 
 		return err
 	})
 
 	assert.Nil(t, err)
-
 }
 
 func generateFullChain(length int) ([]*objs.BClaims, [][][]byte, error) {
