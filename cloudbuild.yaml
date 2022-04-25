@@ -1,0 +1,13 @@
+steps:
+- name: golang
+  args: ['make', 'generate']
+  id: 'generate'
+- name: golang
+  args: ['make', 'build']
+  id: 'build'
+  waitFor: ['generate']
+artifacts:
+  objects:
+    location: 'gs://madnet-github-builds'
+    paths: ['madnet']
+logsBucket: 'gs://madnet-github-builds'
