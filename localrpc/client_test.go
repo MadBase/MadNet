@@ -2,12 +2,12 @@ package localrpc
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/MadBase/MadNet/application/objs"
 	consensusObjs "github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/proto"
@@ -368,10 +368,10 @@ func TestClient_GetTxFees(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: []string{
-				"0000000000000000000000000000000000000000000000000000000000000002",
-				"0000000000000000000000000000000000000000000000000000000000000002",
-				"0000000000000000000000000000000000000000000000000000000000000000",
-				"0000000000000000000000000000000000000000000000000000000000000001",
+				fmt.Sprintf("%064d", 4),
+				fmt.Sprintf("%064d", 1),
+				fmt.Sprintf("%064d", 3),
+				fmt.Sprintf("%064d", 2),
 			},
 		}}
 	for _, tt := range tests {
@@ -396,15 +396,15 @@ func TestClient_GetUTXO(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    objs.Vout
+		want    [][]byte
 		wantErr bool
 	}{
 		{name: constants.LoggerApp,
 			args: args{
 				ctx:     context.Background(),
-				utxoIDs: utxoIDs,
+				utxoIDs: utxoTx1IDs,
 			},
-			want: tx.Vout,
+			want: utxoTx1IDs,
 		},
 	}
 	for _, tt := range tests {
@@ -415,13 +415,12 @@ func TestClient_GetUTXO(t *testing.T) {
 				return
 			}
 			gotUtxoId, err1 := got.UTXOID()
-			wantUtxoId, err2 := tt.want.UTXOID()
-			if err1 != nil && err2 != nil {
+			if err1 != nil {
 				t.Errorf("GetUTXO() Could not get UtxoIds %v \n", err)
 				return
 			}
-			if !reflect.DeepEqual(gotUtxoId, wantUtxoId) {
-				t.Errorf("GetUTXO() got = %v, want %v \n", got, tt.want)
+			if !reflect.DeepEqual(gotUtxoId, tt.want) {
+				t.Errorf("GetUTXO() got = %x, want %x \n", gotUtxoId, tt.want)
 			}
 		})
 	}

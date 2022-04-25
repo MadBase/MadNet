@@ -4,17 +4,63 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/application/objs/uint256"
-	"github.com/MadBase/MadNet/crypto"
-	mncrypto "github.com/MadBase/MadNet/crypto"
 	pb "github.com/MadBase/MadNet/proto"
 
 	"github.com/MadBase/MadNet/constants"
 )
+
+func TestHandlers_HandleLocalStateGetBlockHeader(t *testing.T) {
+
+	type args struct {
+		ctx context.Context
+		req *pb.BlockHeaderRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *pb.BlockHeaderResponse
+		wantErr bool
+	}{
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.BlockHeaderRequest{Height: 1},
+			},
+			want: &pb.BlockHeaderResponse{
+				BlockHeader: &pb.BlockHeader{
+					BClaims: &pb.BClaims{
+						ChainID:    chainID,
+						Height:     1,
+						PrevBlock:  "41dd7c959793d4228a3c1c90d308ec31c9dd5d907c1f90afabdd38308fb5f3c8",
+						StateRoot:  "2eca01388b3218b366daa6e88cb5d86b71200b428ccb06a4e3bb0065e76f1056",
+						TxRoot:     "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+						HeaderRoot: fmt.Sprintf("%064d", 0),
+					},
+					SigGroup: fmt.Sprintf("%0384d", 0),
+					TxHshLst: make([]string, 0),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := srpc.HandleLocalStateGetBlockHeader(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HandleLocalStateGetBlockNumber() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("HandleLocalStateGetBlockNumber() got = %svi , want %s", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestHandlers_HandleLocalStateGetBlockNumber(t *testing.T) {
 
@@ -49,88 +95,8 @@ func TestHandlers_HandleLocalStateGetBlockNumber(t *testing.T) {
 		})
 	}
 }
-func TestHandlers_HandleLocalStateGetBlockHeader(t *testing.T) {
 
-	type args struct {
-		ctx context.Context
-		req *pb.BlockHeaderRequest
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *pb.BlockHeaderResponse
-		wantErr bool
-	}{
-		{name: constants.LoggerApp,
-			args: args{
-				ctx: ctx,
-				req: &pb.BlockHeaderRequest{Height: 1},
-			},
-			want: &pb.BlockHeaderResponse{
-				BlockHeader: &pb.BlockHeader{
-					BClaims: &pb.BClaims{
-						ChainID:    1337,
-						Height:     1,
-						PrevBlock:  "41dd7c959793d4228a3c1c90d308ec31c9dd5d907c1f90afabdd38308fb5f3c8",
-						StateRoot:  "2eca01388b3218b366daa6e88cb5d86b71200b428ccb06a4e3bb0065e76f1056",
-						TxRoot:     "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-						HeaderRoot: fmt.Sprintf("%064d", 0),
-					},
-					// SigGroup: fmt.Sprintf("%0384d", 0),
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := srpc.HandleLocalStateGetBlockHeader(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("HandleLocalStateGetBlockNumber() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got.BlockHeader.BClaims, tt.want.BlockHeader.BClaims) {
-				t.Errorf("HandleLocalStateGetBlockNumber() got = %v, want %v", got.BlockHeader.BClaims, tt.want.BlockHeader.BClaims)
-			}
-		})
-	}
-}
-
-func TestHandlers_HandleLocalStateGetChainID(t *testing.T) {
-
-	type args struct {
-		ctx context.Context
-		req *pb.ChainIDRequest
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *pb.ChainIDResponse
-		wantErr bool
-	}{
-		{name: constants.LoggerApp,
-			args: args{
-				ctx: ctx,
-				req: &pb.ChainIDRequest{},
-			},
-			want: &pb.ChainIDResponse{ChainID: 1337},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := srpc.HandleLocalStateGetChainID(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("HandleLocalStateGetChainID() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("HandleLocalStateGetChainID() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-/*
-func TestHandlers_HandleLocalStateGetData(t *testing.T) {
+/* func TestHandlers_HandleLocalStateGetData(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
@@ -138,12 +104,21 @@ func TestHandlers_HandleLocalStateGetData(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *pb.GetDataResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.GetDataRequest{
+					CurveSpec: 1,
+					Account:   hex.EncodeToString(account),
+					Index:     fmt.Sprintf("%064d", 0),
+				},
+			},
+			want: &pb.GetDataResponse{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,8 +133,8 @@ func TestHandlers_HandleLocalStateGetData(t *testing.T) {
 			}
 		})
 	}
-}
-*/
+} */
+
 func TestHandlers_HandleLocalStateGetEpochNumber(t *testing.T) {
 
 	type args struct {
@@ -195,6 +170,42 @@ func TestHandlers_HandleLocalStateGetEpochNumber(t *testing.T) {
 	}
 }
 
+func TestHandlers_HandleLocalStateGetChainID(t *testing.T) {
+
+	type args struct {
+		ctx context.Context
+		req *pb.ChainIDRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *pb.ChainIDResponse
+		wantErr bool
+	}{
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.ChainIDRequest{},
+			},
+			want: &pb.ChainIDResponse{
+				ChainID: chainID,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := srpc.HandleLocalStateGetChainID(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HandleLocalStateGetChainID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("HandleLocalStateGetChainID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHandlers_HandleLocalStateGetFees(t *testing.T) {
 
 	type args struct {
@@ -213,12 +224,13 @@ func TestHandlers_HandleLocalStateGetFees(t *testing.T) {
 				req: &pb.FeeRequest{},
 			},
 			want: &pb.FeeResponse{
-				MinTxFee:      fmt.Sprintf("%064d", 2),
-				ValueStoreFee: fmt.Sprintf("%064d", 2),
-				DataStoreFee:  fmt.Sprintf("%064d", 0),
-				AtomicSwapFee: fmt.Sprintf("%064d", 1),
+				MinTxFee:      fmt.Sprintf("%064d", 4),
+				ValueStoreFee: fmt.Sprintf("%064d", 1),
+				DataStoreFee:  fmt.Sprintf("%064d", 3),
+				AtomicSwapFee: fmt.Sprintf("%064d", 2),
 			},
-		}}
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := srpc.HandleLocalStateGetFees(tt.args.ctx, tt.args.req)
@@ -263,6 +275,7 @@ func TestHandlers_HandleLocalStateGetMinedTransaction(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestHandlers_HandleLocalStateGetPendingTransaction(t *testing.T) {
 
@@ -272,15 +285,59 @@ func TestHandlers_HandleLocalStateGetPendingTransaction(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *pb.PendingTransactionResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.PendingTransactionRequest{
+					TxHash: hex.EncodeToString(tx3Hash)},
+			},
+			want: &pb.PendingTransactionResponse{
+				Tx: &pb.Tx{
+					Vin: []*pb.TXIn{
+						&pb.TXIn{
+							TXInLinker: &pb.TXInLinker{
+								TXInPreImage: &pb.TXInPreImage{
+									ChainID:        chainID,
+									ConsumedTxIdx:  0,
+									ConsumedTxHash: hex.EncodeToString(consumedTx3Hash),
+								},
+								TxHash: hex.EncodeToString(tx3Hash),
+							},
+							Signature: hex.EncodeToString(tx3Signature),
+						},
+					},
+					Vout: []*pb.TXOut{
+						&pb.TXOut{
+							Utxo: &pb.TXOut_ValueStore{
+								ValueStore: &pb.ValueStore{
+									VSPreImage: &pb.VSPreImage{
+										ChainID:  chainID,
+										TXOutIdx: 0,
+										Value:    fmt.Sprintf("%064d", 1),
+										Owner:    "0101" + hex.EncodeToString(account),
+										Fee:      fmt.Sprintf("%064d", 1),
+									},
+									TxHash: hex.EncodeToString(tx3Hash),
+								},
+							},
+						},
+					},
+					Fee: fmt.Sprintf("%064d", 8),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			_, err := srpc.HandleLocalStateSendTransaction(ctx, tx3)
+			if err != nil {
+				t.Errorf("HandleLocalStateGetTransactionStatus() Could not create test TX error = %v\n", err)
+				return
+			}
 
 			got, err := srpc.HandleLocalStateGetPendingTransaction(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -293,6 +350,8 @@ func TestHandlers_HandleLocalStateGetPendingTransaction(t *testing.T) {
 		})
 	}
 }
+
+/*
 
 func TestHandlers_HandleLocalStateGetRoundStateForValidator(t *testing.T) {
 
@@ -324,54 +383,33 @@ func TestHandlers_HandleLocalStateGetRoundStateForValidator(t *testing.T) {
 	}
 }
 
-func TestHandlers_HandleLocalStateGetTransactionStatus(t *testing.T) {
-
-	type args struct {
-		ctx context.Context
-		req *pb.TransactionStatusRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *pb.TransactionStatusResponse
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			got, err := srpc.HandleLocalStateGetTransactionStatus(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("HandleLocalStateGetTransactionStatus() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("HandleLocalStateGetTransactionStatus() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestHandlers_HandleLocalStateGetTxBlockNumber(t *testing.T) {
-
 	type args struct {
 		ctx context.Context
 		req *pb.TxBlockNumberRequest
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *pb.TxBlockNumberResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.TxBlockNumberRequest{
+					TxHash: hex.EncodeToString(tx1Hash),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			_, err := srpc.HandleLocalStateSendTransaction(ctx, tx1)
+			if err != nil {
+				t.Errorf("HandleLocalStateGetTxBlockNumber() error creating test TX error = %v\n", err)
+				return
+			}
 			got, err := srpc.HandleLocalStateGetTxBlockNumber(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HandleLocalStateGetTxBlockNumber() error = %v, wantErr %v", err, tt.wantErr)
@@ -401,7 +439,7 @@ func TestHandlers_HandleLocalStateGetUTXO(t *testing.T) {
 				ctx: ctx,
 				req: &pb.UTXORequest{
 					UTXOIDs: []string{
-						hex.EncodeToString(utxoIDs[0]),
+						hex.EncodeToString(utxoTx2IDs[0]),
 					},
 				},
 			},
@@ -412,12 +450,12 @@ func TestHandlers_HandleLocalStateGetUTXO(t *testing.T) {
 							ValueStore: &pb.ValueStore{
 								VSPreImage: &pb.VSPreImage{
 									ChainID:  1337,
-									Value:    fmt.Sprintf("%064d", 6),
+									Value:    fmt.Sprintf("%064d", 8),
 									TXOutIdx: 0,
 									Owner:    "0101" + hex.EncodeToString(account),
 									Fee:      fmt.Sprintf("%064d", 0),
 								},
-								TxHash: hex.EncodeToString(txHash),
+								TxHash: hex.EncodeToString(consumedTx2Hash),
 							},
 						},
 					},
@@ -469,21 +507,29 @@ func TestHandlers_HandleLocalStateGetValidatorSet(t *testing.T) {
 		})
 	}
 }
-
-func TestHandlers_HandleLocalStateGetValueForOwner(t *testing.T) {
-
+*/
+/* func TestHandlers_HandleLocalStateGetValueForOwner(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		req *pb.GetValueRequest
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *pb.GetValueResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			args: args{
+				ctx: ctx,
+				req: &pb.GetValueRequest{
+					CurveSpec:       1,
+					Account:         hex.EncodeToString(account),
+					Minvalue:        fmt.Sprintf("%064d", 0),
+					PaginationToken: make([]byte, 0),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -498,8 +544,9 @@ func TestHandlers_HandleLocalStateGetValueForOwner(t *testing.T) {
 			}
 		})
 	}
-}
+} */
 
+/*
 func TestHandlers_HandleLocalStateIterateNameSpace(t *testing.T) {
 
 	type args struct {
@@ -534,7 +581,7 @@ var hash []byte
 var signature []byte
 var newValueStore *objs.ValueStore
 var vsValue *uint256.Uint256 = uint256.One()
-var vsFee *uint256.Uint256 = uint256.Two()
+var vsFee *uint256.Uint256 = uint256.One()
 var chainID uint32 = 1337
 
 func TestHandlers_HandleLocalStateSendTransaction(t *testing.T) {
@@ -551,10 +598,10 @@ func TestHandlers_HandleLocalStateSendTransaction(t *testing.T) {
 		{name: constants.LoggerApp,
 			args: args{
 				ctx: ctx,
-				req: getTransactionRequest(),
+				req: tx1,
 			},
 			want: &pb.TransactionDetails{
-				TxHash: hex.EncodeToString(hash),
+				TxHash: hex.EncodeToString(tx1Hash),
 			},
 		},
 	}
@@ -572,108 +619,7 @@ func TestHandlers_HandleLocalStateSendTransaction(t *testing.T) {
 	}
 }
 
-func getTransactionRequest() *pb.TransactionData {
-	pubKey, _ := signer.Pubkey()
-	v := &objs.ValueStore{
-		VSPreImage: &objs.VSPreImage{
-			TXOutIdx: 0,
-			Value:    vsValue,
-			ChainID:  chainID,
-			Owner: &objs.ValueStoreOwner{
-				SVA:       objs.ValueStoreSVA,
-				CurveSpec: constants.CurveSecp256k1,
-				Account:   mncrypto.GetAccount(pubKey),
-			},
-			Fee: vsFee,
-		},
-		TxHash: make([]byte, 32),
-	}
-	txin := &objs.TXIn{
-		TXInLinker: &objs.TXInLinker{
-			TXInPreImage: &objs.TXInPreImage{
-				ChainID:        chainID,
-				ConsumedTxIdx:  0,
-				ConsumedTxHash: txHash,
-			},
-			TxHash: make([]byte, 32),
-		},
-	}
-	tx = &objs.Tx{}
-	tx.Vin = []*objs.TXIn{txin}
-	newValueStore = &objs.ValueStore{
-		VSPreImage: &objs.VSPreImage{
-			ChainID:  chainID,
-			Value:    vsValue,
-			TXOutIdx: 0,
-			Fee:      vsFee,
-			Owner: &objs.ValueStoreOwner{
-				SVA:       objs.ValueStoreSVA,
-				CurveSpec: constants.CurveSecp256k1,
-				Account:   crypto.GetAccount(pubKey)},
-		},
-		TxHash: make([]byte, constants.HashLen),
-	}
-	newUTXO := &objs.TXOut{}
-	err = newUTXO.NewValueStore(newValueStore)
-	tx.Vout = append(tx.Vout, newUTXO)
-	tx.Fee, _ = new(uint256.Uint256).FromUint64(3)
-	err = tx.SetTxHash()
-	err = v.Sign(tx.Vin[0], signer)
-	hash, _ = tx.TxHash()
-	signature = txin.Signature
-	fmt.Printf("Hash2 %x \n", hash)
-	fmt.Printf("Signature %x \n", signature)
-	transactionData := *&pb.TransactionData{
-		Tx: &pb.Tx{
-			Vin: []*pb.TXIn{
-				&pb.TXIn{
-					TXInLinker: &pb.TXInLinker{
-						TXInPreImage: &pb.TXInPreImage{
-							ChainID:        txin.TXInLinker.TXInPreImage.ChainID,
-							ConsumedTxIdx:  txin.TXInLinker.TXInPreImage.ConsumedTxIdx,
-							ConsumedTxHash: hex.EncodeToString(txin.TXInLinker.TXInPreImage.ConsumedTxHash),
-						},
-						TxHash: hex.EncodeToString(hash),
-					},
-					Signature: hex.EncodeToString(signature),
-				},
-			},
-			Vout: []*pb.TXOut{
-				&pb.TXOut{
-					Utxo: &pb.TXOut_ValueStore{
-						ValueStore: &pb.ValueStore{
-							VSPreImage: &pb.VSPreImage{
-								ChainID:  newValueStore.VSPreImage.ChainID,
-								TXOutIdx: newValueStore.VSPreImage.TXOutIdx,
-								Value:    newValueStore.VSPreImage.Value.String(),
-								Owner:    "0101" + hex.EncodeToString(account),
-								Fee:      newValueStore.VSPreImage.Fee.String(),
-							},
-							TxHash: hex.EncodeToString(hash),
-						},
-					},
-				},
-			},
-			Fee: tx.Fee.String(),
-		},
-	}
-	fmt.Println(transactionData)
-	return &transactionData
-}
-
-/* func TestHandlers_HandleLocalStateGetTransactionStatus(t *testing.T) {
-	getTransactionRequest()
-	fmt.Println("hash", hash)
-	txin := &objs.TXIn{
-		TXInLinker: &objs.TXInLinker{
-			TXInPreImage: &objs.TXInPreImage{
-				ChainID:        chainID,
-				ConsumedTxIdx:  0,
-				ConsumedTxHash: txHash,
-			},
-			TxHash: make([]byte, 32),
-		},
-	}
+func TestHandlers_HandleLocalStateGetTransactionStatus(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		req *pb.TransactionStatusRequest
@@ -688,7 +634,7 @@ func getTransactionRequest() *pb.TransactionData {
 			args: args{
 				ctx: ctx,
 				req: &pb.TransactionStatusRequest{
-					TxHash:   hex.EncodeToString(hash),
+					TxHash:   hex.EncodeToString(tx2Hash),
 					ReturnTx: true,
 				},
 			},
@@ -698,13 +644,13 @@ func getTransactionRequest() *pb.TransactionData {
 						&pb.TXIn{
 							TXInLinker: &pb.TXInLinker{
 								TXInPreImage: &pb.TXInPreImage{
-									ChainID:        txin.TXInLinker.TXInPreImage.ChainID,
-									ConsumedTxIdx:  txin.TXInLinker.TXInPreImage.ConsumedTxIdx,
-									ConsumedTxHash: hex.EncodeToString(txin.TXInLinker.TXInPreImage.ConsumedTxHash),
+									ChainID:        chainID,
+									ConsumedTxIdx:  0,
+									ConsumedTxHash: hex.EncodeToString(consumedTx2Hash),
 								},
-								TxHash: hex.EncodeToString(hash),
+								TxHash: hex.EncodeToString(tx2Hash),
 							},
-							Signature: hex.EncodeToString(signature),
+							Signature: hex.EncodeToString(tx2Signature),
 						},
 					},
 					Vout: []*pb.TXOut{
@@ -714,114 +660,51 @@ func getTransactionRequest() *pb.TransactionData {
 									VSPreImage: &pb.VSPreImage{
 										ChainID:  chainID,
 										TXOutIdx: 0,
-										Value:    vsValue.String(),
+										Value:    fmt.Sprintf("%064d", 1),
 										Owner:    "0101" + hex.EncodeToString(account),
-										Fee:      vsFee.String(),
+										Fee:      fmt.Sprintf("%064d", 1),
 									},
-									TxHash: hex.EncodeToString(hash),
+									TxHash: hex.EncodeToString(tx2Hash),
 								},
 							},
 						},
 					},
-					Fee: tx.Fee.String(),
+					Fee: fmt.Sprintf("%064d", 4),
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			_, err := srpc.HandleLocalStateSendTransaction(ctx, tx2)
+			if err != nil {
+				t.Errorf("HandleLocalStateGetTransactionStatus() Could not create test TX error = %v\n", err)
+				return
+			}
 			got, err := srpc.HandleLocalStateGetTransactionStatus(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HandleLocalStateGetTransactionStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("HandleLocalStateGetTransactionStatus() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got.Tx.Vin[0], tt.want.Tx.Vin[0]) {
+				t.Errorf("HandleLocalStateGetTransactionStatus() got = %v, want %v", got.Tx.Vin[0], tt.want.Tx.Vin[0])
 			}
 		})
 	}
 
-} */
-
-/* func TestHandlers_Init(t *testing.T) {
-	consensuslessValidator("../scripts/generated/stateDBs/validator1")
-
-	type args struct {
-		database *db.Database
-		app      *application.Application
-		gh       *gossip.Handlers
-		pubk     []byte
-		safe     func() bool
-		storage  dynamics.StorageGetter
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{name: constants.LoggerApp,
-			fields: fields{
-				ctx:         nil,
-				cancelCtx:   nil,
-				database:    stateDB,
-				sstore:      nil,
-				AppHandler:  nil,
-				GossipBus:   nil,
-				Storage:     nil,
-				logger:      nil,
-				ethAcct:     nil,
-				EthPubk:     nil,
-				safeHandler: func() bool { return true },
-				safecount:   0,
-			},
-			args: args{
-				database: stateDB,
-				app:      nil,
-				gh:       nil,
-				pubk:     nil,
-				safe:     func() bool { return true },
-				storage:  nil},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			srpc.Init(tt.args.database, tt.args.app, tt.args.gh, tt.args.pubk, tt.args.safe, tt.args.storage)
-		})
-	}
-} */
-
-/*
-func TestHandlers_SafeMonitor(t *testing.T) {
-
-	tests := []struct {
-		name   string
-		fields fields
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			srpc.SafeMonitor()
-		})
-	}
 }
-*/
 
-/*
 func TestHandlers_notReady(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			if err := srpc.notReady(); (err != nil) != tt.wantErr {
 				t.Errorf("notReady() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -832,11 +715,11 @@ func TestHandlers_notReady(t *testing.T) {
 func TestHandlers_safe(t *testing.T) {
 
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name string
+		want bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -858,7 +741,10 @@ func Test_bigIntToString(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{name: constants.LoggerApp,
+			args: args{b: big.NewInt(1)},
+			want: "0000000000000000000000000000000000000000000000000000000000000001",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -874,4 +760,3 @@ func Test_bigIntToString(t *testing.T) {
 	}
 
 }
-*/

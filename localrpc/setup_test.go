@@ -30,10 +30,13 @@ import (
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
 	mncrypto "github.com/MadBase/MadNet/crypto"
+	"github.com/MadBase/MadNet/dynamics"
 	"github.com/MadBase/MadNet/ipc"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/peering"
 	"github.com/MadBase/MadNet/proto"
+	pb "github.com/MadBase/MadNet/proto"
+	"github.com/MadBase/MadNet/status"
 	"github.com/MadBase/MadNet/utils"
 	mnutils "github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
@@ -42,7 +45,6 @@ import (
 
 var address string = "localhost:8884"
 var timeout time.Duration = time.Second * 10
-var utxoIDs [][]byte
 var account []byte
 var owner *objs.ValueStoreOwner
 var signer *crypto.Secp256k1Signer
@@ -54,80 +56,36 @@ var err error
 var badgerDB *badger.DB
 var srpc *Handlers
 var lrpc *Client
-var stateDB *db.Database
-var ctx context.Context
+var tx1, tx2, tx3 *pb.TransactionData
+var tx1Hash, tx2Hash, tx3Hash []byte
+var consumedTx1Hash, consumedTx2Hash, consumedTx3Hash []byte
+var utxoTx1IDs, utxoTx2IDs, utxoTx3IDs [][]byte
+var tx1Value, tx2Value, tx3Value uint64
+var tx1Signature, tx2Signature, tx3Signature []byte
 
-type mutexUint32 struct {
-	sync.RWMutex
-	value uint32
-}
+// var stateDB *db.Database
+var ctx context.Context
+var app *application.Application
+var consGossipHandlers *gossip.Handlers
+var ipcServer *ipc.Server
+var peerManager *peering.PeerManager
+var consGossipClient *gossip.Client
+var consDlManager *dman.DMan
+var localStateHandler *Handlers
+var consDB *db.Database
+var consSync *consensus.Synchronizer
+var storage *dynamics.Storage
 
 func TestMain(m *testing.M) {
 
-	file, _ := os.Open("validator.toml")
-	bs, _ := ioutil.ReadAll(file)
-	reader := bytes.NewReader(bs)
-	viper.SetConfigType("toml")
-	viper.ReadConfig(reader)
-	viper.Unmarshal(&config.Configuration)
-	chainID = uint32(config.Configuration.Chain.ID)
-
-	signer = &crypto.Secp256k1Signer{}
-	signer.SetPrivk(crypto.Hasher([]byte("secret")))
-	pubKey, err = signer.Pubkey()
-
-	// dbFile := "../scripts/generated/stateDBs/validator1"
-	dbFile := "testDB"
-
-	ctx = context.Background()
-	app := &application.Application{}
-	// storage := &dynamics.Storage{}
-	appDepositHandler := &deposit.Handler{} // watches ETH blockchain about deposits
-	stateDB = &db.Database{}
-	consTxPool := &evidence.Pool{}
-	consGossipHandlers := &gossip.Handlers{}
-	// consensus p2p comm
-	consReqClient := &request.Client{}
-	// consReqHandler := &request.Handler{}
-
-	// core of consensus algorithm: where outside stake relies, how gossip ends up, how state modifications occur
-	consLSEngine := &lstate.Engine{}
-	consLSHandler := &lstate.Handlers{}
-	consDlManager := &dman.DMan{}
-	consGossipClient := &gossip.Client{}
-	consAdminHandlers := &admin.Handlers{}
-
-	consSync := &consensus.Synchronizer{}
-
-	rawStateDB, _ := mnutils.OpenBadger(ctx.Done(), dbFile, false)
-	rawTxPoolDB, _ := mnutils.OpenBadger(ctx.Done(), "", true)
-
-	stateDB.Init(rawStateDB)
-	consTxPool.Init(stateDB)
-	storage := makeMockStorageGetter()
-	ipcServer := ipc.NewServer(config.Configuration.Firewalld.SocketFile)
-
-	appDepositHandler.Init()
-	// storage.Init(stateDB, nil)
-	app.Init(stateDB, rawTxPoolDB, appDepositHandler, storage)
-	pubKey, _ := signer.Pubkey()
-	peerManager := initPeerManager(consGossipHandlers, nil)
-	/* 	consReqClient.Init(peerManager.P2PClient(), storage)
-	   	consReqHandler.Init(stateDB, app, storage)
-	   	consDlManager.Init(stateDB, app, consReqClient)
-	   	consLSHandler.Init(stateDB, consDlManager) */
-
-	consGossipHandlers.Init(1337, stateDB, peerManager.P2PClient(), app, consLSHandler, storage)
-	consGossipClient.Init(stateDB, peerManager.P2PClient(), app, storage)
-	consAdminHandlers.Init(1337, stateDB, mncrypto.Hasher([]byte(config.Configuration.Validator.SymmetricKey)), app, pubKey, storage, ipcServer)
-	consLSEngine.Init(stateDB, consDlManager, app, signer, consAdminHandlers, pubKey, consReqClient, storage)
-	consSync.Init(stateDB, nil, nil, consGossipClient, consGossipHandlers, consTxPool, consLSEngine, app, consAdminHandlers, peerManager, storage)
-	consSync.Start()
+	loadSettings("validator.toml")
+	signer, pubKey = getSignerData()
+	validatorNode()
 
 	srpc = &Handlers{
 		ctx:         ctx,
 		cancelCtx:   nil,
-		database:    stateDB,
+		database:    consDB,
 		sstore:      nil,
 		AppHandler:  app,
 		GossipBus:   consGossipHandlers,
@@ -139,10 +97,9 @@ func TestMain(m *testing.M) {
 		safecount:   1,
 	}
 	srpc.Init(srpc.database, srpc.AppHandler, srpc.GossipBus, srpc.EthPubk, srpc.safeHandler, srpc.Storage)
+
 	go srpc.Start()
 	defer srpc.Stop()
-
-	fmt.Println("ADDD", config.Configuration.Transport.LocalStateListeningAddress)
 
 	lrpc = &Client{
 		Mutex:       sync.Mutex{},
@@ -162,35 +119,324 @@ func TestMain(m *testing.M) {
 	go localStateServer.Serve()
 	defer localStateServer.Close()
 
+	go ipcServer.Start()
+	defer ipcServer.Close()
+
+	go peerManager.Start()
+	defer peerManager.Close()
+
+	go consGossipClient.Start()
+	defer consGossipClient.Close()
+
+	go consDlManager.Start()
+	defer consDlManager.Close()
+
+	go localStateHandler.Start()
+	defer localStateHandler.Stop()
+
+	go consGossipHandlers.Start()
+	defer consGossipHandlers.Close()
+
+	go storage.Start()
+
+	// go statusLogger.Run()
+	// defer statusLogger.Close()
+
+	// err = mon.Start()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer mon.Close()
+
+	//////////////////////////////////////////////////////////////////////////////
+	//SETUP SHUTDOWN MONITORING///////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////
+
+	consSync.Start()
+
 	time.Sleep(1 * time.Second)
+	tx1Value = 6
+	tx2Value = 8
+	tx3Value = 10
 
-	utxoIDs, account, txHash = insertTestUTXO()
-	fmt.Println("utxoIDs:" + hex.EncodeToString(utxoIDs[0]))
-	fmt.Println("account:" + hex.EncodeToString(account))
-	fmt.Println("txHash:" + hex.EncodeToString(txHash))
+	utxoTx1IDs, account, consumedTx1Hash = insertTestUTXO(tx1Value)
+	utxoTx2IDs, account, consumedTx2Hash = insertTestUTXO(tx2Value)
+	utxoTx3IDs, account, consumedTx3Hash = insertTestUTXO(tx3Value)
 
-	/* 	utxoIDs, _ = hex.DecodeString("cfa168a40031808356aa7d26eed4e4d3fef46ce02e0969be2c21a80c3fabd7a8")
-	   	account, _ = hex.DecodeString("38e959391dd8598ae80d5d6d114a7822a09d313a")
-	   	txHash, _ = hex.DecodeString("63f98d384fbb0fad03b3456b93c7605b4c2296358fdae857eb0d1a8ef479713a")
-	*/
-	/*
-		paginationToken := objs.PaginationToken{
-			LastPaginatedType: objs.LastPaginatedDeposit,
-			TotalValue:        uint256.Zero(),
-			LastKey:           utxoIDs[0],
-		}
-
-		binaryPaginationToken, err := paginationToken.MarshalBinary()
-		if err != nil {
-			fmt.Errorf("could not create paginationToken %v\n", err)
-		}
-		fmt.Println("binaryPaginationToken", hex.EncodeToString(binaryPaginationToken))
-	*/
+	tx1, tx1Hash, tx1Signature = getTransactionRequest(consumedTx1Hash, mncrypto.GetAccount(pubKey), tx1Value)
+	tx2, tx2Hash, tx2Signature = getTransactionRequest(consumedTx2Hash, mncrypto.GetAccount(pubKey), tx2Value)
+	tx3, tx3Hash, tx3Signature = getTransactionRequest(consumedTx3Hash, mncrypto.GetAccount(pubKey), tx3Value)
 
 	//Start tests after validator is running
 	exitVal := m.Run()
 
 	os.Exit(exitVal)
+}
+
+func validatorNode() {
+	publicKey := pubKey
+	// create execution context for application
+	ctx = context.Background()
+	nodeCtx, _ := context.WithCancel(ctx)
+	// defer cf()
+
+	// setup logger for program assembly operations
+	logger := logging.GetLogger("validator")
+	logger.Infof("Starting node with configuration %v", viper.AllSettings())
+	defer func() { logger.Warning("Goodbye.") }()
+
+	chainID := uint32(config.Configuration.Chain.ID)
+	// batchSize := config.Configuration.Monitor.BatchSize
+
+	// No need of eth connection to test localrpc
+	// eth, keys, publicKey := initEthereumConnection(logger)
+
+	// Initialize consensus db: stores all state the consensus mechanism requires to work
+	rawConsensusDb := initDatabase(nodeCtx, config.Configuration.Chain.StateDbPath, config.Configuration.Chain.StateDbInMemory)
+	// Need to keep DBs open after this function
+	// defer rawConsensusDb.Close()
+
+	// Initialize transaction pool db: contains transcations that have not been mined (and thus are to be gossiped)
+	rawTxPoolDb := initDatabase(nodeCtx, config.Configuration.Chain.TransactionDbPath, config.Configuration.Chain.TransactionDbInMemory)
+	// defer rawTxPoolDb.Close()
+
+	// Initialize monitor database: tracks what ETH block number we're on (tracking deposits)
+	rawMonitorDb := initDatabase(nodeCtx, config.Configuration.Chain.MonitorDbPath, config.Configuration.Chain.MonitorDbInMemory)
+	// defer rawMonitorDb.Close()
+
+	/////////////////////////////////////////////////////////////////////////////
+	// INITIALIZE ALL SERVICE OBJECTS ///////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////
+
+	consDB = &db.Database{}
+	monDB := &db.Database{}
+
+	// app maintains the UTXO set of the MadNet blockchain (module is separate from consensus e.d.)
+	app = &application.Application{}
+	appDepositHandler := &deposit.Handler{} // watches ETH blockchain about deposits
+
+	// consDlManager is used to retrieve transactions or block headers (to verify validity for proposal vote)
+	consDlManager = &dman.DMan{}
+
+	// gossip system (e.g. I gossip the block header, I request the transactions, to drive what the next request should be)
+	consGossipHandlers = &gossip.Handlers{}
+	consGossipClient = &gossip.Client{}
+
+	// consTxPool takes old state from consensusDB, used as evidence for what was done (new blocks, consensus, voting)
+	consTxPool := &evidence.Pool{}
+
+	// link between ETH net and our internal logic, relays important ETH events (e.g. snapshot) into our system
+	consAdminHandlers := &admin.Handlers{}
+
+	// consensus p2p comm
+	consReqClient := &request.Client{}
+	consReqHandler := &request.Handler{}
+
+	// core of consensus algorithm: where outside stake relies, how gossip ends up, how state modifications occur
+	consLSEngine := &lstate.Engine{}
+	consLSHandler := &lstate.Handlers{}
+
+	// synchronizes execution context, makes sure everything synchronizes with the ctx system - throughout modules
+	consSync = &consensus.Synchronizer{}
+
+	// define storage to dynamic values
+	storage = &dynamics.Storage{}
+
+	// account signer for ETH accounts
+	secp256k1Signer := &crypto.Secp256k1Signer{}
+
+	// stdout logger
+	statusLogger := &status.Logger{}
+
+	peerManager = initPeerManager(consGossipHandlers, consReqHandler)
+
+	ipcServer = ipc.NewServer(config.Configuration.Firewalld.SocketFile)
+
+	// Initialize the consensus engine signer
+	// if err := secp256k1Signer.SetPrivk(crypto.FromECDSA(keys.PrivateKey)); err != nil {
+	// 	panic(err)
+	// }
+
+	consDB.Init(rawConsensusDb)
+	consTxPool.Init(consDB)
+
+	appDepositHandler.Init()
+	if err := app.Init(consDB, rawTxPoolDb, appDepositHandler, storage); err != nil {
+		panic(err)
+	}
+
+	// Initialize storage
+	if err := storage.Init(consDB, logger); err != nil {
+		panic(err)
+	}
+
+	localStateHandler = &Handlers{}
+
+	// Initialize consensus
+	consReqClient.Init(peerManager.P2PClient(), storage)
+	consReqHandler.Init(consDB, app, storage)
+	consDlManager.Init(consDB, app, consReqClient)
+	consLSHandler.Init(consDB, consDlManager)
+	consGossipHandlers.Init(chainID, consDB, peerManager.P2PClient(), app, consLSHandler, storage)
+	consGossipClient.Init(consDB, peerManager.P2PClient(), app, storage)
+	consAdminHandlers.Init(chainID, consDB, crypto.Hasher([]byte(config.Configuration.Validator.SymmetricKey)), app, publicKey, storage, ipcServer)
+	consLSEngine.Init(consDB, consDlManager, app, secp256k1Signer, consAdminHandlers, publicKey, consReqClient, storage)
+
+	// Setup monitor
+	monDB.Init(rawMonitorDb)
+	// No need of mon for localrpc testing
+	// monitorInterval := config.Configuration.Monitor.Interval
+	// monitorTimeout := config.Configuration.Monitor.Timeout
+	// mon, err := monitor.NewMonitor(consDB, monDB, consAdminHandlers, appDepositHandler, nil, monitorInterval, monitorTimeout, uint64(batchSize))
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	var tDB, mDB *badger.DB = nil, nil
+	if config.Configuration.Chain.TransactionDbInMemory {
+		// prevent value log GC on in memory by setting to nil - this will cause syncronizer to bypass GC on these databases
+		tDB = rawTxPoolDb
+	}
+	if config.Configuration.Chain.MonitorDbInMemory {
+		mDB = rawMonitorDb
+	}
+
+	consSync.Init(consDB, mDB, tDB, consGossipClient, consGossipHandlers, consTxPool, consLSEngine, app, consAdminHandlers, peerManager, storage)
+	localStateHandler.Init(consDB, app, consGossipHandlers, publicKey, consSync.Safe, storage)
+	statusLogger.Init(consLSEngine, peerManager, consAdminHandlers, nil)
+
+	// No need of signal management for localrpc testing
+	//////////////////////////////////////////////////////////////////////////////
+	//LAUNCH ALL SERVICE GOROUTINES///////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////
+
+	/* 	select {
+	   	case <-peerManager.CloseChan():
+	   	case <-consSync.CloseChan():
+	   	case <-signals:
+	   	}
+	   	// go countSignals(logger, 5, signals)
+
+	   	defer consSync.Stop()
+	   	defer func() { logger.Warning("Starting graceful unwind of core processes.") }() */
+}
+
+func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (tx_ *pb.TransactionData, TxHash []byte, TXSignature []byte) {
+	pubKey, _ := signer.Pubkey()
+	value_, _ := new(uint256.Uint256).FromUint64(1)
+	txin := &objs.TXIn{
+		TXInLinker: &objs.TXInLinker{
+			TXInPreImage: &objs.TXInPreImage{
+				ChainID:        chainID,
+				ConsumedTxIdx:  0,
+				ConsumedTxHash: ConsumedTxHash,
+			},
+			TxHash: make([]byte, 32),
+		},
+	}
+	v := &objs.ValueStore{
+		VSPreImage: &objs.VSPreImage{
+			TXOutIdx: 0,
+			Value:    value_,
+			ChainID:  chainID,
+			Owner: &objs.ValueStoreOwner{
+				SVA:       objs.ValueStoreSVA,
+				CurveSpec: constants.CurveSecp256k1,
+				Account:   account,
+			},
+			Fee: vsFee,
+		},
+		TxHash: make([]byte, 32),
+	}
+	tx = &objs.Tx{}
+	tx.Vin = []*objs.TXIn{txin}
+	newValueStore = &objs.ValueStore{
+		VSPreImage: &objs.VSPreImage{
+			ChainID:  chainID,
+			Value:    vsValue,
+			TXOutIdx: 0,
+			Fee:      vsFee,
+			Owner: &objs.ValueStoreOwner{
+				SVA:       objs.ValueStoreSVA,
+				CurveSpec: constants.CurveSecp256k1,
+				Account:   crypto.GetAccount(pubKey)},
+		},
+		TxHash: make([]byte, constants.HashLen),
+	}
+	newUTXO := &objs.TXOut{}
+	err = newUTXO.NewValueStore(newValueStore)
+	tx.Vout = append(tx.Vout, newUTXO)
+	tx.Fee, _ = new(uint256.Uint256).FromUint64(val - 2)
+	err = tx.SetTxHash()
+	err = v.Sign(tx.Vin[0], signer)
+	hash, _ = tx.TxHash()
+	signature := txin.Signature
+	/* 	fmt.Printf("Hash %x \n", hash)
+	   	fmt.Printf("Signature %x \n", signature) */
+	transactionData := *&pb.TransactionData{
+		Tx: &pb.Tx{
+			Vin: []*pb.TXIn{
+				&pb.TXIn{
+					TXInLinker: &pb.TXInLinker{
+						TXInPreImage: &pb.TXInPreImage{
+							ChainID:        txin.TXInLinker.TXInPreImage.ChainID,
+							ConsumedTxIdx:  txin.TXInLinker.TXInPreImage.ConsumedTxIdx,
+							ConsumedTxHash: hex.EncodeToString(txin.TXInLinker.TXInPreImage.ConsumedTxHash),
+						},
+						TxHash: hex.EncodeToString(hash),
+					},
+					Signature: hex.EncodeToString(signature),
+				},
+			},
+			Vout: []*pb.TXOut{
+				&pb.TXOut{
+					Utxo: &pb.TXOut_ValueStore{
+						ValueStore: &pb.ValueStore{
+							VSPreImage: &pb.VSPreImage{
+								ChainID:  newValueStore.VSPreImage.ChainID,
+								TXOutIdx: newValueStore.VSPreImage.TXOutIdx,
+								Value:    newValueStore.VSPreImage.Value.String(),
+								Owner:    "0101" + hex.EncodeToString(account),
+								Fee:      newValueStore.VSPreImage.Fee.String(),
+							},
+							TxHash: hex.EncodeToString(hash),
+						},
+					},
+				},
+			},
+			Fee: tx.Fee.String(),
+		},
+	}
+	/* 	fmt.Println(transactionData)
+	 */return &transactionData, hash, signature
+}
+
+func getSignerData() (*crypto.Secp256k1Signer, []byte) {
+	signer := &crypto.Secp256k1Signer{}
+	signer.SetPrivk(crypto.Hasher([]byte("secret")))
+	pubKey, _ := signer.Pubkey()
+	return signer, pubKey
+}
+
+func loadSettings(configFile string) {
+	file, _ := os.Open(configFile)
+	bs, _ := ioutil.ReadAll(file)
+	reader := bytes.NewReader(bs)
+	viper.SetConfigType("toml")
+	viper.ReadConfig(reader)
+	//StateDbPath is in configuration but StateDB on the file, hence fixing
+	viper.Set("chain.StateDbPath", viper.GetString("chain.StateDB"))
+	viper.Set("chain.MonitorDbPath", viper.GetString("chain.MonitorDB"))
+	viper.Unmarshal(&config.Configuration)
+
+}
+
+func initDatabase(ctx context.Context, path string, inMemory bool) *badger.DB {
+	db, err := mnutils.OpenBadger(ctx.Done(), path, inMemory)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
 
 func initPeerManager(consGossipHandlers *gossip.Handlers, consReqHandler *request.Handler) *peering.PeerManager {
@@ -259,42 +505,33 @@ func initLocalStateServer(localStateHandler *Handlers) *Handler {
 	return localStateServer
 }
 
-func insertTestUTXO() ([][]byte, []byte, []byte) {
-	if err != nil {
-		fmt.Printf("could not create signer %v \n", err)
-	}
+func insertTestUTXO(value_ uint64) ([][]byte, []byte, []byte) {
 	accountAddress := crypto.GetAccount(pubKey)
 	owner := &objs.ValueStoreOwner{
 		SVA:       objs.ValueStoreSVA,
 		CurveSpec: constants.CurveSecp256k1,
 		Account:   accountAddress,
 	}
-	hndlr := utxohandler.NewUTXOHandler(stateDB.DB())
+	hndlr := utxohandler.NewUTXOHandler(consDB.DB())
 	err = hndlr.Init(1)
 	if err != nil {
 		fmt.Printf("could not create utxo handler %v \n", err)
 	}
-	value, _ := new(uint256.Uint256).FromUint64(6)
+	value, _ := new(uint256.Uint256).FromUint64(value_)
 	vs := &objs.ValueStore{
 		VSPreImage: &objs.VSPreImage{
 			TXOutIdx: constants.MaxUint32,
 			Value:    value,
-			ChainID:  1337,
+			ChainID:  uint32(config.Configuration.Chain.ID),
 			Owner:    owner,
 		},
 		TxHash: utils.ForceSliceToLength([]byte(strconv.Itoa(1)), constants.HashLen),
 	}
 	utxoDep := &objs.TXOut{}
-	err = utxoDep.NewValueStore(vs)
-	if err != nil {
-		fmt.Printf("Could not create ValueStore %v \n", err)
-	}
-	tx, txHash := makeTxs(signer, vs)
-	utxoIDs, err := tx.GeneratedUTXOID()
-	if err != nil {
-		fmt.Printf("Could not get utxoIds %v \n", err)
-	}
-	err = stateDB.Update(func(txn *badger.Txn) error {
+	utxoDep.NewValueStore(vs)
+	tx, consumedTxHash := makeTxs(signer, vs)
+	utxoIDs, _ := tx.GeneratedUTXOID()
+	err = consDB.Update(func(txn *badger.Txn) error {
 		_, err := hndlr.ApplyState(txn, []*objs.Tx{tx}, 2)
 		if err != nil {
 			fmt.Printf("Could not validate %v \n", err)
@@ -304,7 +541,7 @@ func insertTestUTXO() ([][]byte, []byte, []byte) {
 	if err != nil {
 		fmt.Printf("Could not update DB %v \n", err)
 	}
-	return utxoIDs, accountAddress, txHash
+	return utxoIDs, accountAddress, consumedTxHash
 }
 
 func makeTxs(s objs.Signer, v *objs.ValueStore) (*objs.Tx, []byte) {
@@ -312,18 +549,19 @@ func makeTxs(s objs.Signer, v *objs.ValueStore) (*objs.Tx, []byte) {
 	value, err := v.Value()
 	chainID, err := txIn.ChainID()
 	pubkey, err := s.Pubkey()
-	tx = &objs.Tx{}
+	tx := &objs.Tx{}
 	tx.Vin = []*objs.TXIn{txIn}
 	newValueStore := &objs.ValueStore{
 		VSPreImage: &objs.VSPreImage{
-			ChainID: chainID,
-			Value:   value,
+			ChainID:  chainID,
+			Value:    value,
+			TXOutIdx: 0,
+			Fee:      new(uint256.Uint256).SetZero(),
 			Owner: &objs.ValueStoreOwner{
 				SVA:       objs.ValueStoreSVA,
 				CurveSpec: constants.CurveSecp256k1,
-				Account:   crypto.GetAccount(pubkey)},
-			TXOutIdx: 0,
-			Fee:      new(uint256.Uint256).SetZero(),
+				Account:   crypto.GetAccount(pubkey),
+			},
 		},
 		TxHash: make([]byte, constants.HashLen),
 	}
@@ -335,6 +573,7 @@ func makeTxs(s objs.Signer, v *objs.ValueStore) (*objs.Tx, []byte) {
 	err = v.Sign(tx.Vin[0], s)
 	if err != nil {
 		fmt.Printf("Could not create Txs %v \n", err)
+
 	}
 	return tx, tx.Vin[0].TXInLinker.TxHash
 }
