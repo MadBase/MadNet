@@ -1,4 +1,6 @@
 steps:
+- name: git
+  args: ['checkout', 'candidate']
 - name: golang
   args: ['make', 'generate']
   id: 'generate'
