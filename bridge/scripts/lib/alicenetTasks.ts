@@ -5,6 +5,10 @@ import { task, types } from "hardhat/config";
 import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
+function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export async function getTokenIdFromTx(ethers: any, tx: any) {
   const abi = [
     "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
@@ -13,6 +17,19 @@ export async function getTokenIdFromTx(ethers: any, tx: any) {
   const receipt = await tx.wait();
   const log = iface.parseLog(receipt.logs[2]);
   return log.args[2];
+}
+
+async function waitBlocks(waitingBlocks: number, hre: any) {
+  let constBlock = await hre.ethers.provider.getBlockNumber();
+  const expectedBlock = constBlock + waitingBlocks;
+  console.log(
+    `Current block: ${constBlock} Waiting for ${waitingBlocks} blocks to be mined!`
+  );
+  while (constBlock < expectedBlock) {
+    constBlock = await hre.ethers.provider.getBlockNumber();
+    console.log(`Current block: ${constBlock}`);
+    await delay(10000);
+  }
 }
 
 task(
@@ -83,6 +100,88 @@ task(
     fs.writeFileSync(taskArgs.outputFolder + "/deploymentArgsTemplate", data);
   });
 
+task(
+  "deployStateMigrationContract",
+  "Deploy state migration contract and run migrations"
+)
+  .addParam(
+    "factoryAddress",
+    "the default factory address from factoryState will be used if not set"
+  )
+  .addOptionalParam("migrationAddress", "the address of the migration contract")
+  .addFlag(
+    "skipFirstTransaction",
+    "The task executes 2 tx to execute the migrations." +
+      " Use this flag if you want to skip the first tx where we mint the NFT."
+  )
+  .setAction(async (taskArgs, hre) => {
+    if (
+      taskArgs.factoryAddress === undefined ||
+      taskArgs.factoryAddress === ""
+    ) {
+      throw new Error("Expected a factory address to be passed!");
+    }
+    // Make sure that admin is the named account at position 0
+    const [admin] = await hre.ethers.getSigners();
+    console.log(`Admin address: ${admin.address}`);
+
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+
+    let stateMigration;
+    if (
+      taskArgs.migrationAddress === undefined ||
+      taskArgs.migrationAddress === ""
+    ) {
+      console.log("Deploying migration contract!");
+      stateMigration = await (
+        await hre.ethers.getContractFactory("StateMigration")
+      )
+        .connect(admin)
+        .deploy(taskArgs.factoryAddress);
+
+      await waitBlocks(6, hre);
+
+      console.log("Deployed migration contract at " + stateMigration.address);
+    } else {
+      stateMigration = await hre.ethers.getContractAt(
+        "StateMigration",
+        taskArgs.migrationAddress
+      );
+      console.log(
+        "Using migration contract deployed at " + stateMigration.address
+      );
+    }
+
+    if (
+      taskArgs.skipFirstTransaction === undefined ||
+      taskArgs.skipFirstTransaction === false
+    ) {
+      console.log("Calling the contract first time to mint and stake NFTs!");
+      await (
+        await factory.delegateCallAny(
+          stateMigration.address,
+          stateMigration.interface.encodeFunctionData("doMigrationStep")
+        )
+      ).wait();
+
+      await waitBlocks(3, hre);
+    }
+    console.log(
+      "Calling the contract second time to register and migrate state!"
+    );
+    await (
+      await factory.delegateCallAny(
+        stateMigration.address,
+        stateMigration.interface.encodeFunctionData("doMigrationStep")
+      )
+    ).wait();
+
+    await waitBlocks(3, hre);
+  });
+
 task("registerValidators", "registers validators")
   .addParam("factoryAddress", "address of the factory deploying the contract")
   .addFlag(
@@ -144,6 +243,9 @@ task("registerValidators", "registers validators")
         "ERC20",
         await aToken.getLegacyTokenAddress()
       );
+
+      const input = aToken.interface.encodeFunctionData("allowMigration");
+      await factory.connect(admin).callAny(aToken.address, 0, input);
 
       console.log(`Legacy Token Address: ${legacyToken.address}`);
       console.log(
