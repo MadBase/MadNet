@@ -15,6 +15,7 @@ import {
   AToken,
   ATokenBurner,
   ATokenMinter,
+  BridgePool,
   BToken,
   ETHDKG,
   Foundation,
@@ -65,6 +66,7 @@ export interface Fixture extends BaseTokensFixture {
   ethdkg: ETHDKG;
   stakingPositionDescriptor: StakingPositionDescriptor;
   namedSigners: SignerWithAddress[];
+  bridgePool: BridgePool;
 }
 
 /**
@@ -547,6 +549,13 @@ export const getFixture = async (
     "ATokenBurner"
   )) as ATokenBurner;
 
+  // BridgePool
+  const bridgePool = (await deployUpgradeableWithFactory(
+    factory,
+    "BridgePool",
+    "BridgePool"
+  )) as BridgePool;
+
   await posFixtureSetup(factory, aToken, legacyToken);
 
   const blockNumber = BigInt(await ethers.provider.getBlockNumber());
@@ -564,6 +573,7 @@ export const getFixture = async (
     validatorPool,
     snapshots,
     ethdkg,
+    bridgePool,
     factory,
     namedSigners,
     aTokenMinter,

@@ -1,0 +1,39 @@
+@startuml name
+Actor User
+Participant "BridgePool" as MadnetFactory #LightBlue
+Participant "MadByte\n(ERC20Upgradeable)" as MadByte #LightGreen
+Participant "MadToken\n(Legacy ERC20)" as MadToken #Orange
+Participant "ATokenMinter" as ATokenMinter #LightCoral
+Participant "ATokenBurner" as ATokenBurner #LightCyan
+title New ERC20Upgradeable AToken with External Minter/Burner Helper
+
+User -> MadByte : approve(BridegPool,tokenAmount)
+User -> BridegPool : deposit(tokenAmount)
+group deposit
+    group transfer       
+        MadByte -> BridgePool : transferFrom\n(user,BridgePool,tokenAmount)
+        MadByte --> BridgePool: madBytes {tokenAmount}
+    end
+    group burn        
+        BridgePool -> MadByte : burn(tokenAmount,0)
+        MadByte --> BridgePool: eths {poolBalance/4}
+    end
+    group createDeposit        
+        BridgePool -> BridgePool : depositId = createDeposit(user.address, eths, false)
+        BridgePool -> EventEmitter: _emitDepositEvent(depositID, user.address, eths)
+    end
+end
+User -> BridegPool : withdraw(depositID)
+group withdraw       
+    BridgePool -> EventEmitter: _emitWithdrawalRequestEvent(depositID)
+
+end
+User -> ATokenMinter : mint(user,amount) [onlyFactory]
+group externalMint        
+    ATokenMinter -> AToken : externalMint(user, amount)\n[onlyATokenMinter]
+    AToken -> AToken : _mint(user, amount) 
+    AToken --> User: AToken amount
+end
+@enduml
+
+
