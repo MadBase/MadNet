@@ -407,16 +407,12 @@ contract BToken is
         uint256 numEth_,
         uint256 minBTK_
     ) internal returns (uint256 numBTK) {
-        //require that the value sent is equal to or above the market spread
         require(
             numEth_ >= _MARKET_SPREAD,
             string(abi.encodePacked(BTokenErrorCodes.BTOKEN_MARKET_SPREAD_TOO_LOW))
         );
-        //calculate the num tokens to mint using market spread as price
         numEth_ = numEth_ / _MARKET_SPREAD;
-        //pull in pool balance from gstate
         uint256 poolBalance = _poolBalance;
-        //calculate Btoken to mint
         numBTK = _ethToBTokens(poolBalance, numEth_);
         require(
             numBTK >= minBTK_,
