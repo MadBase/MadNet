@@ -18,6 +18,7 @@ contract AToken is
     ImmutableATokenBurner
 {
     address internal immutable _legacyToken;
+    bool internal _migrationAllowed;
 
     constructor(address legacyToken_)
         ImmutableFactory(msg.sender)
@@ -28,12 +29,17 @@ contract AToken is
     }
 
     function initialize() public onlyFactory initializer {
-        __ERC20_init("AToken", "ATK");
+        __ERC20_init("AToken", "ALC");
     }
 
     function migrate(uint256 amount) public {
+        require(_migrationAllowed, "MadTokens migration not allowed");
         IERC20(_legacyToken).transferFrom(msg.sender, address(this), amount);
         _mint(msg.sender, amount);
+    }
+
+    function allowMigration() public onlyFactory {
+        _migrationAllowed = true;
     }
 
     function externalMint(address to, uint256 amount) public onlyATokenMinter {

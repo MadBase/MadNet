@@ -9,7 +9,7 @@ import "contracts/interfaces/IETHDKGEvents.sol";
 import "contracts/libraries/ethdkg/ETHDKGStorage.sol";
 import "contracts/utils/ETHDKGUtils.sol";
 import "contracts/utils/ImmutableAuth.sol";
-
+import {ETHDKGErrorCodes} from "contracts/libraries/errorCodes/ETHDKGErrorCodes.sol";
 import "contracts/interfaces/IProxy.sol";
 
 /// @custom:salt ETHDKG
@@ -30,7 +30,7 @@ contract ETHDKG is
     modifier onlyValidator() {
         require(
             IValidatorPool(_validatorPoolAddress()).isValidator(msg.sender),
-            "ETHDKG: Only validators allowed!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_ONLY_VALIDATORS_ALLOWED))
         );
         _;
     }
@@ -68,7 +68,7 @@ contract ETHDKG is
     function setPhaseLength(uint16 phaseLength_) public onlyFactory {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _phaseLength = phaseLength_;
     }
@@ -76,7 +76,7 @@ contract ETHDKG is
     function setConfirmationLength(uint16 confirmationLength_) public onlyFactory {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _confirmationLength = confirmationLength_;
     }
@@ -218,6 +218,76 @@ contract ETHDKG is
         _callPhaseContract(abi.encodeWithSignature("complete()"));
     }
 
+    function migrateValidators(
+        address[] memory validatorsAccounts_,
+        uint256[] memory validatorIndexes_,
+        uint256[4][] memory validatorShares_,
+        uint8 validatorCount_,
+        uint256 epoch_,
+        uint256 sideChainHeight_,
+        uint256 ethHeight_,
+        uint256[4] memory masterPublicKey_
+    ) public onlyFactory {
+        uint256 nonce = _nonce;
+        require(
+            nonce == 0,
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_MIGRATION_INVALID_NONCE))
+        );
+        require(
+            validatorsAccounts_.length == validatorIndexes_.length &&
+                validatorsAccounts_.length == validatorShares_.length,
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_MIGRATION_INPUT_DATA_MISMATCH))
+        );
+
+        nonce++;
+
+        emit RegistrationOpened(block.number, validatorCount_, nonce, 0, 0);
+
+        for (uint256 i = 0; i < validatorsAccounts_.length; i++) {
+            emit AddressRegistered(
+                validatorsAccounts_[i],
+                validatorIndexes_[i],
+                nonce,
+                [uint256(0), uint256(0)]
+            );
+        }
+
+        for (uint256 i = 0; i < validatorsAccounts_.length; i++) {
+            _participants[validatorsAccounts_[i]].index = uint64(validatorIndexes_[i]);
+            _participants[validatorsAccounts_[i]].nonce = uint64(nonce);
+            _participants[validatorsAccounts_[i]].phase = Phase.Completion;
+            _participants[validatorsAccounts_[i]].gpkj = validatorShares_[i];
+            emit ValidatorMemberAdded(
+                validatorsAccounts_[i],
+                validatorIndexes_[i],
+                nonce,
+                epoch_,
+                validatorShares_[i][0],
+                validatorShares_[i][1],
+                validatorShares_[i][2],
+                validatorShares_[i][3]
+            );
+        }
+
+        _masterPublicKey = masterPublicKey_;
+        _masterPublicKeyHash = keccak256(abi.encodePacked(masterPublicKey_));
+        _nonce = uint64(nonce);
+        _numParticipants = validatorCount_;
+
+        emit ValidatorSetCompleted(
+            validatorCount_,
+            nonce,
+            epoch_,
+            ethHeight_,
+            sideChainHeight_,
+            masterPublicKey_[0],
+            masterPublicKey_[1],
+            masterPublicKey_[2],
+            masterPublicKey_[3]
+        );
+        IValidatorPool(_validatorPoolAddress()).completeETHDKG();
+    }
+
     function isETHDKGRunning() public view returns (bool) {
         return _isETHDKGRunning();
     }
@@ -301,6 +371,10 @@ contract ETHDKG is
         return _masterPublicKey;
     }
 
+    function getMasterPublicKeyHash() public view returns (bytes32) {
+        return _masterPublicKeyHash;
+    }
+
     function getMinValidators() public pure returns (uint256) {
         return _MIN_VALIDATORS;
     }
@@ -338,17 +412,14 @@ contract ETHDKG is
         uint256 numberValidators = IValidatorPool(_validatorPoolAddress()).getValidatorsCount();
         require(
             numberValidators >= _MIN_VALIDATORS,
-            "ETHDKG: Minimum number of validators staked not met!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_MIN_VALIDATORS_NOT_MET))
         );
 
         _phaseStartBlock = uint64(block.number);
         _nonce++;
         _numParticipants = 0;
         _badParticipants = 0;
-        _mpkG1 = [uint256(0), uint256(0)];
         _ethdkgPhase = Phase.RegistrationOpen;
-
-        delete _masterPublicKey;
 
         emit RegistrationOpened(
             block.number,

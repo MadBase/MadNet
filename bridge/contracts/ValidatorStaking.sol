@@ -4,7 +4,7 @@ pragma solidity ^0.8.11;
 import "contracts/libraries/StakingNFT/StakingNFT.sol";
 
 /// @custom:salt ValidatorStaking
-/// @custom:deploy-type deployStatic
+/// @custom:deploy-type deployUpgradeable
 contract ValidatorStaking is StakingNFT {
     constructor() StakingNFT() {}
 
@@ -39,7 +39,9 @@ contract ValidatorStaking is StakingNFT {
     ) public override withCircuitBreaker onlyValidatorPool returns (uint256 tokenID) {
         require(
             lockDuration_ <= _MAX_MINT_LOCK,
-            "PublicStaking: The lock duration must be less or equal than the maxMintLock!"
+            string(
+                abi.encodePacked(StakingNFTErrorCodes.STAKENFT_LOCK_DURATION_GREATER_THAN_MINT_LOCK)
+            )
         );
         tokenID = _mintNFT(to_, amount_);
         if (lockDuration_ > 0) {

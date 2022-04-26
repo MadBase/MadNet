@@ -10,6 +10,7 @@ import "contracts/interfaces/IProxy.sol";
 import "contracts/libraries/ethdkg/ETHDKGStorage.sol";
 import "contracts/utils/ETHDKGUtils.sol";
 import "contracts/utils/ImmutableAuth.sol";
+import {ETHDKGErrorCodes} from "contracts/libraries/errorCodes/ETHDKGErrorCodes.sol";
 
 contract ETHDKGMock is
     ETHDKGStorage,
@@ -25,7 +26,7 @@ contract ETHDKGMock is
     modifier onlyValidator() {
         require(
             IValidatorPool(_validatorPoolAddress()).isValidator(msg.sender),
-            "ETHDKG: Only validators allowed!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_ONLY_VALIDATORS_ALLOWED))
         );
         _;
     }
@@ -71,7 +72,7 @@ contract ETHDKGMock is
     function setPhaseLength(uint16 phaseLength_) public {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _phaseLength = phaseLength_;
     }
@@ -79,7 +80,7 @@ contract ETHDKGMock is
     function setConfirmationLength(uint16 confirmationLength_) public {
         require(
             !_isETHDKGRunning(),
-            "ETHDKG: This variable cannot be set if an ETHDKG round is running!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _confirmationLength = confirmationLength_;
     }
@@ -302,6 +303,30 @@ contract ETHDKGMock is
         return _masterPublicKey;
     }
 
+    function getMasterPublicKeyHash() public view returns (bytes32) {
+        return _masterPublicKeyHash;
+    }
+
+    function migrateValidators(
+        address[] memory validatorsAccounts_,
+        uint256[] memory validatorIndexes_,
+        uint256[4][] memory validatorShares_,
+        uint8 validatorCount_,
+        uint256 epoch_,
+        uint256 sideChainHeight_,
+        uint256 ethHeight_,
+        uint256[4] memory masterPublicKey_
+    ) public pure {
+        validatorsAccounts_;
+        validatorIndexes_;
+        validatorShares_;
+        validatorCount_;
+        epoch_;
+        sideChainHeight_;
+        ethHeight_;
+        masterPublicKey_;
+    }
+
     function getMinValidators() public pure returns (uint256) {
         return _MIN_VALIDATORS;
     }
@@ -339,7 +364,7 @@ contract ETHDKGMock is
         uint256 numberValidators = IValidatorPool(_validatorPoolAddress()).getValidatorsCount();
         require(
             numberValidators >= _MIN_VALIDATORS,
-            "ETHDKG: Minimum number of validators staked not met!"
+            string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_MIN_VALIDATORS_NOT_MET))
         );
 
         _phaseStartBlock = uint64(block.number);
