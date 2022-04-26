@@ -607,7 +607,3 @@ task(
         console.log(i, eth.toNumber())
       }
     });
-
-function getPriceForBToken(numBtoken: number){
-
-} 
