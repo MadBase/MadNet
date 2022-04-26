@@ -414,7 +414,7 @@ contract BToken is
         );
         //calculate the num tokens to mint using market spread as price
         numEth_ = numEth_ / _MARKET_SPREAD;
-        //pull in pool balance from gstate 
+        //pull in pool balance from gstate
         uint256 poolBalance = _poolBalance;
         //calculate Btoken to mint
         numBTK = _ethToBTokens(poolBalance, numEth_);
