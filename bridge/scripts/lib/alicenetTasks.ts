@@ -1,11 +1,9 @@
 import toml from "@iarna/toml";
-import { BigNumber, ContractTransaction, Transaction } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 import fs from "fs";
-import { ethers } from "hardhat";
 import { task, types } from "hardhat/config";
-import { ALICENET_FACTORY, DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
+import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
-import { getATokenAddress, getATokenMinterAddress, getBTokenAddress, getDefaultFactoryAddress } from "./deployment/factoryStateUtil";
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -452,158 +450,157 @@ task(
     ).wait();
   });
 
-
-  task(
-    "transferEth",
-    "Forcing consensus to stop on block number defined by --input"
-  )
-    .addParam("receiver", "address of the account to fund")
-    .addParam("amount", "amount of eth to transfer")
-    .setAction(async (taskArgs, hre) => {
-      let accounts = await hre.ethers.getSigners();
-      let ownerBal = await hre.ethers.provider.getBalance(accounts[0].address)
-      let wei = BigNumber.from(parseInt(taskArgs.amount, 16)).mul(BigNumber.from("10").pow(BigInt(18)))
-      let amount = wei
-      const target = taskArgs.receiver
-      console.log(`previous owner balance: ${ownerBal.toString()}`);
-      let receiverBal = await hre.ethers.provider.getBalance(target)
-      console.log(`previous receiver balance: ${receiverBal.toString()}`)
-      let txRequest = await accounts[0].populateTransaction({from:accounts[0].address, value: amount, to: target});
-      let txResponse = await accounts[0].sendTransaction(txRequest);
-      receiverBal = await hre.ethers.provider.getBalance(target)
-      console.log(`new receiver balance: ${receiverBal}`);
-      let ownerBal2 = await hre.ethers.provider.getBalance(accounts[0].address)
-      console.log(`new owner balance: ${ownerBal.sub(ownerBal2).toString()}`);
+task(
+  "transferEth",
+  "Forcing consensus to stop on block number defined by --input"
+)
+  .addParam("receiver", "address of the account to fund")
+  .addParam("amount", "amount of eth to transfer")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await hre.ethers.getSigners();
+    const ownerBal = await hre.ethers.provider.getBalance(accounts[0].address);
+    const wei = BigNumber.from(parseInt(taskArgs.amount, 16)).mul(
+      BigNumber.from("10").pow(BigInt(18))
+    );
+    const amount = wei;
+    const target = taskArgs.receiver;
+    console.log(`previous owner balance: ${ownerBal.toString()}`);
+    let receiverBal = await hre.ethers.provider.getBalance(target);
+    console.log(`previous receiver balance: ${receiverBal.toString()}`);
+    const txRequest = await accounts[0].populateTransaction({
+      from: accounts[0].address,
+      value: amount,
+      to: target,
     });
+    const txResponse = await accounts[0].sendTransaction(txRequest);
+    await txResponse.wait();
+    receiverBal = await hre.ethers.provider.getBalance(target);
+    console.log(`new receiver balance: ${receiverBal}`);
+    const ownerBal2 = await hre.ethers.provider.getBalance(accounts[0].address);
+    console.log(`new owner balance: ${ownerBal.sub(ownerBal2).toString()}`);
+  });
 
-  task(
-    "mintATokenTo",
-    "mints A token to an address"
-  )
-    .addParam("factoryAddress", "address of the factory deploying the contract")
-    .addParam("amount", "amount to mint")
-    .addParam("to", "address of the recipient")
-    .setAction(async (taskArgs, hre) => {
-      const network = hre.network.name;
-      let aTokenMinterBase = await hre.ethers.getContractFactory("ATokenMinter")
-      const factory = await hre.ethers.getContractAt(
-        "AliceNetFactory",
-        taskArgs.factoryAddress
-      );
-      const  aTokenMinterAddr = await factory.lookup(hre.ethers.utils.formatBytes32String("ATokenMinter"));  
-      const aToken = await hre.ethers.getContractAt(
-        "AToken",
-        await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
-      );
-      let bal1 = await aToken.callStatic.balanceOf(taskArgs.to)
-      let calldata = aTokenMinterBase.interface.encodeFunctionData("mint", [taskArgs.to, taskArgs.amount]);
-      //use the factory to call the A token minter
-      let txResponse = await factory.callAny(aTokenMinterAddr, 0, calldata)
-      await txResponse.wait();
-      let bal2 = await aToken.balanceOf(taskArgs.to);
-      console.log(`Minted ${bal2.sub(bal1).toString()} to account ${taskArgs.to}`)
+task("mintATokenTo", "mints A token to an address")
+  .addParam("factoryAddress", "address of the factory deploying the contract")
+  .addParam("amount", "amount to mint")
+  .addParam("to", "address of the recipient")
+  .setAction(async (taskArgs, hre) => {
+    const aTokenMinterBase = await hre.ethers.getContractFactory(
+      "ATokenMinter"
+    );
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+    const aTokenMinterAddr = await factory.lookup(
+      hre.ethers.utils.formatBytes32String("ATokenMinter")
+    );
+    const aToken = await hre.ethers.getContractAt(
+      "AToken",
+      await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
+    );
+    const bal1 = await aToken.callStatic.balanceOf(taskArgs.to);
+    const calldata = aTokenMinterBase.interface.encodeFunctionData("mint", [
+      taskArgs.to,
+      taskArgs.amount,
+    ]);
+    // use the factory to call the A token minter
+    const txResponse = await factory.callAny(aTokenMinterAddr, 0, calldata);
+    await txResponse.wait();
+    const bal2 = await aToken.balanceOf(taskArgs.to);
+    console.log(
+      `Minted ${bal2.sub(bal1).toString()} to account ${taskArgs.to}`
+    );
+  });
+
+task("getATokenBalance", "gets AToken balance of account")
+  .addParam("factoryAddress", "address of the factory deploying the contract")
+  .addParam("account", "address of account to get balance of")
+  .setAction(async (taskArgs, hre) => {
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+    const aToken = await hre.ethers.getContractAt(
+      "AToken",
+      await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
+    );
+    const bal = await aToken.callStatic.balanceOf(taskArgs.account);
+    console.log(bal);
+    return bal;
+  });
+
+task("mintBTokenTo", "mints B token to an address")
+  .addParam("factoryAddress", "address of the factory deploying the contract")
+  .addParam("amount", "amount to mint")
+  .addParam("numWei", "amount of eth to use")
+  .addParam("to", "address of the recipient")
+  .setAction(async (taskArgs, hre) => {
+    if (
+      taskArgs.factoryAddress === undefined ||
+      taskArgs.factoryAddress === ""
+    ) {
+      throw new Error("Expected a factory address to be passed!");
+    }
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+    const bToken = await hre.ethers.getContractAt(
+      "BToken",
+      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+    );
+    const bal1 = await bToken.callStatic.balanceOf(taskArgs.to);
+    const txResponse = await bToken.mintTo(taskArgs.to, taskArgs.amount, {
+      value: taskArgs.numWei,
     });
+    await txResponse.wait();
+    const bal2 = await bToken.callStatic.balanceOf(taskArgs.to);
+    console.log(
+      `Minted ${bal2.sub(bal1).toString()} BToken to account ${taskArgs.to}`
+    );
+  });
 
-  task(
-    "getATokenBalance",
-    "gets AToken balance of account"
-  )
-    .addParam("factoryAddress", "address of the factory deploying the contract")
-    .addParam("account", "address of account to get balance of")
-    .setAction(async (taskArgs, hre) => {
-      const factory = await hre.ethers.getContractAt(
-        "AliceNetFactory",
-        taskArgs.factoryAddress
-      );
-      const aToken = await hre.ethers.getContractAt(
-        "AToken",
-        await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
-      );
-      let bal = await aToken.callStatic.balanceOf(taskArgs.account)
-      console.log(bal)
-      return bal    
-    });
+task("getBTokenBalance", "gets BToken balance of account")
+  .addParam("factoryAddress", "address of the factory deploying the contract")
+  .addParam("account", "address of account to get balance of")
+  .setAction(async (taskArgs, hre) => {
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+    const bToken = await hre.ethers.getContractAt(
+      "BToken",
+      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+    );
+    const bal = await bToken.callStatic.balanceOf(taskArgs.account);
+    console.log(bal);
+    return bal;
+  });
 
-    task(
-      "mintBTokenTo",
-      "mints B token to an address"
-    )
-      .addParam("factoryAddress", "address of the factory deploying the contract")
-      .addParam("amount", "amount to mint")
-      .addParam("numWei", "amount of eth to use")
-      .addParam("to", "address of the recipient")
-      .setAction(async (taskArgs, hre) => {
-        const network = hre.network.name;
-        if (
-          taskArgs.factoryAddress === undefined ||
-          taskArgs.factoryAddress === ""
-        ) {
-          throw new Error("Expected a factory address to be passed!");
-        }
-        const factory = await hre.ethers.getContractAt(
-          "AliceNetFactory",
-          taskArgs.factoryAddress
-        );
-        const bToken = await hre.ethers.getContractAt(
-          "BToken",
-          await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
-        );
-        let bal1 = await bToken.callStatic.balanceOf(taskArgs.to)
-        let txResponse = await bToken.mintTo(taskArgs.to, taskArgs.amount, {value: taskArgs.numWei})
-        await txResponse.wait();
-        let bal2 = await bToken.callStatic.balanceOf(taskArgs.to);
-        console.log(`Minted ${bal2.sub(bal1).toString()} BToken to account ${taskArgs.to}`)
-      });
+task("getEthBalance", "gets AToken balance of account")
+  .addParam("account", "address of account to get balance of")
+  .setAction(async (taskArgs, hre) => {
+    const bal = await hre.ethers.provider.getBalance(taskArgs.account);
+    console.log(bal);
+    return bal;
+  });
 
-  task(
-    "getBTokenBalance",
-    "gets BToken balance of account"
-  )
-    .addParam("factoryAddress", "address of the factory deploying the contract")
-    .addParam("account", "address of account to get balance of")
-    .setAction(async (taskArgs, hre) => {
-      const factory = await hre.ethers.getContractAt(
-        "AliceNetFactory",
-        taskArgs.factoryAddress
-      );  
-      const bToken = await hre.ethers.getContractAt(
-        "BToken",
-        await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
-      );
-      let bal = await bToken.callStatic.balanceOf(taskArgs.account)
-      console.log(bal)
-      return bal    
-    });
+task("ethToBToken", "gets AToken balance of account")
+  .addParam("factoryAddress", "address of the factory deploying the contract")
 
-  task(
-    "getEthBalance",
-    "gets AToken balance of account"
-  )
-    .addParam("account", "address of account to get balance of")
-    .setAction(async (taskArgs, hre) => {
-      const bal = await hre.ethers.provider.getBalance(taskArgs.account)
-      console.log(bal)
-      return bal    
-    });
-
-  task(
-    "ethToBToken",
-    "gets AToken balance of account"
-  )
-    .addParam("factoryAddress", "address of the factory deploying the contract")
-    
-    .setAction(async (taskArgs, hre) => {
-      const factory = await hre.ethers.getContractAt(
-        "AliceNetFactory",
-        taskArgs.factoryAddress
-      );  
-      const bToken = await hre.ethers.getContractAt(
-        "BToken",
-        await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
-      );
-      for(let i = 0; i < 100; i++){
-        let poolBal = await bToken.getPoolBalance();
-        let eth = await bToken.ethToBTokens(poolBal , i);
-        console.log(i, eth.toNumber())
-      }
-    });
+  .setAction(async (taskArgs, hre) => {
+    const factory = await hre.ethers.getContractAt(
+      "AliceNetFactory",
+      taskArgs.factoryAddress
+    );
+    const bToken = await hre.ethers.getContractAt(
+      "BToken",
+      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+    );
+    for (let i = 0; i < 100; i++) {
+      const poolBal = await bToken.getPoolBalance();
+      const eth = await bToken.ethToBTokens(poolBal, i);
+      console.log(i, eth.toNumber());
+    }
+  });
