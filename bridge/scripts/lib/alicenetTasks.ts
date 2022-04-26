@@ -200,8 +200,8 @@ task("registerValidators", "registers validators")
     // checking factory address
     factory
       .lookup(hre.ethers.utils.formatBytes32String("AToken"))
-      .catch((error) => {
-        console.log(
+      .catch((error: any) => {
+        throw new Error(
           `Invalid factory-address ${taskArgs.factoryAddress}!\n${error}`
         );
       });
