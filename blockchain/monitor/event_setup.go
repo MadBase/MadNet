@@ -187,7 +187,13 @@ func SetupEventMap(em *objects.EventMap, cdb *db.Database, adminHandler interfac
 		panic("could not find event DepositNotifier.Deposited")
 	}
 
-	if err := em.RegisterLocked(depositedEvent.ID.String(), depositedEvent.Name, monevents.ProcessDeposited); err != nil {
+	if err := em.RegisterLocked(
+		depositedEvent.ID.String(),
+		depositedEvent.Name,
+		func(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
+			return monevents.ProcessDeposited(eth, logger, state, log, cdb)
+		},
+	); err != nil {
 		panic(err)
 	}
 

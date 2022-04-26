@@ -130,6 +130,10 @@ func PrefixStorageNodeKey() []byte {
 	return []byte("a5")
 }
 
+func PrefixDepositedNonce() []byte {
+	return []byte("a6")
+}
+
 func PrefixPendingNodeKeyCount() []byte {
 	return []byte("Ay")
 }

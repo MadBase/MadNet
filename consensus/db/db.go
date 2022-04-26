@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"math/big"
 	"sync"
 
 	"github.com/MadBase/MadNet/constants/dbprefix"
@@ -1883,6 +1884,19 @@ func (db *Database) GetPendingHdrLeafKeysIter(txn *badger.Txn) *PendingHdrLeafIt
 	seek = append(seek, make([]byte, constants.HashLen)...)
 	it.Seek(seek)
 	return &PendingHdrLeafIter{it: it, prefixLen: len(prefix)}
+}
+
+func (db *Database) GetDepositedNonce(txn *badger.Txn) (*big.Int, error) {
+	b, err := db.rawDB.getValue(txn, dbprefix.PrefixDepositedNonce())
+	if err != nil {
+		return nil, err
+	}
+
+	return (&big.Int{}).SetBytes(b), nil
+}
+
+func (db *Database) SetDepositedNonce(txn *badger.Txn, i *big.Int) error {
+	return db.rawDB.SetValue(txn, dbprefix.PrefixDepositedNonce(), i.Bytes())
 }
 
 type PendingHdrLeafIter struct {

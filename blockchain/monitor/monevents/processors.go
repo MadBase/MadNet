@@ -190,7 +190,7 @@ func ProcessValidatorMajorSlashed(eth interfaces.Ethereum, logger *logrus.Entry,
 }
 
 // ProcessDeposited handles the Deposited event
-func ProcessDeposited(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log) error {
+func ProcessDeposited(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log, db *db.Database) error {
 
 	event, err := eth.Contracts().DepositNotifier().ParseDeposited(log)
 	if err != nil {
@@ -204,6 +204,28 @@ func ProcessDeposited(eth interfaces.Ethereum, logger *logrus.Entry, state *bobj
 		"Number":      event.Number.String(),
 		"NetworkId":   event.NetworkId.String(),
 	}).Infof("Deposited")
+
+	db.View(func(txn *badger.Txn) error {
+		prevNonce, err := db.GetDepositedNonce(txn)
+		if err != nil {
+			return err
+		}
+
+		cmp := event.Nonce.Cmp(prevNonce)
+		if cmp == 0 {
+			// already check this nonce, noop
+			return nil
+		} else if cmp == 1 {
+			// UTXO creation goes here
+
+			err = db.SetDepositedNonce(txn, event.Nonce)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	return nil
 }
