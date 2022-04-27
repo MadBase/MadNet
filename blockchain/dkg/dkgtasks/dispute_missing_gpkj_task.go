@@ -31,6 +31,13 @@ func NewDisputeMissingGPKjTask(state *objects.DkgState, start uint64, end uint64
 func (t *DisputeMissingGPKjTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 	logger.Info("Initializing DisputeMissingGPKjTask...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 
@@ -161,7 +168,7 @@ func (t *DisputeMissingGPKjTask) getAccusableParticipants(ctx context.Context, e
 	for _, p := range t.State.Participants {
 		_, isValidator := validatorsMap[p.Address]
 		if isValidator && (p.Nonce != t.State.Nonce ||
-			p.Phase != uint8(objects.GPKJSubmission) ||
+			p.Phase != objects.GPKJSubmission ||
 			(p.GPKj[0].Cmp(big.NewInt(0)) == 0 &&
 				p.GPKj[1].Cmp(big.NewInt(0)) == 0 &&
 				p.GPKj[2].Cmp(big.NewInt(0)) == 0 &&

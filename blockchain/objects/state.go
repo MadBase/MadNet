@@ -108,6 +108,8 @@ func (s *MonitorState) Clone() *MonitorState {
 	ns.LatestDepositSeen = s.LatestDepositSeen
 	ns.PeerCount = s.PeerCount
 
+	// todo: clone DkgState
+
 	return ns
 }
 
@@ -170,6 +172,8 @@ func (s *MonitorState) Diff(o *MonitorState) (string, bool) {
 		shouldWrite = true
 		d = append(d, fmt.Sprintf("LatestDepositSeen: %v -> %v", s.LatestDepositSeen, o.LatestDepositSeen))
 	}
+
+	// todo: check DkgState diff
 
 	return strings.Join(d, ", "), shouldWrite
 }

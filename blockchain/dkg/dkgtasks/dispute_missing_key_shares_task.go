@@ -29,6 +29,13 @@ func NewDisputeMissingKeySharesTask(state *objects.DkgState, start uint64, end u
 func (t *DisputeMissingKeySharesTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
 	logger.Info("Initializing DisputeMissingKeySharesTask...")
 
+	dkgData, ok := state.(objects.ETHDKGTaskData)
+	if !ok {
+		return objects.ErrCanNotContinue
+	}
+
+	t.State = dkgData.State
+
 	return nil
 }
 
@@ -159,7 +166,7 @@ func (t *DisputeMissingKeySharesTask) getAccusableParticipants(ctx context.Conte
 	for _, p := range t.State.Participants {
 		_, isValidator := validatorsMap[p.Address]
 		if isValidator && (p.Nonce != t.State.Nonce ||
-			p.Phase != uint8(objects.KeyShareSubmission) ||
+			p.Phase != objects.KeyShareSubmission ||
 			(p.KeyShareG1s[0].Cmp(big.NewInt(0)) == 0 &&
 				p.KeyShareG1s[1].Cmp(big.NewInt(0)) == 0) ||
 			(p.KeyShareG1CorrectnessProofs[0].Cmp(big.NewInt(0)) == 0 &&
