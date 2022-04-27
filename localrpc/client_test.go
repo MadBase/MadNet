@@ -4,56 +4,27 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 
 	consensusObjs "github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
-	"github.com/MadBase/MadNet/proto"
-
-	"google.golang.org/grpc"
 )
 
 func TestClient_GetBlockHeader(t *testing.T) {
-	type fields struct {
-		Mutex       sync.Mutex
-		closeChan   chan struct{}
-		closeOnce   sync.Once
-		Address     string
-		TimeOut     time.Duration
-		conn        *grpc.ClientConn
-		client      proto.LocalStateClient
-		wg          sync.WaitGroup
-		isConnected bool
-	}
 	type args struct {
 		ctx    context.Context
 		height uint32
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *consensusObjs.BlockHeader
 		wantErr bool
 	}{
-		{name: constants.LoggerApp,
-			fields: fields{
-				Mutex:       sync.Mutex{},
-				closeChan:   nil,
-				closeOnce:   sync.Once{},
-				Address:     address,
-				TimeOut:     timeout,
-				conn:        nil,
-				client:      nil,
-				wg:          sync.WaitGroup{},
-				isConnected: false,
-			},
-			args: args{
-				ctx:    context.Background(),
-				height: 1,
-			},
+		{args: args{
+			ctx:    context.Background(),
+			height: 1,
+		},
 		},
 	}
 	for _, tt := range tests {

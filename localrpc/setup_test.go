@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 	"testing"
@@ -43,17 +42,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var address string = "localhost:8884"
 var timeout time.Duration = time.Second * 10
 var account []byte
-var owner *objs.ValueStoreOwner
 var signer *crypto.Secp256k1Signer
-var txHash []byte
 var pubKey []byte
 var tx *objs.Tx
-var geth = exec.Cmd{}
 var err error
-var badgerDB *badger.DB
 var srpc *Handlers
 var lrpc *Client
 var tx1, tx2, tx3 *pb.TransactionData
@@ -177,7 +171,7 @@ func validatorNode() {
 	publicKey := pubKey
 	// create execution context for application
 	ctx = context.Background()
-	nodeCtx, _ := context.WithCancel(ctx)
+	nodeCtx := ctx
 	// defer cf()
 
 	// setup logger for program assembly operations
@@ -373,7 +367,7 @@ func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (t
 	signature := txin.Signature
 	/* 	fmt.Printf("Hash %x \n", hash)
 	   	fmt.Printf("Signature %x \n", signature) */
-	transactionData := *&pb.TransactionData{
+	transactionData := &pb.TransactionData{
 		Tx: &pb.Tx{
 			Vin: []*pb.TXIn{
 				&pb.TXIn{
@@ -408,7 +402,7 @@ func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (t
 		},
 	}
 	/* 	fmt.Println(transactionData)
-	 */return &transactionData, hash, signature
+	 */return transactionData, hash, signature
 }
 
 func getSignerData() (*crypto.Secp256k1Signer, []byte) {
