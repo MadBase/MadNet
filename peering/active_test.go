@@ -293,6 +293,7 @@ func Test_activePeerStore_del(t *testing.T) {
 	type args struct {
 		c interfaces.NodeAddr
 	}
+
 	tests := []struct {
 		name        string
 		fields      fields
