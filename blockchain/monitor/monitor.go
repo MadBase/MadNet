@@ -150,12 +150,6 @@ func (mon *monitor) LoadState() error {
 		if err != nil {
 			return err
 		}
-
-		// todo: fix task state pointers
-		// for taskUUID, block := range mon.State.Schedule.Ranges {
-		// 	block.Task.
-		// }
-
 		return nil
 	}); err != nil {
 		return err
@@ -167,18 +161,13 @@ func (mon *monitor) LoadState() error {
 
 func (mon *monitor) PersistState() error {
 
-	fmt.Println("mon.PersistState() pre-lock")
 	mon.Lock()
-	fmt.Println("mon.PersistState() post-lock")
 	defer mon.Unlock()
 
 	rawData, err := json.Marshal(mon)
 	if err != nil {
 		return err
 	}
-
-	// todo: delete this
-	//fmt.Printf("persisted monitor: %s\n", rawData)
 
 	err = mon.db.Update(func(txn *badger.Txn) error {
 		keyLabel := fmt.Sprintf("%x", getStateKey())
@@ -229,9 +218,6 @@ func (mon *monitor) Start() error {
 		mon.State.HighestBlockFinalized = startingBlock
 		mon.State.HighestBlockProcessed = startingBlock
 	}
-
-	// todo: delete this
-	logger.Infof("loaded monitor.state.dkgState: %##v\n", mon.State.EthDKG)
 
 	if startingBlock > mon.State.HighestBlockProcessed {
 		logger.WithFields(logrus.Fields{
@@ -294,13 +280,7 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 
 			oldMonitorState := mon.State.Clone()
 
-			persistMonitorCB := func() {
-				logger.Infof("persistMonitorCB is calling")
-				mon.PersistState()
-				logger.Infof("persistMonitorCB was called")
-			}
-
-			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize, persistMonitorCB); err != nil {
+			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize); err != nil {
 				logger.Errorf("Failed MonitorTick(...): %v", err)
 			}
 
@@ -344,7 +324,7 @@ func (m *monitor) UnmarshalJSON(raw []byte) error {
 
 // MonitorTick using existing monitorState and incrementally updates it based on current State of Ethereum endpoint
 func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup, eth interfaces.Ethereum, monitorState *objects.MonitorState, logger *logrus.Entry,
-	eventMap *objects.EventMap, adminHandler interfaces.AdminHandler, batchSize uint64, persistMonitorCB func()) error {
+	eventMap *objects.EventMap, adminHandler interfaces.AdminHandler, batchSize uint64) error {
 
 	defer cf()
 	logger = logger.WithFields(logrus.Fields{
@@ -435,46 +415,19 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 
 		// Check if any tasks are scheduled
 		logEntry.Debug("Looking for scheduled task")
-		logger.Infof("monitor.State.DkgState: %p\n", monitorState.EthDKG)
 		uuid, err := monitorState.Schedule.Find(currentBlock)
 		if err == nil {
-			isRunning, err := monitorState.Schedule.IsRunning(uuid)
-			if err != nil {
-				return err
-			}
+			task, _ := monitorState.Schedule.Retrieve(uuid)
 
-			if !isRunning {
+			taskName, _ := objects.GetNameType(task)
 
-				task, err := monitorState.Schedule.Retrieve(uuid)
-				if err != nil {
-					return err
-				}
+			log := logEntry.WithFields(logrus.Fields{
+				"TaskID":   uuid.String(),
+				"TaskName": taskName})
 
-				taskName, _ := objects.GetNameType(task)
+			tasks.StartTask(log, wg, eth, task, nil)
 
-				log := logEntry.WithFields(logrus.Fields{
-					"TaskID":   uuid.String(),
-					"TaskName": taskName})
-
-				onFinishCB := func() {
-					monitorState.Schedule.SetRunning(uuid, false)
-					monitorState.Schedule.Remove(uuid)
-				}
-				dkgData := objects.ETHDKGTaskData{
-					PersistStateCB: persistMonitorCB,
-					State:          monitorState.EthDKG,
-				}
-				err = tasks.StartTask(log, wg, eth, task, dkgData, &onFinishCB)
-				if err != nil {
-					return err
-				}
-				err = monitorState.Schedule.SetRunning(uuid, true)
-				if err != nil {
-					return err
-				}
-			}
-
-			//monitorState.Schedule.Remove(uuid)
+			monitorState.Schedule.Remove(uuid)
 		} else if err == objects.ErrNothingScheduled {
 			logEntry.Debug("No tasks scheduled")
 		} else {
@@ -525,7 +478,7 @@ func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Eth
 	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
 	task.BlockHeader = bh
 
-	tasks.StartTask(logger, wg, eth, task, nil, nil)
+	tasks.StartTask(logger, wg, eth, task, nil)
 
 	return nil
 }

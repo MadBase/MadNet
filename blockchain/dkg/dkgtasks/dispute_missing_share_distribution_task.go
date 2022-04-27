@@ -30,13 +30,6 @@ func (t *DisputeMissingShareDistributionTask) Initialize(ctx context.Context, lo
 
 	logger.Info("DisputeMissingShareDistributionTask Initializing...")
 
-	dkgData, ok := state.(objects.ETHDKGTaskData)
-	if !ok {
-		return objects.ErrCanNotContinue
-	}
-
-	t.State = dkgData.State
-
 	return nil
 }
 
@@ -168,7 +161,7 @@ func (t *DisputeMissingShareDistributionTask) getAccusableParticipants(ctx conte
 	for _, p := range t.State.Participants {
 		_, isValidator := validatorsMap[p.Address]
 		if isValidator && (p.Nonce != t.State.Nonce ||
-			p.Phase != objects.ShareDistribution ||
+			p.Phase != uint8(objects.ShareDistribution) ||
 			p.DistributedSharesHash == emptySharesHash) {
 			// did not distribute shares
 			accusableParticipants = append(accusableParticipants, p.Address)

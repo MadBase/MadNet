@@ -32,13 +32,6 @@ func NewMPKSubmissionTask(state *objects.DkgState, start uint64, end uint64) *MP
 // Here we load all key shares and construct the master public key
 // to submit in DoWork.
 func (t *MPKSubmissionTask) Initialize(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, state interface{}) error {
-	dkgData, ok := state.(objects.ETHDKGTaskData)
-	if !ok {
-		return objects.ErrCanNotContinue
-	}
-
-	t.State = dkgData.State
-
 	t.State.Lock()
 	defer t.State.Unlock()
 
