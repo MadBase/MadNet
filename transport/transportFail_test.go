@@ -22,14 +22,14 @@ func TestTransportfail(t *testing.T) {
 	}
 	nodePrivKey2Hex := serializeTransportPrivateKey(nodePrivKey2)
 
-	transport1, err := NewP2PTransport(logger, testCID, nodePrivKey1Hex, t1Port, t1Host)
+	transport1, err := NewP2PTransport(logger, testCID, nodePrivKey1Hex, 3004, t1Host)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer transport1.Close()
 	nodeAddr1 := transport1.NodeAddr()
 
-	transport2, err := NewP2PTransport(logger, testCIDFail, nodePrivKey2Hex, t2Port, t2Host)
+	transport2, err := NewP2PTransport(logger, testCIDFail, nodePrivKey2Hex, 4004, t2Host)
 	if err != nil {
 		t.Fatal(err)
 	}
