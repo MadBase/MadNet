@@ -256,7 +256,7 @@ func (mon *monitor) Start() error {
 	return nil
 }
 
-func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) error {
+func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) {
 
 	defer wg.Done()
 	gcTimer := time.After(time.Second * constants.MonDBGCFreq)
@@ -270,12 +270,15 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 		}
 		select {
 		case <-gcTimer:
-			mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio)
+			err := mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio) 
+			if err != nil {
+				logger.Errorf("Failed to run value log GC: %v", err)
+			}
 			gcTimer = time.After(time.Second * constants.MonDBGCFreq)
 		case <-cancelChan:
 			mon.logger.Warnf("Received cancel request for event loop.")
 			cf()
-			return nil
+			return
 		case tick := <-time.After(tock):
 			mon.logger.WithTime(tick).Debug("Tick")
 
@@ -512,7 +515,10 @@ func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Eth
 	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
 	task.BlockHeader = bh
 
-	tasks.StartTask(logger, wg, eth, task, nil, nil)
+	err := tasks.StartTask(logger, wg, eth, task, nil, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
