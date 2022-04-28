@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	aobjs "github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/application/objs/uint256"
@@ -34,6 +35,7 @@ type dmanTestProxy struct {
 	skipCallCheck bool
 	db            *db.Database
 	logger        *logrus.Logger
+	testTx        *aobjs.Tx
 }
 
 // assert struct `dmanTestProxy` implements `reqBusView` , `appmock.Application`, `databaseView` interfaces
@@ -62,7 +64,22 @@ func (p *dmanTestProxy) RequestP2PGetPendingTx(ctx context.Context, txHashes [][
 	// if ctx == nil {
 	// 	panic(fmt.Sprintf("ctx was nil in test mock object of call type %s", cType))
 	// }
-	ret := [][]byte{make([]byte, constants.HashLen)}
+
+	//ret := [][]byte{make([]byte, constants.HashLen)}
+
+	bin, err := p.testTx.MarshalBinary()
+	if err != nil {
+		panic(fmt.Errorf("RequestP2PGetPendingTx() error tx.MarshalBinary(): %v", err))
+	}
+
+	hash, err := p.testTx.TxHash()
+	if err != nil {
+		panic(fmt.Errorf("RequestP2PGetPendingTx() error tx.TxHash(): %v", err))
+	}
+	fmt.Printf("RequestP2PGetPendingTx returning %v", hash)
+
+	ret := [][]byte{bin}
+
 	// returnTuple := p.returns[p.callIndex]
 	// tx := returnTuple[0].([][]byte)
 	// err, ok := returnTuple[1].(error)
@@ -89,7 +106,22 @@ func (p *dmanTestProxy) RequestP2PGetMinedTxs(ctx context.Context, txHashes [][]
 	// if ctx == nil {
 	// 	panic(fmt.Sprintf("ctx was nil in test mock object of call type %s", cType))
 	// }
-	ret := [][]byte{make([]byte, constants.HashLen)}
+
+	//ret := [][]byte{make([]byte, constants.HashLen)}
+
+	bin, err := p.testTx.MarshalBinary()
+	if err != nil {
+		panic(fmt.Errorf("RequestP2PGetMinedTxs() error tx.MarshalBinary(): %v", err))
+	}
+
+	hash, err := p.testTx.TxHash()
+	if err != nil {
+		panic(fmt.Errorf("RequestP2PGetMinedTxs() error tx.TxHash(): %v", err))
+	}
+	fmt.Printf("RequestP2PGetMinedTxs returning %v", hash)
+
+	ret := [][]byte{bin}
+
 	// returnTuple := p.returns[p.callIndex]
 	// tx := returnTuple[0].([][]byte)
 	// err, ok := returnTuple[1].(error)
@@ -340,7 +372,7 @@ func setupDmanTests(t *testing.T) (testProxy *dmanTestProxy, dman *DMan, ownerSi
 	return
 }
 
-func Test_DMan(t *testing.T) {
+func Test_DManProxy(t *testing.T) {
 	var p *dmanTestProxy = &dmanTestProxy{}
 	var dman *DMan = &DMan{}
 	dman.Init(p, p, p)
@@ -458,7 +490,6 @@ func Test_FlushCacheToDisk(t *testing.T) {
 		err := dman.FlushCacheToDisk(txn, 1)
 		assert.Nil(t, err)
 
-		// todo: check with Troy
 		assert.False(t, dman.downloadActor.bhc.Contains(1))
 
 		return err
@@ -487,7 +518,6 @@ func Test_CleanCache(t *testing.T) {
 		err := dman.CleanCache(txn, 1)
 		assert.Nil(t, err)
 
-		// todo: check with Troy
 		assert.False(t, dman.downloadActor.bhc.Contains(1))
 
 		return err
@@ -512,7 +542,7 @@ func Test_AddTxs(t *testing.T) {
 	txsToGet := make([][]byte, 0)
 	txsToGet = append(txsToGet, hash)
 
-	// test
+	// add Txs
 	err = testProxy.db.Update(func(txn *badger.Txn) error {
 		err := dman.AddTxs(txn, 1, txs)
 		assert.Nil(t, err)
@@ -552,6 +582,50 @@ func Test_AddTxs(t *testing.T) {
 	})
 
 	assert.Nil(t, err)
+}
+
+func Test_DownloadTxs(t *testing.T) {
+	testProxy, dman, ownerSigner, closeFn := setupDmanTests(t)
+	defer closeFn()
+
+	assert.False(t, dman.downloadActor.bhc.Contains(1))
+
+	/*consumedUTXOs*/
+	_, tx := makeTxInitial(ownerSigner)
+	var txs []interfaces.Transaction = []interfaces.Transaction{tx}
+
+	hash, err := tx.TxHash()
+	assert.Nil(t, err)
+	testProxy.testTx = tx
+
+	txsToGet := make([][]byte, 0)
+	txsToGet = append(txsToGet, hash)
+
+	assert.False(t, dman.downloadActor.txc.Contains(hash))
+
+	// add Txs
+	err = testProxy.db.Update(func(txn *badger.Txn) error {
+		err := dman.AddTxs(txn, 1, txs)
+		assert.Nil(t, err)
+
+		return err
+	})
+
+	assert.Nil(t, err)
+
+	assert.False(t, dman.downloadActor.txc.Contains(hash))
+	assert.False(t, dman.downloadActor.bhc.Contains(1))
+
+	// download the Txs
+	dman.DownloadTxs(1, 1, txsToGet)
+
+	// wait some time for actors to download Txs
+	<-time.After(5 * time.Second)
+
+	t.Logf("expecting hash: %v", hash)
+
+	assert.True(t, dman.downloadActor.txc.Contains(hash))
+	assert.False(t, dman.downloadActor.bhc.Contains(1))
 }
 
 func generateFullChain(length int) ([]*objs.BClaims, [][][]byte, error) {
