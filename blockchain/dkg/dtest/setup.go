@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -284,20 +283,23 @@ func GenerateGPKJ(dkgStates []*objects.DkgState) {
 }
 
 func GetMadnetRootPath() []string {
-	_, b, _, _ := runtime.Caller(0)
 
-	// Root folder of this project
-	root := filepath.Dir(b)
-	pathNodes := strings.Split(root, string(os.PathSeparator))
 	rootPath := []string{string(os.PathSeparator)}
-	//rootPath[0] = string(os.PathSeparator)
 
-	for _, node := range pathNodes {
-		rootPath = append(rootPath, node)
+	cmd := exec.Command("go", "list", "-m", "-f", "'{{.Dir}}'", "github.com/MadBase/MadNet")
+	stdout, err := cmd.Output()
+	if err != nil {
+		log.Printf("Error getting project root path: %v", err)
+		return rootPath
+	}
 
-		if node == "MadNet" {
-			break
-		}
+	path := string(stdout)
+	path = strings.ReplaceAll(path, "'", "")
+	path = strings.ReplaceAll(path, "\n", "")
+
+	pathNodes := strings.Split(path, string(os.PathSeparator))
+	for _, pathNode := range pathNodes {
+		rootPath = append(rootPath, pathNode)
 	}
 
 	return rootPath
