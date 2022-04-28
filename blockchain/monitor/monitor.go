@@ -255,7 +255,7 @@ func (mon *monitor) Start() error {
 	return nil
 }
 
-func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) error {
+func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) {
 
 	defer wg.Done()
 	gcTimer := time.After(time.Second * constants.MonDBGCFreq)
@@ -269,12 +269,15 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 		}
 		select {
 		case <-gcTimer:
-			mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio)
+			err := mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio) 
+			if err != nil {
+				logger.Errorf("Failed to run value log GC: %v", err)
+			}
 			gcTimer = time.After(time.Second * constants.MonDBGCFreq)
 		case <-cancelChan:
 			mon.logger.Warnf("Received cancel request for event loop.")
 			cf()
-			return nil
+			return
 		case tick := <-time.After(tock):
 			mon.logger.WithTime(tick).Debug("Tick")
 
@@ -425,9 +428,15 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 				"TaskID":   uuid.String(),
 				"TaskName": taskName})
 
-			tasks.StartTask(log, wg, eth, task, nil)
+			err := tasks.StartTask(log, wg, eth, task, nil)
+			if err != nil {
+				log.WithError(err).Error("Failed to start task")
+			}
 
-			monitorState.Schedule.Remove(uuid)
+			err = monitorState.Schedule.Remove(uuid)
+			if err != nil {
+				log.WithError(err).Error("Failed to remove task")
+			}
 		} else if err == objects.ErrNothingScheduled {
 			logEntry.Debug("No tasks scheduled")
 		} else {
@@ -478,7 +487,10 @@ func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Eth
 	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
 	task.BlockHeader = bh
 
-	tasks.StartTask(logger, wg, eth, task, nil)
+	err := tasks.StartTask(logger, wg, eth, task, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

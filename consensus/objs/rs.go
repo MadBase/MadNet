@@ -464,7 +464,11 @@ func (b *RoundState) TrackExternalConflicts(v *Proposal) {
 		return
 	}
 	// is current
-	b.checkStaleAndConflict(v, false)
+	_, err := b.checkStaleAndConflict(v, false)
+	if err != nil {
+		return
+	}
+
 }
 
 func (b *RoundState) SetRCert(rc *RCert) error {

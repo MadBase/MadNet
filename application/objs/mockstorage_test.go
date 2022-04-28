@@ -37,7 +37,7 @@ type mockStorageGetter struct {
 	valueStoreFee     *big.Int
 	atomicSwapFee     *big.Int
 	minTxFee          *big.Int
-	maxTxVectorLength int
+	// maxTxVectorLength int
 }
 
 func (msg *mockStorageGetter) GetMaxBytes() uint32 {

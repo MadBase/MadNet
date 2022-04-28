@@ -13,6 +13,7 @@ import (
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/dgraph-io/badger/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockTrie struct {
@@ -194,7 +195,8 @@ func mustAddTx(t *testing.T, hndlr *Handler, tx *objs.Tx, currentHeight uint32) 
 }
 
 func mustNotAdd(t *testing.T, hndlr *Handler, tx *objs.Tx, currentHeight uint32) {
-	hndlr.Add(nil, []*objs.Tx{tx}, currentHeight)
+	err := hndlr.Add(nil, []*objs.Tx{tx}, currentHeight)
+	assert.NotNil(t, err)
 	mustNotContain(t, hndlr, tx)
 }
 

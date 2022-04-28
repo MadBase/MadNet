@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/MadBase/MadNet/consensus/admin"
 	"github.com/MadBase/MadNet/consensus/appmock"
@@ -48,7 +47,6 @@ type Engine struct {
 	storage dynamics.StorageGetter
 
 	dm           *dman.DMan
-	notSafeTimer time.Time
 }
 
 // Init will initialize the Consensus Engine and all sub modules
@@ -127,7 +125,11 @@ func (ce *Engine) UpdateLocalState() (bool, error) {
 			}
 			if !safe {
 				bh, _ := ce.database.GetCommittedBlockHeader(txn, bHeight)
-				ce.database.SetCommittedBlockHeader(txn, bh)
+				err = ce.database.SetCommittedBlockHeader(txn, bh)
+				if err != nil {
+					utils.DebugTrace(ce.logger, err)
+					return err
+				}
 				utils.DebugTrace(ce.logger, nil, "not safe")
 				updateLocalState = false
 			} else {

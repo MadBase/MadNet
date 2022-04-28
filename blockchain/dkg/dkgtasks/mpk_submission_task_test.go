@@ -219,7 +219,8 @@ func TestMPKSubmission_LeaderElection(t *testing.T) {
 	// Do MPK Submission task
 	tasks := suite.mpkSubmissionTasks
 	for idx := 0; idx < n; idx++ {
-		tasks[idx].Initialize(ctx, logger, eth, suite.dkgStates[idx])
+		err := tasks[idx].Initialize(ctx, logger, eth, suite.dkgStates[idx])
+		assert.Nil(t, err)
 		//tasks[idx].State.MasterPublicKey[0] = big.NewInt(1)
 
 		if tasks[idx].AmILeading(ctx, eth, logger) {
