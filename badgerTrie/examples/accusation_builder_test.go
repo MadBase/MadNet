@@ -328,26 +328,26 @@ func testMerkleProofDeserialization(mpbytes []byte, mproof *db.MerkleProof) erro
 		return err
 	}
 	if mp1.Included != mproof.Included {
-		errors.New(fmt.Sprintf("bad height: %t Expected: %t", mp1.Included, mproof.Included))
+		return errors.New(fmt.Sprintf("bad height: %t Expected: %t", mp1.Included, mproof.Included))
 	}
 	if mp1.KeyHeight != mproof.KeyHeight {
-		errors.New(fmt.Sprintf("bad height: %d Expected: %d", mp1.KeyHeight, mproof.KeyHeight))
+		return errors.New(fmt.Sprintf("bad height: %d Expected: %d", mp1.KeyHeight, mproof.KeyHeight))
 	}
 	if !bytes.Equal(mp1.Key, mproof.Key) {
-		errors.New(fmt.Sprintf("bad Key: %x Expected %x", mp1.Key, mproof.Key))
+		return errors.New(fmt.Sprintf("bad Key: %x Expected %x", mp1.Key, mproof.Key))
 	}
 	if !bytes.Equal(mp1.ProofKey, mproof.ProofKey) {
-		errors.New(fmt.Sprintf("bad ProofKey: %x Expected: %x", mp1.ProofKey, mproof.ProofKey))
+		return errors.New(fmt.Sprintf("bad ProofKey: %x Expected: %x", mp1.ProofKey, mproof.ProofKey))
 	}
 	if !bytes.Equal(mp1.ProofValue, mproof.ProofValue) {
-		errors.New(fmt.Sprintf("bad Next: %x Expected: %x", mp1.ProofValue, mproof.ProofValue))
+		return errors.New(fmt.Sprintf("bad Next: %x Expected: %x", mp1.ProofValue, mproof.ProofValue))
 	}
 	if !bytes.Equal(mp1.Bitmap, mproof.Bitmap) {
-		errors.New(fmt.Sprintf("bad Bitmap: %x Expected: %x", mp1.Bitmap, mproof.Bitmap))
+		return errors.New(fmt.Sprintf("bad Bitmap: %x Expected: %x", mp1.Bitmap, mproof.Bitmap))
 	}
 	for i := 0; i < len(mproof.Path); i++ {
 		if !bytes.Equal(mp1.Path[i], mproof.Path[i]) {
-			errors.New(fmt.Sprintf("bad Path: %s Expected: %x", mp1.Path[i], mproof.Path[i]))
+			return errors.New(fmt.Sprintf("bad Path: %s Expected: %x", mp1.Path[i], mproof.Path[i]))
 		}
 	}
 	return nil
