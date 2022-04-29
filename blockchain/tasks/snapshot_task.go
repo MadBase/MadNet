@@ -72,8 +72,8 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 			return ctx.Err()
 		case <-time.After(time.Duration(n) * time.Second):
 		}
-
 		if !t.ShouldRetry(ctx, logger, eth) {
+			logger.Debug("Should not retry snapshots!")
 			// no need for snapshot
 			return nil
 		}
@@ -82,23 +82,23 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 		err := func() error {
 			txnOpts, err := eth.GetTransactionOpts(ctx, t.acct)
 			if err != nil {
-				logger.Warnf("Failed to generate transaction options: %v", err)
+				logger.Debugf("Failed to generate transaction options: %v", err)
 				return nil
 			}
 
 			txn, err := eth.Contracts().Snapshots().Snapshot(txnOpts, t.rawSigGroup, t.rawBclaims)
 			if err != nil {
-				logger.Warnf("Snapshot failed: %v", err)
+				logger.Debugf("Snapshot failed: %v", err)
 				return nil
 			} else {
 				rcpt, err := eth.Queue().QueueAndWait(ctx, txn)
 				if err != nil {
-					logger.Warnf("Snapshot failed to retreive receipt: %v", err)
+					logger.Debugf("Snapshot failed to retrive receipt: %v", err)
 					return nil
 				}
 
 				if rcpt.Status != 1 {
-					logger.Warnf("Snapshot receipt status != 1")
+					logger.Debugf("Snapshot receipt status != 1")
 					return context.DeadlineExceeded
 				}
 
@@ -115,16 +115,19 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 					return err
 				default:
 				}
+				logger.Debugf("Retrying snapshot after failed tx")
 				continue
 			}
 		}
 
+		logger.Debugf("Waiting for finality delay")
 		// check/wait for finality delay
 		err = func() error {
 			subctx, cf := context.WithTimeout(ctx, 5*time.Second)
 			defer cf()
 			initialHeight, err := eth.GetCurrentHeight(subctx)
 			if err != nil {
+				logger.Debugf("Error to get current eth height")
 				return err
 			}
 
@@ -141,6 +144,7 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 					defer cf()
 					testHeight, err := eth.GetCurrentHeight(subctx)
 					if err != nil {
+						logger.Debugf("Error to get test eth height")
 						return err
 					}
 
@@ -153,12 +157,13 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 							// no need for snapshot
 							currentHeight = testHeight
 							if currentHeight >= initialHeight+eth.GetFinalityDelay() {
+								logger.Debugf("Finished waiting finality delay!")
 								// todo: figure how to get the doTask() func to return nil
 								return nil
 							}
 						}
 					}
-
+					logger.Debugf("Finished waiting finality delay 2!")
 					return nil
 				}()
 
@@ -169,6 +174,7 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 							return err
 						default:
 						}
+						logger.Debugf("Retrying snapshot after finality delay")
 						continue
 					}
 				}
@@ -182,6 +188,7 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 					return err
 				default:
 				}
+				logger.Debugf("Retrying snapshot after everything")
 				continue
 			}
 		}
