@@ -452,7 +452,7 @@ task(
 
 task(
   "transferEth",
-  "Forcing consensus to stop on block number defined by --input"
+  "transfers eth from default account to receiver"
 )
   .addParam("receiver", "address of the account to fund")
   .addParam("amount", "amount of eth to transfer")
@@ -604,3 +604,120 @@ task("ethToBToken", "gets AToken balance of account")
       console.log(i, eth.toNumber());
     }
   });
+
+//WARNING ONLY RUN THIS ON TESTNET TO TESTLOAD 
+//RUNNING THIS ON MAINNET WILL WASTE ALL YOUR ETH 
+task("spamEthereum", "inject a bunch of random transactions to simulate regular block usage")
+.addParam("factoryAddress", "address of the factory deploying the contract")
+.addFlag("ludicrous", "over inflate certain blocks")
+.setAction(async (taskArgs, hre) => {
+  //this function deploys the snapshot contract 
+  const validatorPoolFactory = await hre.ethers.getContractFactory("ValidatorPool");
+  let accounts = await hre.ethers.getSigners()
+  let nonce0 = await hre.ethers.provider.getTransactionCount(accounts[0].address);
+  let nonce1 = await hre.ethers.provider.getTransactionCount(accounts[1].address);
+  // nonce0 = nonce0 === 0 ? 1 : nonce0
+  // nonce1 = nonce0 === 0 ? 1 : nonce1
+  let deployContract = async () => {
+    const deployTX = await validatorPoolFactory.deploy({nonce: nonce0});
+    nonce0++
+  };
+
+  let sendEth = async () => {
+    const wei = BigNumber.from(parseInt("10", 16)).mul(
+      BigNumber.from("10").pow(BigInt(18))
+    );
+    let txRequest = await accounts[0].populateTransaction({
+      from: accounts[0].address,
+      nonce: nonce0,
+      value: wei,
+      to: accounts[1].address,
+    });
+    nonce0++
+    await accounts[0].sendTransaction(txRequest);
+    txRequest = await accounts[1].populateTransaction({
+      from: accounts[1].address,
+      nonce: nonce1,
+      value: wei,
+      to: accounts[0].address,
+    });
+    nonce1++
+    await accounts[1].sendTransaction(txRequest);
+  };
+  let txTypes = [0,1,2]
+  let mintAToken = async() => {
+    await hre.run("mintATokenTo", {
+    factoryAddress: taskArgs.factoryAddress,
+    amount: "100",
+    to: accounts[0].address
+  }
+  )};
+  await mintAToken();
+  // while(1){
+  //   const type = Math.floor(Math.random() * txTypes.length);
+  //   console.log(type)
+  //   switch(type){
+  //     case 0:
+  //       await deployContract();
+  //       break;
+  //     case 1:
+  //       await sendEth();
+  //       break;
+  //     case 2:
+  //       await mintAToken();
+  //       break;
+  //     default: 
+  //       break;
+  //   }
+  // }
+
+})
+
+
+task("fundValidators", "manually put 100 eth in each validator account")
+.setAction(async (taskArgs, hre) => {
+  const signers = await hre.ethers.getSigners();
+  let configPath = "./../scripts/generated/config";
+  let validatorConfigs: Array<string> = [];
+  //get all the validator address from their toml config file, possibly check if generated is there
+  validatorConfigs = fs.readdirSync(configPath);
+  console.log(validatorConfigs)
+  //extract the address out of each validator config file 
+  let accounts: Array<string> = [];
+  validatorConfigs.forEach((val, idx, array)=>{
+    if(val.slice(0, 9) === "validator"){
+      accounts.push(getValidatorAccount(`${configPath}/${val}`))
+    }
+  });
+  accounts.forEach(async (val, idx, array) => {
+    const txResponse = await signers[0].sendTransaction({
+      to: "ricmoo.firefly.eth",
+      value: hre.ethers.utils.parseEther("100.0")
+    });
+    await txResponse.wait();
+    console.log(`account ${val} has ${hre.ethers.provider.getBalance(val)}`)
+  });
+
+})
+
+function getValidatorAccount(path: string): string {
+  let data = fs.readFileSync(path)
+  let config:any = toml.parse(data.toString());
+  return config["validator"]["rewardAccount"]
+} 
+
+task("getGasCost", "gets the current gas cost")
+.addFlag("ludicrous", "over inflate certain blocks")
+.setAction(async (taskArgs, hre) => {
+  let lastBlock = 0
+  while(1){
+    let gasPrice = await hre.ethers.provider.getGasPrice();
+    await waitBlocks(1, hre)
+    let blocknum = await hre.ethers.provider.blockNumber;
+    // console.log(`gas price @ blocknum ${blocknum.toString()}: ${gasPrice.toString()}`);
+    if(blocknum > lastBlock){
+      console.log(`gas price @ blocknum ${blocknum.toString()}: ${gasPrice.toString()}`);
+    }
+    lastBlock = blocknum
+  }
+})
