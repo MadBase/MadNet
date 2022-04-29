@@ -382,7 +382,7 @@ func (ah *Handlers) AddPrivateKey(pk []byte, curveSpec constants.CurveSpec) erro
 	return nil
 }
 
-// GetPrivK returns an decrypted private key from an EthDKG run to the caller
+// GetPrivK returns a decrypted private key from an EthDKG run to the caller
 func (ah *Handlers) GetPrivK(name []byte) ([]byte, error) {
 	var privk []byte
 	err := ah.database.View(func(txn *badger.Txn) error {
