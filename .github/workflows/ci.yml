@@ -102,7 +102,7 @@ jobs:
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v3.0.0
         env:
-            BRANCH_NAME: $(sed -E 's/[^[:alnum:]]+/_/g' <<<"${{ github.head_ref || github.ref_name }}")
+            BRANCH_NAME: $(sed -E 's/[^[:alnum:]]+/_/g' <<<${{ github.head_ref || github.ref_name }})
         with:
           name: alicenet-${{ env.BRANCH_NAME }}-${{ matrix.os }}
           path: ./madnet
