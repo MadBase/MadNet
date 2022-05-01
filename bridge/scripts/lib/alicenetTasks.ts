@@ -484,20 +484,20 @@ task("mintATokenTo", "mints A token to an address")
   .addParam("factoryAddress", "address of the factory deploying the contract")
   .addParam("amount", "amount to mint")
   .addParam("to", "address of the recipient")
+  .addOptionalParam("nonce", "nonce to send tx with")
   .setAction(async (taskArgs, hre) => {
+    let signers = await hre.ethers.getSigners()
+    let nonce = taskArgs.nonce === undefined ? hre.ethers.provider.getTransactionCount(signers[0].address) : taskArgs.nonce;
     const aTokenMinterBase = await hre.ethers.getContractFactory(
       "ATokenMinter"
     );
-    const factory = await hre.ethers.getContractAt(
-      "AliceNetFactory",
-      taskArgs.factoryAddress
-    );
-    const aTokenMinterAddr = await factory.lookup(
-      hre.ethers.utils.formatBytes32String("ATokenMinter")
+    let factory = await hre.ethers.getContractAt("AliceNetFactory", taskArgs.factoryAddress);
+    const aTokenMinterAddr = await factory.callStatic.lookup(
+      hre.ethers.utils.formatBytes32String("ATokenMinter"),
     );
     const aToken = await hre.ethers.getContractAt(
       "AToken",
-      await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
+      await factory.callStatic.lookup(hre.ethers.utils.formatBytes32String("AToken"))
     );
     const bal1 = await aToken.callStatic.balanceOf(taskArgs.to);
     const calldata = aTokenMinterBase.interface.encodeFunctionData("mint", [
@@ -505,9 +505,9 @@ task("mintATokenTo", "mints A token to an address")
       taskArgs.amount,
     ]);
     // use the factory to call the A token minter
-    const txResponse = await factory.callAny(aTokenMinterAddr, 0, calldata);
+    const txResponse = await factory.callAny(aTokenMinterAddr, 0, calldata, {nonce:nonce});
     await txResponse.wait();
-    const bal2 = await aToken.balanceOf(taskArgs.to);
+    const bal2 = await aToken.callStatic.balanceOf(taskArgs.to);
     console.log(
       `Minted ${bal2.sub(bal1).toString()} to account ${taskArgs.to}`
     );
@@ -605,6 +605,10 @@ task("ethToBToken", "gets AToken balance of account")
     }
   });
 
+
+function notSoRandomNumBetweenRange(max:number, min: number): number{
+  return Math.floor((Math.random() * (max - min + 1) + min))
+}
 //WARNING ONLY RUN THIS ON TESTNET TO TESTLOAD 
 //RUNNING THIS ON MAINNET WILL WASTE ALL YOUR ETH 
 task("spamEthereum", "inject a bunch of random transactions to simulate regular block usage")
@@ -616,10 +620,12 @@ task("spamEthereum", "inject a bunch of random transactions to simulate regular 
   let accounts = await hre.ethers.getSigners()
   let nonce0 = await hre.ethers.provider.getTransactionCount(accounts[0].address);
   let nonce1 = await hre.ethers.provider.getTransactionCount(accounts[1].address);
-  // nonce0 = nonce0 === 0 ? 1 : nonce0
-  // nonce1 = nonce0 === 0 ? 1 : nonce1
+  
+  nonce0 = nonce0 === 0 ? 1 : nonce0 += 1000
+  nonce1 = nonce0 === 0 ? 1 : nonce1 += 1000
   let deployContract = async () => {
-    const deployTX = await validatorPoolFactory.deploy({nonce: nonce0});
+    
+    validatorPoolFactory.deploy({nonce: nonce0});
     nonce0++
   };
 
@@ -627,11 +633,14 @@ task("spamEthereum", "inject a bunch of random transactions to simulate regular 
     const wei = BigNumber.from(parseInt("10", 16)).mul(
       BigNumber.from("10").pow(BigInt(18))
     );
+    let gp = await hre.ethers.provider.getGasPrice()
+    gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20,10)).add(gp)
     let txRequest = await accounts[0].populateTransaction({
       from: accounts[0].address,
       nonce: nonce0,
       value: wei,
       to: accounts[1].address,
+      gasPrice: gp
     });
     nonce0++
     await accounts[0].sendTransaction(txRequest);
@@ -640,36 +649,66 @@ task("spamEthereum", "inject a bunch of random transactions to simulate regular 
       nonce: nonce1,
       value: wei,
       to: accounts[0].address,
+      gasPrice: gp 
     });
-    nonce1++
     await accounts[1].sendTransaction(txRequest);
+    nonce1++
   };
   let txTypes = [0,1,2]
-  let mintAToken = async() => {
-    await hre.run("mintATokenTo", {
-    factoryAddress: taskArgs.factoryAddress,
-    amount: "100",
-    to: accounts[0].address
+  let mintAToken = async(amt: string) => {
+    hre.run(
+      "mintATokenTo", 
+      {
+        factoryAddress: taskArgs.factoryAddress,
+        amount: amt,
+        to: accounts[0].address,
+        nonce: nonce0.toString()
+      })
+    nonce0+=3
+  };
+  
+  while(1){
+    const type = Math.floor(Math.random() * txTypes.length);
+    console.log(type)
+    switch(type){
+      case 0:
+        try {
+          await deployContract();
+        } catch (error) {
+          let nonce0 = await hre.ethers.provider.getTransactionCount(accounts[0].address);
+          let nonce1 = await hre.ethers.provider.getTransactionCount(accounts[1].address);
+          
+          nonce0 = nonce0 === 0 ? 1 : nonce0 += 1000
+          nonce1 = nonce0 === 0 ? 1 : nonce1 += 1000
+          console.log(error)
+        }
+        break;
+      case 1:
+        try {
+          await sendEth();
+        } catch (error) {
+          let nonce0 = await hre.ethers.provider.getTransactionCount(accounts[0].address);
+          let nonce1 = await hre.ethers.provider.getTransactionCount(accounts[1].address);
+          nonce0 = nonce0 === 0 ? 1 : nonce0 += 1000
+          nonce1 = nonce0 === 0 ? 1 : nonce1 += 1000
+          console.log(error)
+        }
+        break;
+      case 2:
+        try {
+          await mintAToken("650");
+        } catch (error) {
+          let nonce0 = await hre.ethers.provider.getTransactionCount(accounts[0].address);
+          let nonce1 = await hre.ethers.provider.getTransactionCount(accounts[1].address);
+          nonce0 = nonce0 === 0 ? 1 : nonce0 += 1000
+          nonce1 = nonce0 === 0 ? 1 : nonce1 += 1000
+          console.log(error)
+        }
+        break;
+      default: 
+        break;
+    }
   }
-  )};
-  await mintAToken();
-  // while(1){
-  //   const type = Math.floor(Math.random() * txTypes.length);
-  //   console.log(type)
-  //   switch(type){
-  //     case 0:
-  //       await deployContract();
-  //       break;
-  //     case 1:
-  //       await sendEth();
-  //       break;
-  //     case 2:
-  //       await mintAToken();
-  //       break;
-  //     default: 
-  //       break;
-  //   }
-  // }
 
 })
 
@@ -681,7 +720,6 @@ task("fundValidators", "manually put 100 eth in each validator account")
   let validatorConfigs: Array<string> = [];
   //get all the validator address from their toml config file, possibly check if generated is there
   validatorConfigs = fs.readdirSync(configPath);
-  console.log(validatorConfigs)
   //extract the address out of each validator config file 
   let accounts: Array<string> = [];
   validatorConfigs.forEach((val, idx, array)=>{
@@ -689,15 +727,14 @@ task("fundValidators", "manually put 100 eth in each validator account")
       accounts.push(getValidatorAccount(`${configPath}/${val}`))
     }
   });
-  accounts.forEach(async (val, idx, array) => {
+
+  for(let account of accounts){
     const txResponse = await signers[0].sendTransaction({
-      to: "ricmoo.firefly.eth",
+      to: account,
       value: hre.ethers.utils.parseEther("100.0")
     });
-    await txResponse.wait();
-    console.log(`account ${val} has ${hre.ethers.provider.getBalance(val)}`)
-  });
-
+    console.log(`account ${account} has ${await hre.ethers.provider.getBalance(account)}`)
+  }
 })
 
 function getValidatorAccount(path: string): string {
@@ -712,7 +749,7 @@ task("getGasCost", "gets the current gas cost")
   let lastBlock = 0
   while(1){
     let gasPrice = await hre.ethers.provider.getGasPrice();
-    await waitBlocks(1, hre)
+    await delay(7000)
     let blocknum = await hre.ethers.provider.blockNumber;
     // console.log(`gas price @ blocknum ${blocknum.toString()}: ${gasPrice.toString()}`);
     if(blocknum > lastBlock){
