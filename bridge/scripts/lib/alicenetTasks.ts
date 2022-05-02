@@ -530,7 +530,9 @@ task("getATokenBalance", "gets AToken balance of account")
     );
     const aToken = await hre.ethers.getContractAt(
       "AToken",
-      await factory.lookup(hre.ethers.utils.formatBytes32String("AToken"))
+      await factory.callStatic.lookup(
+        hre.ethers.utils.formatBytes32String("AToken")
+      )
     );
     const bal = await aToken.callStatic.balanceOf(taskArgs.account);
     console.log(bal);
@@ -555,7 +557,9 @@ task("mintBTokenTo", "mints B token to an address")
     );
     const bToken = await hre.ethers.getContractAt(
       "BToken",
-      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+      await factory.callStatic.lookup(
+        hre.ethers.utils.formatBytes32String("BToken")
+      )
     );
     const bal1 = await bToken.callStatic.balanceOf(taskArgs.to);
     const txResponse = await bToken.mintTo(taskArgs.to, taskArgs.amount, {
@@ -578,7 +582,9 @@ task("getBTokenBalance", "gets BToken balance of account")
     );
     const bToken = await hre.ethers.getContractAt(
       "BToken",
-      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+      await factory.callStatic.lookup(
+        hre.ethers.utils.formatBytes32String("BToken")
+      )
     );
     const bal = await bToken.callStatic.balanceOf(taskArgs.account);
     console.log(bal);
@@ -603,7 +609,9 @@ task("ethToBToken", "gets AToken balance of account")
     );
     const bToken = await hre.ethers.getContractAt(
       "BToken",
-      await factory.lookup(hre.ethers.utils.formatBytes32String("BToken"))
+      await factory.callStatic.lookup(
+        hre.ethers.utils.formatBytes32String("BToken")
+      )
     );
     for (let i = 0; i < 100; i++) {
       const poolBal = await bToken.getPoolBalance();
@@ -629,26 +637,28 @@ task(
       "ValidatorPool"
     );
     const accounts = await hre.ethers.getSigners();
+    hre;
     let nonce0 = await hre.ethers.provider.getTransactionCount(
       accounts[0].address
     );
     let nonce1 = await hre.ethers.provider.getTransactionCount(
       accounts[1].address
     );
-
-    nonce0 = nonce0 === 0 ? 1 : (nonce0 += 1000);
-    nonce1 = nonce0 === 0 ? 1 : (nonce1 += 1000);
-    const deployContract = () => {
-      validatorPoolFactory.deploy({ nonce: nonce0 }).catch((error) => {
-        console.log(error);
-      });
+    nonce0 = nonce0 < 100 ? nonce0 : (nonce0 += 1000);
+    nonce1 = nonce0 < 100 ? nonce1 : (nonce1 += 1000);
+    const deployContract = async () => {
+      let gp = await hre.ethers.provider.getGasPrice();
+      gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
+      await validatorPoolFactory
+        .deploy({ nonce: nonce0, gasPrice: gp })
+        .catch((error) => {
+          console.log(error);
+        });
       nonce0++;
     };
 
     const sendEth = async () => {
-      const wei = BigNumber.from(parseInt("10", 16)).mul(
-        BigNumber.from("10").pow(BigInt(18))
-      );
+      const wei = 1n ** 10n * 10n ** 18n;
       let gp = await hre.ethers.provider.getGasPrice();
       gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
       let txRequest = await accounts[0].populateTransaction({
@@ -659,7 +669,8 @@ task(
         gasPrice: gp,
       });
       nonce0++;
-      await accounts[0].sendTransaction(txRequest);
+      const txResponse = await accounts[0].sendTransaction(txRequest);
+      txResponse.wait();
       txRequest = await accounts[1].populateTransaction({
         from: accounts[1].address,
         nonce: nonce1,
@@ -672,69 +683,47 @@ task(
     };
     const txTypes = [0, 1, 2];
     const mintAToken = async (amt: string) => {
-      await hre.run("mintATokenTo", {
+      hre.run("mintATokenTo", {
         factoryAddress: taskArgs.factoryAddress,
         amount: amt,
         to: accounts[0].address,
         nonce: nonce0.toString(),
       });
-      nonce0 += 3;
+      nonce0 += 4;
     };
 
-    while (1) {
-      const type = Math.floor(Math.random() * txTypes.length);
-      console.log(type);
-      switch (type) {
-        case 0:
-          try {
-            await deployContract();
-          } catch (error) {
-            let nonce0 = await hre.ethers.provider.getTransactionCount(
-              accounts[0].address
-            );
-            let nonce1 = await hre.ethers.provider.getTransactionCount(
-              accounts[1].address
-            );
+    deployContract();
+    while (1) {}
 
-            nonce0 = nonce0 === 0 ? 1 : (nonce0 += 1000);
-            nonce1 = nonce0 === 0 ? 1 : (nonce1 += 1000);
-            console.log(error);
-          }
-          break;
-        case 1:
-          try {
-            await sendEth();
-          } catch (error) {
-            let nonce0 = await hre.ethers.provider.getTransactionCount(
-              accounts[0].address
-            );
-            let nonce1 = await hre.ethers.provider.getTransactionCount(
-              accounts[1].address
-            );
-            nonce0 = nonce0 === 0 ? 1 : (nonce0 += 1000);
-            nonce1 = nonce0 === 0 ? 1 : (nonce1 += 1000);
-            console.log(error);
-          }
-          break;
-        case 2:
-          try {
-            await mintAToken("650");
-          } catch (error) {
-            let nonce0 = await hre.ethers.provider.getTransactionCount(
-              accounts[0].address
-            );
-            let nonce1 = await hre.ethers.provider.getTransactionCount(
-              accounts[1].address
-            );
-            nonce0 = nonce0 === 0 ? 1 : (nonce0 += 1000);
-            nonce1 = nonce0 === 0 ? 1 : (nonce1 += 1000);
-            console.log(error);
-          }
-          break;
-        default:
-          break;
-      }
-    }
+    // while (1) {
+    //   const type = Math.floor(Math.random() * txTypes.length);
+    //   console.log(type);
+    //   switch (type) {
+    //     case 0:
+    //       try {
+    //         await deployContract();
+    //       } catch (error) {
+    //         console.log(error);
+    //       }
+    //       break;
+    //     case 1:
+    //       try {
+    //         await sendEth();
+    //       } catch (error) {
+    //         console.log(error);
+    //       }
+    //       break;
+    //     case 2:
+    //       try {
+    //         await mintAToken("650");
+    //       } catch (error) {
+    //         console.log(error);
+    //       }
+    //       break;
+    //     default:
+    //       break;
+    // }
+    //}
   });
 
 task(
@@ -788,17 +777,18 @@ task("getGasCost", "gets the current gas cost")
       }
       lastBlock = blocknum;
     }
-});
+  });
 
-task("setHardhatIntervalMining", "sets the hardhat node to mine on a interval and automine off")
+task(
+  "setHardhatIntervalMining",
+  "sets the hardhat node to mine on a interval and automine off"
+)
   .addParam("interval", "time between blocks")
   .setAction(async (taskArgs, hre) => {
-    let network = await hre.ethers.provider.getNetwork()
-    let interval = parseInt(taskArgs.interval, 10); 
-    if(network.chainId === 1337){
+    let network = await hre.ethers.provider.getNetwork();
+    let interval = parseInt(taskArgs.interval, 10);
+    if (network.chainId === 1337) {
       await hre.network.provider.send("evm_setIntervalMining", [interval]);
       await hre.network.provider.send("evm_setAutomine", [false]);
     }
-});
-
-
+  });
