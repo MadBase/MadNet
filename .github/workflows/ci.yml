@@ -113,6 +113,7 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: golang-build
+    # remove once passing
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
