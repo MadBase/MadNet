@@ -18,17 +18,17 @@ defaults:
     shell: bash
 
 jobs:
-#
-#  solidity-build:
-#    runs-on: ubuntu-20.04
-#    timeout-minutes: 10
-#    defaults:
-#      run:
-#        working-directory: ./bridge
-#    steps:
-#    - uses: actions/checkout@v3
-#    - uses: ./.github/actions/node-cache
-#
+
+  solidity-build:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./bridge
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/node-cache
+
 #  solidity-unit-tests:
 #    runs-on: ubuntu-20.04
 #    timeout-minutes: 15
@@ -91,21 +91,22 @@ jobs:
   golang-build:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
-#    needs: solidity-build
+    needs: solidity-build
     strategy:
       matrix:
         os: [ubuntu-20.04]
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/alicenet-config
-#      - run: make build
       - name: "Sanitize branch name"
         run: |
-            echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }} | sed -E 's/[^[:alnum:]]+/_/g'" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }} | sed -E 's/[^[:alnum:]]+/_/g'" >> $GITHUB_ENV
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/alicenet-config
+      - run: make build
       - name: "print here"
         run: |
             echo "-----"
             echo ${{env.BRANCH_NAME}}
+            echo alicenet-${{ env.BRANCH_NAME }}-${{ matrix.os }}
             echo "-----"
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v3.0.0
