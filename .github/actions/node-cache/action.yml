@@ -14,4 +14,4 @@ runs:
       key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
   - if: steps.node-cache.outputs.cache-hit != 'true'
     shell: bash
-    run: npm ci && npm run clean && npm run compile
+    run: npm ci && npm run clean && npm run build

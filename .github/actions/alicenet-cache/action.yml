@@ -18,4 +18,5 @@ runs:
       key: ${{ runner.os }}-go-${{ hashFiles('**/*.proto', './cmd/mngen/**', './localrpc/swagger/**') }}
   - if: steps.alicenet-cache.outputs.cache-hit != 'true'
     shell: bash
-    run: make generate
+    run: make generate-go
+
