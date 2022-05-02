@@ -92,6 +92,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     needs: solidity-build
+    env:
+        BRANCH_NAME: echo $(sed -E 's/[^[:alnum:]]+/_/g' <<<${{ github.head_ref || github.ref_name }})
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -101,8 +103,6 @@ jobs:
       - run: make build
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v3.0.0
-        env:
-          BRANCH_NAME: echo $(sed -E 's/[^[:alnum:]]+/_/g' <<<${{ github.head_ref || github.ref_name }})
         with:
           name: alicenet-${{ env.BRANCH_NAME }}-${{ matrix.os }}
           path: ./madnet
