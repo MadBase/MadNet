@@ -638,31 +638,39 @@ task(
       "ValidatorPool"
     );
     const accounts = await hre.ethers.getSigners();
-    let j = false;
-    await hre.run("setHardhatIntervalMining", {enableAutoMine: true})
-    for(let i = 2; i < accounts.length; i++){
-      const bal = (await hre.ethers.provider.getBalance(accounts[i].address)).sub(BigInt(1));
-      if(j === false){
-        let txRequest = await accounts[i].populateTransaction({
-          from: accounts[i].address,
-          value: bal,
-          to: accounts[0].address,
-        });
-        const txResponse = await accounts[i].sendTransaction(txRequest);
-        await txResponse.wait()
-        j = !j;
-      } else{
-        let txRequest = await accounts[i].populateTransaction({
-          from: accounts[i].address,
-          value: bal,
-          to: accounts[1].address,
-        });
-        const txResponse = await accounts[i].sendTransaction(txRequest);
-        await txResponse.wait()
-        j = !j;
-      }
-    }
-    await hre.run("setHardhatIntervalMining")
+    // let j = false;
+
+    // await hre.run("setHardhatIntervalMining", {enableAutoMine: true})
+    
+    // for(let i = 2; i < accounts.length; i++){
+    //   let gp = await hre.ethers.provider.getGasPrice();
+    //   let bal = (await hre.ethers.provider.getBalance(accounts[i].address))
+    //   if(bal.gt(BigNumber.from("1000000000000000000"))){
+    //     bal = bal.sub(BigNumber.from("1000000000000000000"))
+    //     if(j === false){
+    //       let txRequest = await accounts[i].populateTransaction({
+    //         from: accounts[i].address,
+    //         value: bal,
+    //         to: accounts[0].address,
+    //         gasPrice: gp
+    //       });
+    //       const txResponse = await accounts[i].sendTransaction(txRequest);
+    //       await txResponse.wait()
+    //       j = !j;
+    //     } else{
+    //       let txRequest = await accounts[i].populateTransaction({
+    //         from: accounts[i].address,
+    //         value: bal,
+    //         to: accounts[1].address,
+    //         gasPrice: gp
+    //       });
+    //       const txResponse = await accounts[i].sendTransaction(txRequest);
+    //       await txResponse.wait()
+    //       j = !j;
+    //     }
+    //   }
+    // }
+    // await hre.run("setHardhatIntervalMining")
     let nonce0 = await hre.ethers.provider.getTransactionCount(
       accounts[0].address
     );
@@ -784,14 +792,17 @@ task(
   });
 
   for (const account of accounts) {
-    const txResponse = await signers[0].sendTransaction({
-      to: account,
-      value: hre.ethers.utils.parseEther("100.0"),
-    });
-    console.log(
-      `account ${account} has ${await hre.ethers.provider.getBalance(account)}`
-    );
-    await txResponse.wait();
+    const bal = await hre.ethers.provider.getBalance(account)
+    if(bal.lt(hre.ethers.utils.parseEther("90.0"))){
+      const txResponse = await signers[0].sendTransaction({
+        to: account,
+        value: hre.ethers.utils.parseEther("100.0"),
+      });
+      await txResponse.wait();
+      console.log(
+        `account ${account} has ${await hre.ethers.provider.getBalance(account)}`
+      );
+    }
   }
 });
 
