@@ -2,6 +2,7 @@ import toml from "@iarna/toml";
 import { BigNumber, ContractTransaction } from "ethers";
 import fs from "fs";
 import { task, types } from "hardhat/config";
+//import { ValidatorPool } from "../../typechain-types";
 import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
@@ -637,28 +638,46 @@ task(
       "ValidatorPool"
     );
     const accounts = await hre.ethers.getSigners();
-    hre;
+    let j = false;
+    await hre.run("setHardhatIntervalMining", {enableAutoMine: true})
+    for(let i = 2; i < accounts.length; i++){
+      const bal = (await hre.ethers.provider.getBalance(accounts[i].address)).sub(BigInt(1));
+      if(j === false){
+        let txRequest = await accounts[i].populateTransaction({
+          from: accounts[i].address,
+          value: bal,
+          to: accounts[0].address,
+        });
+        const txResponse = await accounts[i].sendTransaction(txRequest);
+        await txResponse.wait()
+        j = !j;
+      } else{
+        let txRequest = await accounts[i].populateTransaction({
+          from: accounts[i].address,
+          value: bal,
+          to: accounts[1].address,
+        });
+        const txResponse = await accounts[i].sendTransaction(txRequest);
+        await txResponse.wait()
+        j = !j;
+      }
+    }
+    await hre.run("setHardhatIntervalMining")
     let nonce0 = await hre.ethers.provider.getTransactionCount(
       accounts[0].address
     );
     let nonce1 = await hre.ethers.provider.getTransactionCount(
       accounts[1].address
     );
-    nonce0 = nonce0 < 100 ? nonce0 : (nonce0 += 1000);
-    nonce1 = nonce0 < 100 ? nonce1 : (nonce1 += 1000);
     const deployContract = async () => {
       let gp = await hre.ethers.provider.getGasPrice();
       gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
       await validatorPoolFactory
         .deploy({ nonce: nonce0, gasPrice: gp })
-        .catch((error) => {
-          console.log(error);
-        });
-      nonce0++;
     };
-
+     
     const sendEth = async () => {
-      const wei = 1n ** 10n * 10n ** 18n;
+      const wei = 1
       let gp = await hre.ethers.provider.getGasPrice();
       gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
       let txRequest = await accounts[0].populateTransaction({
@@ -668,9 +687,10 @@ task(
         to: accounts[1].address,
         gasPrice: gp,
       });
-      nonce0++;
-      const txResponse = await accounts[0].sendTransaction(txRequest);
-      txResponse.wait();
+      
+      try{
+        const txResponse = await accounts[0].sendTransaction(txRequest);
+      }catch{}
       txRequest = await accounts[1].populateTransaction({
         from: accounts[1].address,
         nonce: nonce1,
@@ -678,10 +698,11 @@ task(
         to: accounts[0].address,
         gasPrice: gp,
       });
-      await accounts[1].sendTransaction(txRequest);
-      nonce1++;
+      try{
+        await accounts[1].sendTransaction(txRequest);
+      }catch{}
+      
     };
-    const txTypes = [0, 1, 2];
     const mintAToken = async (amt: string) => {
       hre.run("mintATokenTo", {
         factoryAddress: taskArgs.factoryAddress,
@@ -689,49 +710,68 @@ task(
         to: accounts[0].address,
         nonce: nonce0.toString(),
       });
-      nonce0 += 4;
+      
+    };
+    const setBaseFee = async () => {
+      const increase = notSoRandomNumBetweenRange(6000,1)
+      const baseFee = increase * 1000000000;
+      await hre.network.provider.send("hardhat_setNextBlockBaseFeePerGas", [
+        "0x" + baseFee.toString(16), 
+      ]);
     };
 
-    deployContract();
-    while (1) {}
+    while (1) {
+      const type = notSoRandomNumBetweenRange(3,0)
+      console.log(type);
+      switch (type) {
+        case 0:
+          try {
+            await deployContract();
+            nonce0++;
+          } catch (error) {
+            
+          }
+          break;
+        case 1:
+          try {
+            await sendEth();
+            nonce0++;
+            nonce1++;
+          } catch (error) {
+          }
+          break;
+        case 2:
+          try {
+            await mintAToken("650");
+            nonce0 += 4;
+          } catch (error) {
+        
+          }
+          break;
+        case 3:
+          try {
+             await setBaseFee();
+          } catch (error) {
 
-    // while (1) {
-    //   const type = Math.floor(Math.random() * txTypes.length);
-    //   console.log(type);
-    //   switch (type) {
-    //     case 0:
-    //       try {
-    //         await deployContract();
-    //       } catch (error) {
-    //         console.log(error);
-    //       }
-    //       break;
-    //     case 1:
-    //       try {
-    //         await sendEth();
-    //       } catch (error) {
-    //         console.log(error);
-    //       }
-    //       break;
-    //     case 2:
-    //       try {
-    //         await mintAToken("650");
-    //       } catch (error) {
-    //         console.log(error);
-    //       }
-    //       break;
-    //     default:
-    //       break;
-    // }
-    //}
+          }
+          break;
+        default:
+          break;
+    }
+    }
+
   });
 
+//TODO make a hardhat deploy similar to main.sh geth fund account and set interval and add to docs
+//TODO make configpath a param and use this current as default
 task(
   "fundValidators",
   "manually put 100 eth in each validator account"
-).setAction(async (taskArgs, hre) => {
+)
+.addOptionalParam("configPath", "path to validator configs dir", "./../scripts/generated/config")
+.setAction(async (taskArgs, hre) => {
   const signers = await hre.ethers.getSigners();
-  const configPath = "./../scripts/generated/config";
+  const configPath = taskArgs.configPath;
   let validatorConfigs: Array<string> = [];
   // get all the validator address from their toml config file, possibly check if generated is there
   validatorConfigs = fs.readdirSync(configPath);
@@ -783,12 +823,26 @@ task(
   "setHardhatIntervalMining",
   "sets the hardhat node to mine on a interval and automine off"
 )
-  .addParam("interval", "time between blocks")
+  .addFlag("enableAutoMine")
+  .addOptionalParam("interval", "time between blocks", "15000")
   .setAction(async (taskArgs, hre) => {
     let network = await hre.ethers.provider.getNetwork();
     let interval = parseInt(taskArgs.interval, 10);
-    if (network.chainId === 1337) {
-      await hre.network.provider.send("evm_setIntervalMining", [interval]);
-      await hre.network.provider.send("evm_setAutomine", [false]);
+    if(network.chainId === 1337){
+      if(taskArgs.enableAutoMine){
+          try{
+          await hre.network.provider.send("evm_setAutomine", [true]);
+        } catch (error) {}
+      }
+      else {
+        try{
+          await hre.network.provider.send("evm_setIntervalMining", [interval]);
+          await hre.network.provider.send("evm_setAutomine", [false]);
+          await hre.run("fundValidators");
+
+        }catch(error){
+
+        }
+     }
     }
   });

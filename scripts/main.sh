@@ -170,6 +170,12 @@ case $1 in
         
         wait
     ;;
+    hardhat_local_node)
+        ./scripts/base-scripts/hardhat_local_node.sh
+    ;;
+    load_test)
+        ./scripts/base-scripts/hardhatloadTest.sh
+    ;;
     list)
         LIST
     ;;

@@ -21,6 +21,7 @@ import {
   DEPLOY_STATIC,
   DEPLOY_TEMPLATE,
   DEPLOY_UPGRADEABLE_PROXY,
+  HARDHAT_CHAIN_ID,
   INITIALIZER,
   MULTICALL_GAS_LIMIT,
   MULTI_CALL_DEPLOY_PROXY,
@@ -207,6 +208,7 @@ task("deployContracts", "runs the initial deployment of all AliceNet contracts")
   )
   .addOptionalParam("outputFolder", "output folder path to save factory state")
   .setAction(async (taskArgs, hre) => {
+    
     let cumulativeGasUsed = BigNumber.from("0");
     await checkUserDirPath(taskArgs.outputFolder);
     // setting listName undefined will use the default list
