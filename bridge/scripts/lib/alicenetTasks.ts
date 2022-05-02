@@ -788,4 +788,17 @@ task("getGasCost", "gets the current gas cost")
       }
       lastBlock = blocknum;
     }
-  });
+});
+
+task("setHardhatIntervalMining", "sets the hardhat node to mine on a interval and automine off")
+  .addParam("interval", "time between blocks")
+  .setAction(async (taskArgs, hre) => {
+    let network = await hre.ethers.provider.getNetwork()
+    let interval = parseInt(taskArgs.interval, 10); 
+    if(network.chainId === 1337){
+      await hre.network.provider.send("evm_setIntervalMining", [interval]);
+      await hre.network.provider.send("evm_setAutomine", [false]);
+    }
+});
+
+
