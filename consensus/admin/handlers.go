@@ -298,7 +298,6 @@ func (ah *Handlers) RegisterSnapshotCallback(fn func(bh *objs.BlockHeader) error
 			return nil
 		})
 		if err != nil {
-			ah.logger.Errorf("Failed to find snapshot info: %v", err)
 			return err
 		}
 		if !isValidator {
