@@ -152,7 +152,7 @@ func (t *SnapshotTask) doTask(ctx context.Context, logger *logrus.Entry, eth int
 						logger.Debugf("testHeight: %v", testHeight)
 						logger.Debugf("initialHeight: %v", initialHeight)
 						logger.Debugf("getFinalityDelay: %v", eth.GetFinalityDelay())
-						return context.DeadlineExceeded
+						return nil
 					}
 
 					if testHeight > currentHeight {
