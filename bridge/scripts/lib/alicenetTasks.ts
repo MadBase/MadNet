@@ -601,7 +601,6 @@ task("getEthBalance", "gets AToken balance of account")
     return bal;
   });
 
-
 function notSoRandomNumBetweenRange(max: number, min: number): number {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
