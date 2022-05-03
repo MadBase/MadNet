@@ -834,7 +834,6 @@ task(
         try {
           await hre.network.provider.send("evm_setIntervalMining", [interval]);
           await hre.network.provider.send("evm_setAutomine", [false]);
-          await hre.run("fundValidators");
         } catch (error) {}
       }
     }
