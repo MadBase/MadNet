@@ -252,6 +252,9 @@ func (pt *Handler) getTxsInternal(txnState *badger.Txn, ctx context.Context, cur
 					utils.DebugTrace(pt.logger, err)
 					continue
 				}
+				if tx == nil {
+					continue
+				}
 				if ok := pt.checkSize(maxBytes, byteCount); !ok {
 					break
 				}
