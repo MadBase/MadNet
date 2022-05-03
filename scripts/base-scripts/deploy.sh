@@ -34,7 +34,7 @@ cp ../scripts/base-files/owner.toml ../scripts/generated/owner.toml
 sed -e "s/registryAddress = .*/registryAddress = $FACTORY_ADDRESS/" "../scripts/generated/owner.toml" > "../scripts/generated/owner.toml".bk &&\
 mv "../scripts/generated/owner.toml".bk "../scripts/generated/owner.toml"
 # funds validator accounts
-npx hardhat fundValidators
+npx hardhat fundValidators --network $NETWORK
 cd $CURRENT_WD
 
 if [[ ! -z "${SKIP_REGISTRATION}" ]]; then
@@ -48,6 +48,10 @@ if [[ -z "${FACTORY_ADDRESS}" ]]; then
     echo "It was not possible to find Factory Address in the environment variable FACTORY_ADDRESS! Not starting the registration!"
     exit 1
 fi
+
+cd $BRIDGE_DIR
+npx hardhat setHardhatIntervalMining --network $NETWORK --interval 1000
+cd $CURRENT_WD
 
 ./scripts/main.sh register
 
