@@ -601,26 +601,6 @@ task("getEthBalance", "gets AToken balance of account")
     return bal;
   });
 
-task("ethToBToken", "gets AToken balance of account")
-  .addParam("factoryAddress", "address of the factory deploying the contract")
-
-  .setAction(async (taskArgs, hre) => {
-    const factory = await hre.ethers.getContractAt(
-      "AliceNetFactory",
-      taskArgs.factoryAddress
-    );
-    const bToken = await hre.ethers.getContractAt(
-      "BToken",
-      await factory.callStatic.lookup(
-        hre.ethers.utils.formatBytes32String("BToken")
-      )
-    );
-    for (let i = 0; i < 100; i++) {
-      const poolBal = await bToken.getPoolBalance();
-      const eth = await bToken.ethToBTokens(poolBal, i);
-      console.log(i, eth.toNumber());
-    }
-  });
 
 function notSoRandomNumBetweenRange(max: number, min: number): number {
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -632,7 +612,6 @@ task(
   "inject a bunch of random transactions to simulate regular block usage"
 )
   .addParam("factoryAddress", "address of the factory deploying the contract")
-  .addFlag("ludicrous", "over inflate certain blocks")
   .setAction(async (taskArgs, hre) => {
     // this function deploys the snapshot contract
     const validatorPoolFactory = await hre.ethers.getContractFactory(
