@@ -298,14 +298,8 @@ func (ah *Handlers) RegisterSnapshotCallback(fn func(bh *objs.BlockHeader) error
 			return nil
 		})
 		if err != nil {
-			ah.logger.Errorf("Failed to find snapshot info: %v", err)
 			return err
 		}
-		ah.logger.WithFields(logrus.Fields{
-			"isValidator": isValidator,
-			"maxBHSeen":   maxBHSeen.BClaims.Height,
-			"syncToBH":    syncToBH.BClaims.Height,
-		}).Debug("Writing block to db")
 		if !isValidator {
 			return nil
 		}
@@ -313,11 +307,6 @@ func (ah *Handlers) RegisterSnapshotCallback(fn func(bh *objs.BlockHeader) error
 			return nil
 		}
 		if bh.BClaims.Height%constants.EpochLength == 0 {
-			ah.logger.WithFields(logrus.Fields{
-				"isValidator": isValidator,
-				"maxBHSeen":   maxBHSeen.BClaims.Height,
-				"syncToBH":    syncToBH.BClaims.Height,
-			}).Debug("Trying to do a snapshot")
 			return fn(bh)
 		}
 		return nil
