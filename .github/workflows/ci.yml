@@ -156,9 +156,11 @@ jobs:
               sudo apt install make gcc
               make all
               ROOT_PATH=$(pwd)
+              cd -
               cd  /usr/local/bin
               sudo ln -s $ROOT_PATH/build/bin/ethkey /usr/local/bin
               ethkey
+              cd -
 
         # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # packages where the tests are stuck: ["blockchain", "badgerTrie", "consensus", "transport"]
