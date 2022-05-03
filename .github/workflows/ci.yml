@@ -143,7 +143,24 @@ jobs:
       # tool to format the test output
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
-      # Run tests with nice formatting. Save the original log in /tmp/gotest.log
+
+      # install missing dependencies
+      - name: Check out ethereum repo for ethkey
+        uses: actions/checkout@master
+        with:
+            repository: ethereum/go-ethereum
+            path: './go-ethereum'
+      - name: Install ethkey
+        run: |
+              cd go-ethereum
+              sudo apt install make gcc
+              make all
+              ROOT_PATH=$(pwd)
+              cd  /usr/local/bin
+              sudo ln -s $ROOT_PATH/build/bin/ethkey /usr/local/bin
+              ethkey
+
+        # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # packages where the tests are stuck: ["blockchain", "badgerTrie", "consensus", "transport"]
       - name: Run tests
         run: |
