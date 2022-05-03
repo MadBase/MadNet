@@ -8,9 +8,13 @@ NETWORK=${1:-"dev"}
 
 cd $BRIDGE_DIR
 
+# if on hardhat network this switches automine on to deploy faster
+npx hardhat setHardhatIntervalMining --network $NETWORK --enable-auto-mine
+
 # Copy the deployList to the generated folder so we have deploymentList and deploymentArgsTemplate in the same folder
 cp ../scripts/base-files/deploymentList ../scripts/generated/deploymentList
 cp ../scripts/base-files/deploymentArgsTemplate ../scripts/generated/deploymentArgsTemplate
+
 
 npx hardhat --network "$NETWORK" --show-stack-traces deployContracts --input-folder ../scripts/generated
 addr="$(grep -Pzo "\[$NETWORK\]\ndefaultFactoryAddress = \".*\"\n" ../scripts/generated/factoryState | grep -a "defaultFactoryAddress = .*" | awk '{print $NF}')"
@@ -29,7 +33,8 @@ done
 cp ../scripts/base-files/owner.toml ../scripts/generated/owner.toml
 sed -e "s/registryAddress = .*/registryAddress = $FACTORY_ADDRESS/" "../scripts/generated/owner.toml" > "../scripts/generated/owner.toml".bk &&\
 mv "../scripts/generated/owner.toml".bk "../scripts/generated/owner.toml"
-
+#funds validator accounts
+npx hardhat fundValidators
 cd $CURRENT_WD
 
 if [[ ! -z "${SKIP_REGISTRATION}" ]]; then
@@ -45,6 +50,10 @@ if [[ -z "${FACTORY_ADDRESS}" ]]; then
 fi
 
 ./scripts/main.sh register
+
+cd $BRIDGE_DIR
+npx hardhat setHardhatIntervalMining --network $NETWORK
+cd $CURRENT_WD
 
 if [[ -n "${AUTO_START_VALIDATORS}" ]]; then
     if command -v gnome-terminal &>/dev/null; then

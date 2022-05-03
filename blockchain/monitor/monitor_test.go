@@ -4,23 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"math"
 	"math/big"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
+
 	aobjs "github.com/MadBase/MadNet/application/objs"
-	"github.com/MadBase/MadNet/blockchain"
-	"github.com/MadBase/MadNet/blockchain/etest"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/monitor"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/blockchain/tasks"
 	"github.com/MadBase/MadNet/consensus/db"
-	"github.com/MadBase/MadNet/consensus/objs"
-	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
@@ -35,46 +32,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
-
-func setupEthereum(t *testing.T, mineInterval time.Duration) interfaces.Ethereum {
-
-	n := 4
-	privKeys := etest.SetupPrivateKeys(n)
-	eth, err := blockchain.NewEthereumSimulator(
-		privKeys,
-		1,
-		time.Second*2,
-		time.Second*5,
-		0,
-		big.NewInt(math.MaxInt64),
-		50,
-		math.MaxInt64,
-		5*time.Second,
-		30*time.Second)
-	assert.Nil(t, err, "Failed to build Ethereum endpoint...")
-	assert.True(t, eth.IsEthereumAccessible(), "Web3 endpoint is not available.")
-	defer eth.Close()
-
-	// c := eth.Contracts()
-
-	go func() {
-		for {
-			time.Sleep(mineInterval)
-			eth.Commit()
-		}
-	}()
-
-	// Unlock deploy account and make sure it has a balance
-	acct := eth.GetDefaultAccount()
-	err = eth.UnlockAccount(acct)
-	assert.Nil(t, err, "Failed to unlock deploy account")
-
-	// _, _, err = c.DeployContracts(context.TODO(), acct)
-	// assert.Nil(t, err, "Failed to deploy contracts...")
-	panic("needs deployment")
-
-	return eth
-}
 
 //
 //
@@ -162,31 +119,6 @@ func (mt *mockTask) ShouldRetry(context.Context, *logrus.Entry, interfaces.Ether
 
 func (mt *mockTask) GetExecutionData() interface{} {
 	return mt.DkgTask
-}
-
-//
-// Mock implementation of interfaces.AdminHandler
-//
-type mockAdminHandler struct {
-}
-
-func (ah *mockAdminHandler) AddPrivateKey([]byte, constants.CurveSpec) error {
-	return nil
-}
-
-func (ah *mockAdminHandler) AddSnapshot(*objs.BlockHeader, bool) error {
-	return nil
-}
-func (ah *mockAdminHandler) AddValidatorSet(*objs.ValidatorSet) error {
-	return nil
-}
-
-func (ah *mockAdminHandler) RegisterSnapshotCallback(func(*objs.BlockHeader) error) {
-
-}
-
-func (ah *mockAdminHandler) SetSynchronized(v bool) {
-
 }
 
 //
@@ -353,7 +285,7 @@ func TestMonitorPersist(t *testing.T) {
 	database := &db.Database{}
 	database.Init(rawDb)
 
-	mon, err := monitor.NewMonitor(database, database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	mon, err := monitor.NewMonitor(database, database, &interfaces.MockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
 	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
@@ -366,7 +298,7 @@ func TestMonitorPersist(t *testing.T) {
 	mon.PersistState()
 
 	//
-	newMon, err := monitor.NewMonitor(database, database, &mockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
+	newMon, err := monitor.NewMonitor(database, database, &interfaces.MockAdminHandler{}, &mockDepositHandler{}, &mockEthereum{}, 1*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
 	newMon.LoadState()
@@ -379,7 +311,7 @@ func TestMonitorPersist(t *testing.T) {
 func TestBidirectionalMarshaling(t *testing.T) {
 
 	// setup
-	adminHandler := &mockAdminHandler{}
+	adminHandler := &interfaces.MockAdminHandler{}
 	depositHandler := &mockDepositHandler{}
 	eth := &mockEthereum{}
 	logger := logging.GetLogger("test")
@@ -463,7 +395,7 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.Equal(t, taskStruct.State, taskStruct2.State)
 
 	wg := &sync.WaitGroup{}
-	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil)
+	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil, nil)
 	wg.Wait()
 
 	assert.True(t, taskStruct.DoneCalled)
