@@ -1,15 +1,17 @@
 package tasks_test
 
 import (
+	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stretchr/testify/mock"
 	"math/big"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
@@ -43,7 +45,8 @@ func TestStartTask_initializeTask_Error(t *testing.T) {
 	ethMock.On("RetryCount").Return(3)
 	ethMock.On("RetryDelay").Return(10 * time.Millisecond)
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTask, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTask, state)
 
 	wg.Wait()
 
@@ -70,7 +73,8 @@ func TestStartTask_executeTask_NonceTooLowError(t *testing.T) {
 	ethMock.On("RetryCount").Return(3)
 	ethMock.On("RetryDelay").Return(10 * time.Millisecond)
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTask, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTask, state)
 
 	wg.Wait()
 
@@ -116,7 +120,8 @@ func TestStartTask_handleExecutedTask_FinalityDelay1(t *testing.T) {
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(9, nil).Once()
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(10, nil).Once()
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
 
 	wg.Wait()
 
@@ -176,7 +181,8 @@ func TestStartTask_handleExecutedTask_FinalityDelay2(t *testing.T) {
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(15, nil).Once()
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(16, nil).Once()
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
 
 	wg.Wait()
 
@@ -236,7 +242,8 @@ func TestStartTask_handleExecutedTask_RetrySameFee(t *testing.T) {
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(15, nil).Once()
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(16, nil).Once()
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
 
 	wg.Wait()
 
@@ -296,7 +303,8 @@ func TestStartTask_handleExecutedTask_RetryReplacingFee(t *testing.T) {
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(15, nil).Once()
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(16, nil).Once()
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
 
 	expectedGasFeeCap := big.NewInt(203569)
 	expectedGasTipCap := big.NewInt(52)
@@ -361,7 +369,8 @@ func TestStartTask_handleExecutedTask_RetryReplacingFeeExceedingThreshold(t *tes
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(15, nil).Once()
 	ethMock.On("GetCurrentHeight", mock.Anything).Return(16, nil).Once()
 
-	tasks.StartTask(logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", 0), &wg, ethMock, dkgTaskMock, state)
 
 	expectedGasFeeCap := big.NewInt(200000)
 	expectedGasTipCap := big.NewInt(89)
