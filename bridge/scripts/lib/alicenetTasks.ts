@@ -422,7 +422,6 @@ task("initializeEthdkg", "Start the ethdkg process")
     console.log("Done");
   });
 
-
 task("transferEth", "transfers eth from default account to receiver")
   .addParam("receiver", "address of the account to fund")
   .addParam("amount", "amount of eth to transfer")
@@ -571,7 +570,6 @@ task("getEthBalance", "gets AToken balance of account")
     console.log(bal);
     return bal;
   });
-
 
 function notSoRandomNumBetweenRange(max: number, min: number): number {
   return Math.floor(Math.random() * (max - min + 1) + min);
