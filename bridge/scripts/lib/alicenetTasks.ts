@@ -755,8 +755,6 @@ task(
     }
   });
 
-// TODO make a hardhat deploy similar to main.sh geth fund account and set interval and add to docs
-// TODO make configpath a param and use this current as default
 task("fundValidators", "manually put 100 eth in each validator account")
   .addOptionalParam(
     "configPath",
