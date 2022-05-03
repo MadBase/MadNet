@@ -33,7 +33,7 @@ done
 cp ../scripts/base-files/owner.toml ../scripts/generated/owner.toml
 sed -e "s/registryAddress = .*/registryAddress = $FACTORY_ADDRESS/" "../scripts/generated/owner.toml" > "../scripts/generated/owner.toml".bk &&\
 mv "../scripts/generated/owner.toml".bk "../scripts/generated/owner.toml"
-#funds validator accounts
+# funds validator accounts
 npx hardhat fundValidators
 cd $CURRENT_WD
 
