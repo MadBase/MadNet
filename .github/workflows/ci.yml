@@ -132,7 +132,7 @@ jobs:
 
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: golang-build
     strategy:
       matrix:
