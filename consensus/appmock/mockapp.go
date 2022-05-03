@@ -31,7 +31,7 @@ func (m *MockApplication) SetNextValidValue(vv *objs.Proposal) {
 
 // New returns a mocked Application
 func New() *MockApplication {
-	return &MockApplication{logging.GetLogger("MockApp"), nil, false}
+	return &MockApplication{logging.GetLogger("test"), nil, false}
 }
 
 // ApplyState is defined on the interface object
