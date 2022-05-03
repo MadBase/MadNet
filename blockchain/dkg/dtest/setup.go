@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -512,6 +513,30 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 		fmt.Printf("hardhat node closed\n")
 		return nil
 	})
+
+	return nil
+}
+
+func InitializeValidatorFiles(n int) error {
+
+	rootPath := GetMadnetRootPath()
+	scriptPath := append(rootPath, "scripts")
+	scriptPath = append(scriptPath, "main.sh")
+	scriptPathJoined := filepath.Join(scriptPath...)
+	fmt.Println("scriptPathJoined2: ", scriptPathJoined)
+
+	cmd := exec.Cmd{
+		Path:   scriptPathJoined,
+		Args:   []string{scriptPathJoined, "init", strconv.Itoa(n)},
+		Dir:    filepath.Join(rootPath...),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("could not generate validator files: %s", err)
+	}
 
 	return nil
 }

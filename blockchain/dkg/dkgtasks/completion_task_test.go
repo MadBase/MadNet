@@ -17,6 +17,10 @@ import (
 // We complete everything correctly, happy path
 func TestCompletionAllGood(t *testing.T) {
 	n := 4
+
+	err := dtest.InitializeValidatorFiles(5)
+	assert.Nil(t, err)
+
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
 	ctx := context.Background()
