@@ -3,12 +3,13 @@ package tasks
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"sync"
-	"time"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
@@ -22,7 +23,7 @@ var (
 
 const NonceToLowError = "nonce too low"
 
-func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}) error {
+func StartTask(ctx context.Context, logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}) error {
 
 	wg.Add(1)
 	go func() {
@@ -37,7 +38,7 @@ func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum
 		}).Info("StartTask()...")
 
 		// Setup
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
 		initializationLogger := logger.WithField("Method", "Initialize")

@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"math"
 	"math/big"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 
 	aobjs "github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/blockchain"
@@ -463,7 +464,8 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.Equal(t, taskStruct.State, taskStruct2.State)
 
 	wg := &sync.WaitGroup{}
-	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil)
+	ctx := context.Background()
+	tasks.StartTask(ctx, logger.WithField("Task", "Mocked"), wg, eth, task, nil)
 	wg.Wait()
 
 	assert.True(t, taskStruct.DoneCalled)

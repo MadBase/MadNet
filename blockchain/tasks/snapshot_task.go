@@ -210,7 +210,7 @@ func waitFinalityDelay(ctx context.Context, logger *logrus.Entry, eth interfaces
 		case <-time.After(time.Second * 5):
 		}
 
-		isDone, err = checkCurrentHeight(subctx, logger, eth, initialHeight, finalityDelay)
+		isDone, err = checkCurrentHeight(ctx, logger, eth, initialHeight, finalityDelay)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -226,7 +226,9 @@ func waitFinalityDelay(ctx context.Context, logger *logrus.Entry, eth interfaces
 }
 
 func checkCurrentHeight(ctx context.Context, logger *logrus.Entry, eth interfaces.Ethereum, initialHeight uint64, finalityDelay uint64) (bool, error) {
-	testHeight, err := eth.GetCurrentHeight(ctx)
+	subctx, cf := context.WithTimeout(ctx, 5*time.Second)
+	defer cf()
+	testHeight, err := eth.GetCurrentHeight(subctx)
 	if err != nil {
 		logger.Debugf("Error to get test eth height")
 		return false, err
