@@ -2,7 +2,8 @@ import toml from "@iarna/toml";
 import { BigNumber, ContractTransaction } from "ethers";
 import fs from "fs";
 import { task, types } from "hardhat/config";
-//import { ValidatorPool } from "../../typechain-types";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+// import { ValidatorPool } from "../../typechain-types";
 import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
@@ -638,173 +639,181 @@ task(
       "ValidatorPool"
     );
     const accounts = await hre.ethers.getSigners();
-    // let j = false;
-
-    // await hre.run("setHardhatIntervalMining", {enableAutoMine: true})
-    
-    // for(let i = 2; i < accounts.length; i++){
-    //   let gp = await hre.ethers.provider.getGasPrice();
-    //   let bal = (await hre.ethers.provider.getBalance(accounts[i].address))
-    //   if(bal.gt(BigNumber.from("1000000000000000000"))){
-    //     bal = bal.sub(BigNumber.from("1000000000000000000"))
-    //     if(j === false){
-    //       let txRequest = await accounts[i].populateTransaction({
-    //         from: accounts[i].address,
-    //         value: bal,
-    //         to: accounts[0].address,
-    //         gasPrice: gp
-    //       });
-    //       const txResponse = await accounts[i].sendTransaction(txRequest);
-    //       await txResponse.wait()
-    //       j = !j;
-    //     } else{
-    //       let txRequest = await accounts[i].populateTransaction({
-    //         from: accounts[i].address,
-    //         value: bal,
-    //         to: accounts[1].address,
-    //         gasPrice: gp
-    //       });
-    //       const txResponse = await accounts[i].sendTransaction(txRequest);
-    //       await txResponse.wait()
-    //       j = !j;
-    //     }
-    //   }
-    // }
-    // await hre.run("setHardhatIntervalMining")
-    let nonce0 = await hre.ethers.provider.getTransactionCount(
-      accounts[0].address
-    );
-    let nonce1 = await hre.ethers.provider.getTransactionCount(
-      accounts[1].address
-    );
-    const deployContract = async () => {
-      let gp = await hre.ethers.provider.getGasPrice();
-      gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
-      await validatorPoolFactory
-        .deploy({ nonce: nonce0, gasPrice: gp })
-    };
-     
-    const sendEth = async () => {
-      const wei = 1
-      let gp = await hre.ethers.provider.getGasPrice();
-      gp = gp.div(BigInt(100)).mul(notSoRandomNumBetweenRange(20, 10)).add(gp);
-      let txRequest = await accounts[0].populateTransaction({
+    const defaultVal = BigNumber.from("100000000000000000000");
+    // fund accounts
+    if ((await accounts[2].getBalance()).lt(defaultVal)) {
+      const txRequest = await accounts[0].populateTransaction({
         from: accounts[0].address,
-        nonce: nonce0,
+        // nonce: nonce0,
+        value: BigNumber.from("100000000000000000000"),
+        to: accounts[2].address,
+        // gasPrice: gp,
+      });
+      const txResponse = await accounts[0].sendTransaction(txRequest);
+      await txResponse.wait();
+    }
+    if ((await accounts[1].getBalance()).lt(defaultVal)) {
+      const txRequest = await accounts[0].populateTransaction({
+        from: accounts[0].address,
+        // nonce: nonce0,
+        value: BigNumber.from("100000000000000000000"),
+        to: accounts[1].address,
+        // gasPrice: gp,
+      });
+      const txResponse = await accounts[0].sendTransaction(txRequest);
+      await txResponse.wait();
+    }
+    const fooTokenBase = await hre.ethers.getContractFactory("FooToken");
+    const fooToken = await fooTokenBase.deploy();
+    const minter = await hre.ethers.getContractFactory("Minter");
+    const gasBomb = async () => {
+      return await minter.deploy(fooToken.address, {
+        gasLimit: 30000000n,
+        gasPrice: 10000n * 10n ** 9n,
+      });
+    };
+    // function to deploy a contract
+    const deployContract = async () => {
+      const gp = await hre.ethers.provider.getGasPrice();
+      await validatorPoolFactory.deploy({
+        nonce: await accounts[0].getTransactionCount("pending"),
+        gasPrice: gp,
+      });
+    };
+    // function to send eth back and forth
+    const sendEth = async () => {
+      const transactions: Array<ContractTransaction> = [];
+      const wei = 1;
+      const gp = await hre.ethers.provider.getGasPrice();
+      let txRequest = await accounts[2].populateTransaction({
+        from: accounts[2].address,
+        nonce: await accounts[2].getTransactionCount("pending"),
         value: wei,
         to: accounts[1].address,
         gasPrice: gp,
       });
-      
-      try{
-        const txResponse = await accounts[0].sendTransaction(txRequest);
-      }catch{}
+      try {
+        transactions.push(await accounts[2].sendTransaction(txRequest));
+      } catch {}
       txRequest = await accounts[1].populateTransaction({
         from: accounts[1].address,
-        nonce: nonce1,
+        nonce: await accounts[1].getTransactionCount("pending"),
         value: wei,
-        to: accounts[0].address,
+        to: accounts[2].address,
         gasPrice: gp,
       });
-      try{
-        await accounts[1].sendTransaction(txRequest);
-      }catch{}
-      
+      try {
+        transactions.push(await accounts[1].sendTransaction(txRequest));
+      } catch {}
+      return transactions;
     };
-    const mintAToken = async (amt: string) => {
-      hre.run("mintATokenTo", {
-        factoryAddress: taskArgs.factoryAddress,
-        amount: amt,
-        to: accounts[0].address,
-        nonce: nonce0.toString(),
-      });
-      
-    };
-    const setBaseFee = async () => {
-      const increase = notSoRandomNumBetweenRange(6000,1)
-      const baseFee = increase * 1000000000;
-      await hre.network.provider.send("hardhat_setNextBlockBaseFeePerGas", [
-        "0x" + baseFee.toString(16), 
-      ]);
-    };
-
-    while (1) {
-      const type = notSoRandomNumBetweenRange(3,0)
-      console.log(type);
-      switch (type) {
-        case 0:
-          try {
-            await deployContract();
-            nonce0++;
-          } catch (error) {
-            
-          }
-          break;
-        case 1:
-          try {
-            await sendEth();
-            nonce0++;
-            nonce1++;
-          } catch (error) {
-          }
-          break;
-        case 2:
-          try {
-            await mintAToken("650");
-            nonce0 += 4;
-          } catch (error) {
-        
-          }
-          break;
-        case 3:
-          try {
-             await setBaseFee();
-          } catch (error) {
-
-          }
-          break;
-        default:
-          break;
-    }
-    }
-
-  });
-
-//TODO make a hardhat deploy similar to main.sh geth fund account and set interval and add to docs
-//TODO make configpath a param and use this current as default
-task(
-  "fundValidators",
-  "manually put 100 eth in each validator account"
-)
-.addOptionalParam("configPath", "path to validator configs dir", "./../scripts/generated/config")
-.setAction(async (taskArgs, hre) => {
-  const signers = await hre.ethers.getSigners();
-  const configPath = taskArgs.configPath;
-  let validatorConfigs: Array<string> = [];
-  // get all the validator address from their toml config file, possibly check if generated is there
-  validatorConfigs = fs.readdirSync(configPath);
-  // extract the address out of each validator config file
-  const accounts: Array<string> = [];
-  validatorConfigs.forEach((val) => {
-    if (val.slice(0, 9) === "validator") {
-      accounts.push(getValidatorAccount(`${configPath}/${val}`));
-    }
-  });
-
-  for (const account of accounts) {
-    const bal = await hre.ethers.provider.getBalance(account)
-    if(bal.lt(hre.ethers.utils.parseEther("90.0"))){
-      const txResponse = await signers[0].sendTransaction({
-        to: account,
-        value: hre.ethers.utils.parseEther("100.0"),
-      });
-      await txResponse.wait();
-      console.log(
-        `account ${account} has ${await hre.ethers.provider.getBalance(account)}`
+    const mintAToken = async () => {
+      return mintATokenTo(
+        hre,
+        taskArgs.factoryAddress,
+        accounts[1].address,
+        await accounts[0].getTransactionCount("pending")
       );
+    };
+    // const setBaseFee = async () => {
+    //   const increase = notSoRandomNumBetweenRange(6000, 1);
+    //   const baseFee = increase * 1000000000;
+    //   await hre.network.provider.send("hardhat_setNextBlockBaseFeePerGas", [
+    //     "0x" + baseFee.toString(16),
+    //   ]);
+    // };
+    const txSet: Array<ContractTransaction> = [];
+    let txSent = 0;
+
+    let previousBlockNum = 0;
+    let blocknum = await hre.ethers.provider.getBlockNumber();
+    while (1) {
+      blocknum = await hre.ethers.provider.getBlockNumber();
+      if (blocknum > previousBlockNum) {
+        await gasBomb();
+        previousBlockNum = blocknum;
+      }
+      if (txSent > 15) {
+        await Promise.all(txSet);
+        txSent = 0;
+      } else {
+        txSent++;
+        const bal1 = await hre.ethers.provider.getBalance(accounts[1].address);
+        const bal2 = await hre.ethers.provider.getBalance(accounts[2].address);
+        const type = notSoRandomNumBetweenRange(3, 0);
+        console.log(
+          `tx type: ${type}, account1: ${bal1.toString()}, account2: ${bal2.toString()}`
+        );
+        switch (type) {
+          case 0:
+            try {
+              await deployContract();
+            } catch (error) {}
+            break;
+          case 1:
+            try {
+              const tx = await sendEth();
+              txSet.push(...tx);
+              // nonce0++;
+              // nonce1++;
+            } catch (error) {}
+            break;
+          case 2:
+            try {
+              const tx = await mintAToken();
+              txSet.push(tx);
+            } catch (error) {}
+            break;
+          case 3:
+            try {
+              await gasBomb();
+            } catch (error) {}
+            break;
+          default:
+            break;
+        }
+      }
     }
-  }
-});
+  });
+
+// TODO make a hardhat deploy similar to main.sh geth fund account and set interval and add to docs
+// TODO make configpath a param and use this current as default
+task("fundValidators", "manually put 100 eth in each validator account")
+  .addOptionalParam(
+    "configPath",
+    "path to validator configs dir",
+    "./../scripts/generated/config"
+  )
+  .setAction(async (taskArgs, hre) => {
+    const signers = await hre.ethers.getSigners();
+    const configPath = taskArgs.configPath;
+    let validatorConfigs: Array<string> = [];
+    // get all the validator address from their toml config file, possibly check if generated is there
+    validatorConfigs = fs.readdirSync(configPath);
+    // extract the address out of each validator config file
+    const accounts: Array<string> = [];
+    validatorConfigs.forEach((val) => {
+      if (val.slice(0, 9) === "validator") {
+        accounts.push(getValidatorAccount(`${configPath}/${val}`));
+      }
+    });
+
+    for (const account of accounts) {
+      const bal = await hre.ethers.provider.getBalance(account);
+      if (bal.lt(hre.ethers.utils.parseEther("90.0"))) {
+        const txResponse = await signers[0].sendTransaction({
+          to: account,
+          value: hre.ethers.utils.parseEther("100.0"),
+        });
+        await txResponse.wait();
+        console.log(
+          `account ${account} has ${await hre.ethers.provider.getBalance(
+            account
+          )}`
+        );
+      }
+    }
+  });
 
 function getValidatorAccount(path: string): string {
   const data = fs.readFileSync(path);
@@ -837,23 +846,42 @@ task(
   .addFlag("enableAutoMine")
   .addOptionalParam("interval", "time between blocks", "15000")
   .setAction(async (taskArgs, hre) => {
-    let network = await hre.ethers.provider.getNetwork();
-    let interval = parseInt(taskArgs.interval, 10);
-    if(network.chainId === 1337){
-      if(taskArgs.enableAutoMine){
-          try{
+    const network = await hre.ethers.provider.getNetwork();
+    const interval = parseInt(taskArgs.interval, 10);
+    if (network.chainId === 1337) {
+      if (taskArgs.enableAutoMine) {
+        try {
           await hre.network.provider.send("evm_setAutomine", [true]);
         } catch (error) {}
-      }
-      else {
-        try{
+      } else {
+        try {
           await hre.network.provider.send("evm_setIntervalMining", [interval]);
           await hre.network.provider.send("evm_setAutomine", [false]);
           await hre.run("fundValidators");
-
-        }catch(error){
-
-        }
-     }
+        } catch (error) {}
+      }
     }
   });
+
+async function mintATokenTo(
+  hre: HardhatRuntimeEnvironment,
+  factoryAddress: string,
+  to: string,
+  nonce: number
+): Promise<ContractTransaction> {
+  const aTokenMinterBase = await hre.ethers.getContractFactory("ATokenMinter");
+  const factory = await hre.ethers.getContractAt(
+    "AliceNetFactory",
+    factoryAddress
+  );
+  const aTokenMinterAddr = await factory.callStatic.lookup(
+    hre.ethers.utils.formatBytes32String("ATokenMinter")
+  );
+
+  const calldata = aTokenMinterBase.interface.encodeFunctionData("mint", [
+    to,
+    1,
+  ]);
+  // use the factory to call the A token minter
+  return factory.callAny(aTokenMinterAddr, 0, calldata, { nonce });
+}
