@@ -69,8 +69,6 @@ contract BridgePool is Initializable {
         ERC20(_erc20TokenContract).transferFrom(address(this), to, burnedUTXO.value);
     }
 
-    receive() external payable {}
-
     // verifyInclusion returns the merkle root by hashing the merkle proof items
     function verifyInclusion(
         bytes32[] memory auditPath,
@@ -107,4 +105,6 @@ contract BridgePool is Initializable {
     function _bitIsSet(bytes32 bits, uint256 merkleKeyIndex) internal returns (bool) {
         return (bits[merkleKeyIndex / 8] & (bytes1(0x01) << (7 - (merkleKeyIndex % 8))) != 0);
     }
+
+    receive() external payable {}
 }
