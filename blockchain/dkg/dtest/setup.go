@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -497,9 +498,9 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 
 	eth.SetClose(func() error {
 		fmt.Printf("closing hardhat node %v..\n", cmd.Process.Pid)
-		//err := cmd.Process.Signal(syscall.SIGTERM)
+		err := cmd.Process.Signal(syscall.SIGTERM)
 
-		err := cmd.Process.Kill()
+		//err := cmd.Process.Kill()
 		if err != nil {
 			return nil
 			//return err
