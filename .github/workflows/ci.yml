@@ -132,8 +132,8 @@ jobs:
 
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
     needs: golang-build
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -144,7 +144,7 @@ jobs:
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
 
-      # install missing dependencies
+      # install ubuntu eth missing dependencies
       - name: Check out ethereum repo for ethkey
         uses: actions/checkout@master
         with:
@@ -152,19 +152,19 @@ jobs:
             path: './go-ethereum'
       - name: Install ethkey
         run: |
+              REPO_PATH=$(pwd)
               cd go-ethereum
               sudo apt install make gcc
               make all
-              ROOT_PATH=$(pwd)
-              cd -
               cd  /usr/local/bin
-              sudo ln -s $ROOT_PATH/build/bin/ethkey /usr/local/bin
+              sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
+              cd $REPO_PATH
+              pwd
               ethkey
-              cd -
-
-        # Run tests with nice formatting. Save the original log in /tmp/gotest.log
+      # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # packages where the tests are stuck: ["blockchain", "badgerTrie", "consensus", "transport"]
       - name: Run tests
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           go test -json -v $(go list ./... | grep blockchain) 2>&1 | tee /tmp/gotest.log | gotestfmt

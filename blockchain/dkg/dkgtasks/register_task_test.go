@@ -1,5 +1,6 @@
 package dkgtasks_test
 
+// TODO - fix this test
 import (
 	"context"
 	"math/big"
