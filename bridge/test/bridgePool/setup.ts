@@ -16,6 +16,13 @@ export interface state {
       bridgePool: bigint;
       totalSupply: bigint;
     };
+    bToken: {
+      address: string;
+      admin: bigint;
+      user: bigint;
+      bridgePool: bigint;
+      totalSupply: bigint;
+    };
     eth: {
       address: string;
       // We leave user balance as number to round values and avoid gas consumed comparison
@@ -39,6 +46,15 @@ export async function getState(fixture: Fixture) {
           await fixture.aToken.balanceOf(fixture.bridgePool.address)
         ).toBigInt(),
         totalSupply: (await fixture.aToken.totalSupply()).toBigInt(),
+      },
+      bToken: {
+        address: fixture.bToken.address.slice(-4),
+        admin: (await fixture.bToken.balanceOf(admin.address)).toBigInt(),
+        user: (await fixture.bToken.balanceOf(user.address)).toBigInt(),
+        bridgePool: (
+          await fixture.bToken.balanceOf(fixture.bridgePool.address)
+        ).toBigInt(),
+        totalSupply: (await fixture.bToken.totalSupply()).toBigInt(),
       },
       eth: {
         address: "0000",

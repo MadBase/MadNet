@@ -553,7 +553,9 @@ export const getFixture = async (
   const bridgePool = (await deployUpgradeableWithFactory(
     factory,
     "BridgePool",
-    "BridgePool"
+    "BridgePool",
+    [aToken.address, bToken.address],
+    [aToken.address, bToken.address]
   )) as BridgePool;
 
   await posFixtureSetup(factory, aToken, legacyToken);
