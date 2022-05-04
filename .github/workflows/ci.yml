@@ -159,13 +159,12 @@ jobs:
               cd  /usr/local/bin
               sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
               cd $REPO_PATH
-              pwd
-              ethkey
+              rm -rf ./go-ethereum
       # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # packages where the tests are stuck: ["blockchain", "badgerTrie", "consensus", "transport"]
       - name: Run tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
-          set -euo pipefail
-          go test -json -v $(go list ./... | grep blockchain) 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go get ./...
+          go test -json -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks 2>&1 | tee /tmp/gotest.log | gotestfmt
             
