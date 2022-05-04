@@ -166,5 +166,5 @@ jobs:
         timeout-minutes: 30
         run: |
           go get ./...
-         ./scripts/main.sh init 5
+          ./scripts/main.sh init 5
           go test -json -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks 2>&1 | tee /tmp/gotest.log | gotestfmt
