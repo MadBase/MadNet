@@ -15,5 +15,5 @@ runs:
   - if: steps.node-cache.outputs.cache-hit != 'true'
     shell: bash
     run: |
-        ls -la
+        cd bridge
         npm ci && npm run clean && npm run compile
