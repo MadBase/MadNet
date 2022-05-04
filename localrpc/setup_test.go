@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 	"testing"
@@ -43,17 +42,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var address string = "localhost:8884"
 var timeout time.Duration = time.Second * 10
 var account []byte
-var owner *objs.ValueStoreOwner
 var signer *crypto.Secp256k1Signer
-var txHash []byte
 var pubKey []byte
 var tx *objs.Tx
-var geth = exec.Cmd{}
 var err error
-var badgerDB *badger.DB
 var srpc *Handlers
 var lrpc *Client
 var tx1, tx2, tx3 *pb.TransactionData
@@ -408,7 +402,8 @@ func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (t
 		},
 	}
 	/* 	fmt.Println(transactionData)
-	 */return &transactionData, hash, signature
+	 */
+	return &transactionData, hash, signature
 }
 
 func getSignerData() (*crypto.Secp256k1Signer, []byte) {
