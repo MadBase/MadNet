@@ -163,4 +163,4 @@ jobs:
         timeout-minutes: 30
         run: |
           ./scripts/main.sh init 5
-          go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjDispute 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go test -json -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjDispute 2>&1 | tee /tmp/gotest.log | gotestfmt
