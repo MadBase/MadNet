@@ -501,12 +501,14 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 
 		err := cmd.Process.Kill()
 		if err != nil {
-			return err
+			return nil
+			//return err
 		}
 
 		_, err = cmd.Process.Wait()
 		if err != nil {
-			return err
+			return nil
+			//return err
 		}
 
 		fmt.Printf("hardhat node closed\n")

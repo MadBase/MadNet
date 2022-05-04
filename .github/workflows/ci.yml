@@ -159,7 +159,6 @@ jobs:
               cd  /usr/local/bin
               sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
               cd $REPO_PATH
-              rm -rf ./go-ethereum
       # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # packages where the tests are stuck: ["blockchain", "badgerTrie", "consensus", "transport"]
       - name: Run tests
