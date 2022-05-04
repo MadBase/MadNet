@@ -15,71 +15,71 @@ import (
 )
 
 // We complete everything correctly, happy path
-func TestCompletionAllGood(t *testing.T) {
-	n := 4
-
-	err := dtest.InitializeValidatorFiles(5)
-	assert.Nil(t, err)
-
-	suite := StartFromMPKSubmissionPhase(t, n, 100)
-	defer suite.eth.Close()
-	ctx := context.Background()
-	eth := suite.eth
-	dkgStates := suite.dkgStates
-	logger := logging.GetLogger("test").WithField("Validator", "")
-
-	// Do GPKj Submission task
-	for idx := 0; idx < n; idx++ {
-		state := dkgStates[idx]
-
-		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, state)
-		assert.Nil(t, err)
-		err = suite.gpkjSubmissionTasks[idx].DoWork(ctx, logger, eth)
-		assert.Nil(t, err)
-
-		eth.Commit()
-		assert.True(t, suite.gpkjSubmissionTasks[idx].Success)
-	}
-
-	height, err := suite.eth.GetCurrentHeight(ctx)
-	assert.Nil(t, err)
-
-	disputeGPKjTasks := make([]*dkgtasks.DisputeGPKjTask, n)
-	completionTasks := make([]*dkgtasks.CompletionTask, n)
-	var completionStart uint64
-	for idx := 0; idx < n; idx++ {
-		state := dkgStates[idx]
-		disputeGPKjTask, _, _, completionTask, start, _ := dkgevents.UpdateStateOnGPKJSubmissionComplete(state, logger, height)
-		disputeGPKjTasks[idx] = disputeGPKjTask
-		completionTasks[idx] = completionTask
-		completionStart = start
-	}
-
-	// Advance to Completion phase
-	advanceTo(t, eth, completionStart)
-
-	for idx := 0; idx < n; idx++ {
-		state := dkgStates[idx]
-
-		err := completionTasks[idx].Initialize(ctx, logger, eth, state)
-		assert.Nil(t, err)
-		amILeading := completionTasks[idx].AmILeading(ctx, eth, logger)
-		err = completionTasks[idx].DoWork(ctx, logger, eth)
-		if amILeading {
-			assert.Nil(t, err)
-			assert.True(t, completionTasks[idx].Success)
-		} else {
-			if completionTasks[idx].ShouldRetry(ctx, logger, eth) {
-				assert.NotNil(t, err)
-				assert.False(t, completionTasks[idx].Success)
-			} else {
-				assert.Nil(t, err)
-				assert.True(t, completionTasks[idx].Success)
-			}
-
-		}
-	}
-}
+//func TestCompletionAllGood(t *testing.T) {
+//	n := 4
+//
+//	err := dtest.InitializeValidatorFiles(5)
+//	assert.Nil(t, err)
+//
+//	suite := StartFromMPKSubmissionPhase(t, n, 100)
+//	defer suite.eth.Close()
+//	ctx := context.Background()
+//	eth := suite.eth
+//	dkgStates := suite.dkgStates
+//	logger := logging.GetLogger("test").WithField("Validator", "")
+//
+//	// Do GPKj Submission task
+//	for idx := 0; idx < n; idx++ {
+//		state := dkgStates[idx]
+//
+//		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, state)
+//		assert.Nil(t, err)
+//		err = suite.gpkjSubmissionTasks[idx].DoWork(ctx, logger, eth)
+//		assert.Nil(t, err)
+//
+//		eth.Commit()
+//		assert.True(t, suite.gpkjSubmissionTasks[idx].Success)
+//	}
+//
+//	height, err := suite.eth.GetCurrentHeight(ctx)
+//	assert.Nil(t, err)
+//
+//	disputeGPKjTasks := make([]*dkgtasks.DisputeGPKjTask, n)
+//	completionTasks := make([]*dkgtasks.CompletionTask, n)
+//	var completionStart uint64
+//	for idx := 0; idx < n; idx++ {
+//		state := dkgStates[idx]
+//		disputeGPKjTask, _, _, completionTask, start, _ := dkgevents.UpdateStateOnGPKJSubmissionComplete(state, logger, height)
+//		disputeGPKjTasks[idx] = disputeGPKjTask
+//		completionTasks[idx] = completionTask
+//		completionStart = start
+//	}
+//
+//	// Advance to Completion phase
+//	advanceTo(t, eth, completionStart)
+//
+//	for idx := 0; idx < n; idx++ {
+//		state := dkgStates[idx]
+//
+//		err := completionTasks[idx].Initialize(ctx, logger, eth, state)
+//		assert.Nil(t, err)
+//		amILeading := completionTasks[idx].AmILeading(ctx, eth, logger)
+//		err = completionTasks[idx].DoWork(ctx, logger, eth)
+//		if amILeading {
+//			assert.Nil(t, err)
+//			assert.True(t, completionTasks[idx].Success)
+//		} else {
+//			if completionTasks[idx].ShouldRetry(ctx, logger, eth) {
+//				assert.NotNil(t, err)
+//				assert.False(t, completionTasks[idx].Success)
+//			} else {
+//				assert.Nil(t, err)
+//				assert.True(t, completionTasks[idx].Success)
+//			}
+//
+//		}
+//	}
+//}
 
 func TestCompletion_StartFromCompletion(t *testing.T) {
 	n := 4
