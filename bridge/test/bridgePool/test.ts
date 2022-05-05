@@ -13,6 +13,7 @@ import keccak256 = require("keccak256");
 
 describe("Testing BridgePool methods", async () => {
   let immutableAuthErrorCodesContract: Contract;
+  let bridgePoolErrorCodesContract: Contract;
   let admin: SignerWithAddress;
   let user: SignerWithAddress;
   let user2: SignerWithAddress;
@@ -60,10 +61,16 @@ describe("Testing BridgePool methods", async () => {
   ];
 
   beforeEach(async function () {
-    const _Contract = await ethers.getContractFactory(
+    const BridgePoolErrorCodesContract = await ethers.getContractFactory(
+      "BridgePoolErrorCodes"
+    );
+    bridgePoolErrorCodesContract = await BridgePoolErrorCodesContract.deploy();
+    await bridgePoolErrorCodesContract.deployed();
+    const ImmutableAuthErrorCodesContract = await ethers.getContractFactory(
       "ImmutableAuthErrorCodes"
     );
-    immutableAuthErrorCodesContract = await _Contract.deploy();
+    immutableAuthErrorCodesContract =
+      await ImmutableAuthErrorCodesContract.deploy();
     await immutableAuthErrorCodesContract.deployed();
     fixture = await getFixture();
     let signers = await ethers.getSigners();
@@ -112,7 +119,7 @@ describe("Testing BridgePool methods", async () => {
           user.address
         )
       ).to.be.revertedWith(
-        "2000" // immutableAuthErrorCodesContract.IMMUTEABLEAUTH_ONLY_FACTORY
+        immutableAuthErrorCodesContract.IMMUTEABLEAUTH_ONLY_FACTORY()
       );
     });
     it("Should not make a withdraw if not via factory contract", async () => {
@@ -126,7 +133,7 @@ describe("Testing BridgePool methods", async () => {
           user.address
         )
       ).to.be.revertedWith(
-        "2000" // immutableAuthErrorCodesContract.IMMUTEABLEAUTH_ONLY_FACTORY
+        immutableAuthErrorCodesContract.IMMUTEABLEAUTH_ONLY_FACTORY()
       );
     });
   });
@@ -193,7 +200,7 @@ describe("Testing BridgePool methods", async () => {
           user.address,
         ])
       ).to.be.revertedWith(
-        immutableAuthErrorCodesContract.BRIDGEPOOL_RECEIVER_NOT_ALICENET_OWNER
+        bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER()
       );
     });
 
@@ -210,7 +217,7 @@ describe("Testing BridgePool methods", async () => {
           user.address,
         ])
       ).to.be.revertedWith(
-        immutableAuthErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED
+        bridgePoolErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED()
       );
     });
 
@@ -225,7 +232,7 @@ describe("Testing BridgePool methods", async () => {
           user2.address,
         ])
       ).to.be.revertedWith(
-        immutableAuthErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED
+        bridgePoolErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED()
       );
     });
   });
