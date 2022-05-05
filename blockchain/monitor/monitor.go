@@ -285,7 +285,10 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 			oldMonitorState := mon.State.Clone()
 
 			persistMonitorCB := func() {
-				mon.PersistState()
+				err := mon.PersistState()
+				if err != nil {
+					logger.Errorf("Failed to persist State after MonitorTick(...): %v", err)
+				}
 			}
 
 			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize, persistMonitorCB); err != nil {
@@ -448,8 +451,14 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 					"TaskName": taskName})
 
 				onFinishCB := func() {
-					monitorState.Schedule.SetRunning(uuid, false)
-					monitorState.Schedule.Remove(uuid)
+					err := monitorState.Schedule.SetRunning(uuid, false)
+					if err != nil {
+						logEntry.WithError(err).Error("Failed to set task to not running")
+					}
+					err = monitorState.Schedule.Remove(uuid)
+					if err != nil {
+						logEntry.WithError(err).Error("Failed to remove task from schedule")
+					}
 				}
 				dkgData := objects.ETHDKGTaskData{
 					PersistStateCB: persistMonitorCB,

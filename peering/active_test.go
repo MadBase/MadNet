@@ -2,11 +2,12 @@ package peering
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/MadBase/MadNet/interfaces"
 	pb "github.com/MadBase/MadNet/proto"
@@ -18,15 +19,6 @@ import (
 type wrappedMock struct {
 	*MockP2PClient
 	closeChan chan struct{}
-}
-
-type fields struct {
-	RWMutex   sync.RWMutex
-	canClose  bool
-	store     map[string]interfaces.P2PClient
-	pid       map[string]uint64
-	closeChan chan struct{}
-	closeOnce sync.Once
 }
 
 func (wm *wrappedMock) CloseChan() <-chan struct{} {
@@ -158,18 +150,10 @@ func Test_activePeerStore_add(t *testing.T) {
 	}
 	var tests = []struct {
 		name   string
-		fields fields
 		args   args
 	}{
 		{
 			name: "Adding client to active peer store",
-			fields: fields{
-				canClose:  true,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args: args{
 				c: clientOne,
 			},
@@ -178,10 +162,10 @@ func Test_activePeerStore_add(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
+				canClose:  true,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
 			}
 			ps.add(tt.args.c)
 			assert.Equal(t, 1, ps.len())
@@ -194,30 +178,23 @@ func Test_activePeerStore_close(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		fields fields
 	}{
 		{
 			name: "Testing close channel function",
-			fields: fields{
-				RWMutex:   sync.RWMutex{},
-				canClose:  false,
-				store:     nil,
-				pid:       nil,
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
+				
+				canClose:  false,
+				store:     nil,
+				pid:       nil,
+				closeChan: make(chan struct{}),
+				
 			}
 			ps.close()
-			_, isOpen := <-tt.fields.closeChan
+			_, isOpen := <-make(chan struct{})
 			assert.Equal(t, false, isOpen)
 		})
 	}
@@ -234,33 +211,18 @@ func Test_activePeerStore_contains(t *testing.T) {
 	}
 	tests := []struct {
 		name        string
-		fields      fields
 		args        args
 		prePopulate bool
 		want        bool
 	}{
 		{
 			name: "Test active peer store contains identity",
-			fields: fields{
-				canClose:  true,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 			want:        true,
 		},
 		{
 			name: "Test active peer store contains identity with empty active peer store",
-			fields: fields{
-				canClose:  true,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: false,
 			want:        false,
@@ -269,10 +231,10 @@ func Test_activePeerStore_contains(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
+				canClose:  true,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
 			}
 			if tt.prePopulate {
 				ps.store[tt.args.c.Identity()] = nil
@@ -296,31 +258,16 @@ func Test_activePeerStore_del(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		fields      fields
 		args        args
 		prePopulate bool
 	}{
 		{
 			name: "Test delete peer from store",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 		},
 		{
 			name: "Test delete peer from store with empty store",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args:        struct{ c interfaces.NodeAddr }{c: randomNodeAddr},
 			prePopulate: true,
 		},
@@ -328,12 +275,11 @@ func Test_activePeerStore_del(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
 			}
 			if tt.prePopulate {
 				ps.store[tt.args.c.Identity()] = nil
@@ -358,20 +304,12 @@ func Test_activePeerStore_getPeers(t *testing.T) {
 	}
 	tests := []struct {
 		name   string
-		fields fields
 		args   args
 		want   int
 		want1  bool
 	}{
 		{
 			name: "Testing get Peers with 2 peers",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args: struct{ addresses []string }{addresses: []string{
 				randomNodeAddrFirst.Identity(),
 				randomNodeAddrSecond.Identity(),
@@ -381,13 +319,6 @@ func Test_activePeerStore_getPeers(t *testing.T) {
 		},
 		{
 			name: "Testing get Peers with no peers",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args:  struct{ addresses []string }{addresses: []string{}},
 			want:  0,
 			want1: false,
@@ -401,10 +332,10 @@ func Test_activePeerStore_getPeers(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
 			}
 			for _, identity := range tt.args.addresses {
 				client := &wrappedMock{P2PClient, P2PClientChannel}
@@ -430,7 +361,6 @@ func Test_activePeerStore_random(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		fields    fields
 		args      args
 		populated bool
 		want      string
@@ -444,13 +374,6 @@ func Test_activePeerStore_random(t *testing.T) {
 		},
 		{
 			name: "Testing randomness with peers",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args: struct{ addresses []string }{addresses: []string{
 				randomNodeAddrFirst.Identity(),
 			}},
@@ -467,10 +390,10 @@ func Test_activePeerStore_random(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
 			}
 
 			if tt.populated {
@@ -503,32 +426,17 @@ func Test_activePeerStore_randomClient(t *testing.T) {
 	}
 	tests := []struct {
 		name   string
-		fields fields
 		args   args
 		want   interfaces.P2PClient
 		want1  bool
 	}{
 		{
 			name: "Testing random client with no nodes",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			want:  nil,
 			want1: false,
 		},
 		{
 			name: "Testing random client with nodes",
-			fields: fields{
-				canClose:  false,
-				store:     make(map[string]interfaces.P2PClient),
-				pid:       make(map[string]uint64),
-				closeChan: make(chan struct{}),
-				closeOnce: sync.Once{},
-			},
 			args: struct{ addresses []string }{addresses: []string{
 				randomNodeAddrFirst.Identity(),
 				randomNodeAddrSecond.Identity(),
@@ -545,12 +453,12 @@ func Test_activePeerStore_randomClient(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &activePeerStore{
-				RWMutex:   tt.fields.RWMutex,
-				canClose:  tt.fields.canClose,
-				store:     tt.fields.store,
-				pid:       tt.fields.pid,
-				closeChan: tt.fields.closeChan,
-				closeOnce: tt.fields.closeOnce,
+				// RWMutex:   tt.fields.RWMutex,
+				canClose:  false,
+				store:     make(map[string]interfaces.P2PClient),
+				pid:       make(map[string]uint64),
+				closeChan: make(chan struct{}),
+				closeOnce: sync.Once{},
 			}
 			for _, identity := range tt.args.addresses {
 				client := &wrappedMock{P2PClient, P2PClientChannel}

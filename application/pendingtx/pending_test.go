@@ -5,15 +5,15 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"github.com/MadBase/MadNet/errorz"
-	"github.com/MadBase/MadNet/utils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/MadBase/MadNet/errorz"
+	"github.com/MadBase/MadNet/utils"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/application/objs/uint256"
@@ -574,7 +574,12 @@ func TestGetProposal_With1InvalidTx(t *testing.T) {
 	hndlr := NewPendingTxHandler(db)
 	hndlr.UTXOHandler = mt
 	hndlr.DepositHandler = mt
-	defer hndlr.Drop()
+	defer func (){
+		err := hndlr.Drop()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	mustAddTx(t, hndlr, tx1, 1)
 	mustAddTx(t, hndlr, tx2, 1)
