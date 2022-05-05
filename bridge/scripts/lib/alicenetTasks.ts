@@ -4,7 +4,7 @@ import fs from "fs";
 import { task, types } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 // import { ValidatorPool } from "../../typechain-types";
-import { DEFAULT_CONFIG_OUTPUT_DIR } from "./constants";
+import { BASE_CONFIG_PATH, DEFAULT_CONFIG_OUTPUT_DIR, TEST_BASE_CONFIG_PATH, VALIDATOR1_COBFIG_PATH, VALIDATOR_CONFIG_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
 
 function delay(milliseconds: number) {
@@ -860,3 +860,24 @@ async function mintATokenTo(
   // use the factory to call the A token minter
   return factory.callAny(aTokenMinterAddr, 0, calldata, { nonce });
 }
+/*
+generate validator configs
+./scripts/main.sh init 4
+run a validator with testBaseConfigFile
+
+*/
+
+task("generateTestNodeConfig")
+.setAction(async () => {
+  //get the testBaseConfig file 
+  let data = fs.readFileSync(TEST_BASE_CONFIG_PATH);
+  const testBaseConfig:any = toml.parse(data.toString())
+  //get a validator file 
+  data = fs.readFileSync(VALIDATOR1_COBFIG_PATH);
+  let validator1Config:any = toml.parse(data.toString());
+  validator1Config.ethereum.endpoint = testBaseConfig.ethereum.endpoint;
+  validator1Config.ethereum.registryAddress = testBaseConfig.ethereum.registryAddress;
+  validator1Config.transport.bootNodeAddresses = testBaseConfig.transport.bootNodeAddresses;
+  const output = toml.stringify(validator1Config);
+  fs.writeFileSync(VALIDATOR_CONFIG_DIR + `validator1.toml`, output)
+});
