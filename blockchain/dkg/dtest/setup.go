@@ -499,11 +499,19 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 	eth.SetClose(func() error {
 		fmt.Printf("closing hardhat node %v..\n", cmd.Process.Pid)
 		err := cmd.Process.Signal(syscall.SIGTERM)
-
-		//err := cmd.Process.Kill()
 		if err != nil {
 			return err
 		}
+
+		//err = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		//if err != nil {
+		//	return err
+		//}
+
+		//err = cmd.Process.Kill()
+		//if err != nil {
+		//	return err
+		//}
 
 		_, err = cmd.Process.Wait()
 		if err != nil {
