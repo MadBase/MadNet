@@ -1,28 +1,19 @@
 // SPDX-License-Identifier: MIT-open-group
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "contracts/utils/ImmutableAuth.sol";
+import "contracts/utils/MerkleTree.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "contracts/BToken.sol";
 import "hardhat/console.sol";
+import {BridgePoolErrorCodes} from "contracts/libraries/errorCodes/BridgePoolErrorCodes.sol";
 
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
-contract BridgePool is Initializable {
+contract BridgePool is Initializable, ImmutableFactory, MerkleTree {
     address internal _erc20TokenContract;
     address internal _bTokenContract;
-    uint256 internal _depositID;
-
-    function initialize(address erc20TokenContract_, address bTokenContract_) public initializer {
-        _erc20TokenContract = erc20TokenContract_;
-        _bTokenContract = bTokenContract_;
-    }
-
-    constructor(address erc20TokenContract_, address bTokenContract_) public initializer {
-        _erc20TokenContract = erc20TokenContract_;
-        _bTokenContract = bTokenContract_;
-    }
-
     struct UTXO {
         uint32 chainID;
         address owner;
@@ -32,16 +23,33 @@ contract BridgePool is Initializable {
     }
     event Deposit(address from, uint256 value);
 
+    constructor(address erc20TokenContract_, address bTokenContract_)
+        public
+        ImmutableFactory(msg.sender)
+    {
+        _erc20TokenContract = erc20TokenContract_;
+        _bTokenContract = bTokenContract_;
+    }
+
+    function initialize(address erc20TokenContract_, address bTokenContract_)
+        public
+        onlyFactory
+        initializer
+    {
+        _erc20TokenContract = erc20TokenContract_;
+        _bTokenContract = bTokenContract_;
+    }
+
     function deposit(
         uint8 accountType_,
         address aliceNetAddress_,
         uint256 erc20Amount_,
         uint256 bTokenAmount_,
         address ethAddress_
-    ) public {
+    ) public onlyFactory {
         ERC20(_erc20TokenContract).transferFrom(ethAddress_, address(this), erc20Amount_);
         ERC20(_bTokenContract).transferFrom(ethAddress_, address(this), bTokenAmount_);
-        uint256 eths = BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
+        BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
         emit Deposit(aliceNetAddress_, erc20Amount_);
     }
 
@@ -51,59 +59,24 @@ contract BridgePool is Initializable {
         bytes32 merkleValueHash,
         bytes memory encodedBurnedUTXO,
         bytes32[] memory auditPath,
-        address to
-    ) public {
+        address receiver
+    ) public onlyFactory {
         UTXO memory burnedUTXO = abi.decode(encodedBurnedUTXO, (UTXO));
         uint16 trieHeight = 256;
         bytes1 diff = bytes2(trieHeight - uint16(auditPath.length))[1];
         bytes32 leafHash = keccak256(abi.encodePacked(merkleKeyHash, merkleValueHash, diff));
         require(
-            burnedUTXO.owner == to,
-            "BridgePool: deposit can only be requested for the owner in burned UTXO"
+            burnedUTXO.owner == receiver,
+            string(
+                abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER)
+            )
         );
         require(
-            merkleRoot == verifyInclusion(auditPath, 0, merkleKeyHash, leafHash),
-            "BridgePool: Proof of burn in aliceNet could not be verified"
+            merkleRoot == _calculateRootFromMerkleProof(auditPath, 0, merkleKeyHash, leafHash),
+            string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED))
         );
         ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value);
-        ERC20(_erc20TokenContract).transferFrom(address(this), to, burnedUTXO.value);
-    }
-
-    // verifyInclusion returns the merkle root by hashing the merkle proof items
-    function verifyInclusion(
-        bytes32[] memory auditPath,
-        uint16 merkleKeyIndex,
-        bytes32 merkleKeyHash,
-        bytes32 merkleLeafHash
-    ) public returns (bytes32) {
-        if (merkleKeyIndex == auditPath.length) {
-            return merkleLeafHash;
-        }
-        if (_bitIsSet(merkleKeyHash, merkleKeyIndex)) {
-            return
-                keccak256(
-                    abi.encodePacked(
-                        auditPath[auditPath.length - merkleKeyIndex - 1],
-                        verifyInclusion(
-                            auditPath,
-                            merkleKeyIndex + 1,
-                            merkleKeyHash,
-                            merkleLeafHash
-                        )
-                    )
-                );
-        }
-        return
-            keccak256(
-                abi.encodePacked(
-                    verifyInclusion(auditPath, merkleKeyIndex + 1, merkleKeyHash, merkleLeafHash),
-                    auditPath[auditPath.length - merkleKeyIndex - 1]
-                )
-            );
-    }
-
-    function _bitIsSet(bytes32 bits, uint256 merkleKeyIndex) internal returns (bool) {
-        return (bits[merkleKeyIndex / 8] & (bytes1(0x01) << (7 - (merkleKeyIndex % 8))) != 0);
+        ERC20(_erc20TokenContract).transferFrom(address(this), receiver, burnedUTXO.value);
     }
 
     receive() external payable {}
