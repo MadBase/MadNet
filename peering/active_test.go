@@ -175,29 +175,16 @@ func Test_activePeerStore_add(t *testing.T) {
 }
 
 func Test_activePeerStore_close(t *testing.T) {
-
-	tests := []struct {
-		name   string
-	}{
-		{
-			name: "Testing close channel function",
-		},
+	closeChan := make(chan struct{})
+	ps := &activePeerStore{
+		canClose:  true,
+		store:     make(map[string]interfaces.P2PClient),
+		pid:       make(map[string]uint64),
+		closeChan: closeChan,
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps := &activePeerStore{
-				
-				canClose:  false,
-				store:     nil,
-				pid:       nil,
-				closeChan: make(chan struct{}),
-				
-			}
-			ps.close()
-			_, isOpen := <-make(chan struct{})
-			assert.Equal(t, false, isOpen)
-		})
-	}
+	ps.close()
+	_, isOpen := <-closeChan
+	assert.Equal(t, false, isOpen)
 }
 
 func Test_activePeerStore_contains(t *testing.T) {
