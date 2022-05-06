@@ -106,8 +106,9 @@ func TestMain(m *testing.M) {
 		wg:          sync.WaitGroup{},
 		isConnected: false,
 	}
-	go func (){
-		err := lrpc.Connect(ctx) 
+
+	go func() {
+		err := lrpc.Connect(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -121,50 +122,14 @@ func TestMain(m *testing.M) {
 
 	localStateServer := initLocalStateServer(srpc)
 	go localStateServer.Serve()
-	defer localStateServer.Close()
-
-	go func(){ 
-		err := ipcServer.Start()
+	defer func() {
+		err := localStateServer.Close()
 		if err != nil {
 			panic(err)
 		}
 	}()
-	defer ipcServer.Close()
-
-	go peerManager.Start()
-	defer peerManager.Close()
-
-	go func(){
-		err := consGossipClient.Start()
-		if err != nil {
-			panic(err)
-		}
-	}()
-	defer consGossipClient.Close()
-
-	go consDlManager.Start()
-	defer consDlManager.Close()
-
-	go localStateHandler.Start()
-	defer localStateHandler.Stop()
-
-	go consGossipHandlers.Start()
-	defer consGossipHandlers.Close()
 
 	go storage.Start()
-
-	// go statusLogger.Run()
-	// defer statusLogger.Close()
-
-	// err = mon.Start()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer mon.Close()
-
-	//////////////////////////////////////////////////////////////////////////////
-	//SETUP SHUTDOWN MONITORING///////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////
 
 	consSync.Start()
 
