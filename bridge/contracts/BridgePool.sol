@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "contracts/utils/ImmutableAuth.sol";
-import "contracts/utils/MerkleTree.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "contracts/BToken.sol";
@@ -13,7 +12,7 @@ import "contracts/libraries/MerkleProofLibrary.sol";
 
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
-contract BridgePool is Initializable, ImmutableFactory, MerkleTree {
+contract BridgePool is Initializable, ImmutableFactory {
     address internal _erc20TokenContract;
     address internal _bTokenContract;
     struct UTXO {
@@ -55,36 +54,10 @@ contract BridgePool is Initializable, ImmutableFactory, MerkleTree {
         emit Deposit(aliceNetAddress_, erc20Amount_);
     }
 
-    function withdraw(
-        bytes32 merkleRoot,
-        bytes32 merkleKeyHash,
-        bytes32 merkleValueHash,
-        bytes memory encodedBurnedUTXO,
-        bytes32[] memory auditPath,
-        address receiver
-    ) public onlyFactory {
-        UTXO memory burnedUTXO = abi.decode(encodedBurnedUTXO, (UTXO));
-        uint16 trieHeight = 256;
-        bytes1 diff = bytes2(trieHeight - uint16(auditPath.length))[1];
-        bytes32 leafHash = keccak256(abi.encodePacked(merkleKeyHash, merkleValueHash, diff));
-        require(
-            burnedUTXO.owner == receiver,
-            string(
-                abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER)
-            )
-        );
-        require(
-            merkleRoot == _calculateRootFromMerkleProof(auditPath, 0, merkleKeyHash, leafHash),
-            string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED))
-        );
-        ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value);
-        ERC20(_erc20TokenContract).transferFrom(address(this), receiver, burnedUTXO.value);
-    }
-
     using MerkleProofParserLibrary for bytes;
     using MerkleProofLibrary for MerkleProofParserLibrary.MerkleProof;
 
-    function withdrawWithBinaryProof(
+    function withdraw(
         bytes memory encodedMerkleProof,
         bytes memory encodedBurnedUTXO,
         bytes32 stateRoot,
@@ -93,7 +66,7 @@ contract BridgePool is Initializable, ImmutableFactory, MerkleTree {
         MerkleProofParserLibrary.MerkleProof memory merkleProof = encodedMerkleProof
             .extractMerkleProof();
         UTXO memory burnedUTXO = abi.decode(encodedBurnedUTXO, (UTXO));
-        bytes32 leafHash = merkleProof.computeLeafHash2();
+        bytes32 leafHash = merkleProof.computeLeafHash();
         require(
             burnedUTXO.owner == receiver,
             string(
@@ -101,10 +74,9 @@ contract BridgePool is Initializable, ImmutableFactory, MerkleTree {
             )
         );
         require(
-            merkleProof.verifyInclusion(stateRoot),
+            merkleProof.checkProof(stateRoot, leafHash),
             string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED))
         );
-
         ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value);
         ERC20(_erc20TokenContract).transferFrom(address(this), receiver, burnedUTXO.value);
     }
