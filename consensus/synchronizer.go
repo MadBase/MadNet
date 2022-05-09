@@ -14,6 +14,7 @@ import (
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/dynamics"
 	"github.com/MadBase/MadNet/errorz"
+	"github.com/MadBase/MadNet/interfaces"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/MadBase/MadNet/peering"
 	"github.com/dgraph-io/badger/v2"
@@ -215,6 +216,9 @@ type Synchronizer struct {
 
 	storage dynamics.StorageGetter
 }
+
+// assert Synchronizer struct implements interfaces.Lockable interface
+var _ interfaces.Lockable = &Synchronizer{}
 
 // Init initializes the struct
 func (s *Synchronizer) Init(cdb *db.Database, mdb *badger.DB, tdb *badger.DB, gc *gossip.Client, gh *gossip.Handlers, ep *evidence.Pool, eng *lstate.Engine, app *application.Application, ah *admin.Handlers, pman *peering.PeerManager, storage dynamics.StorageGetter) {
