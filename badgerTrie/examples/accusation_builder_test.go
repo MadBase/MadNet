@@ -60,7 +60,7 @@ func makeTxs(t *testing.T, s objs.Signer, v *objs.ValueStore) *objs.Tx {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx := &objs.Tx{}
+	tx := &objs.Tx{Fee: new(uint256.Uint256).SetZero()}
 	tx.Vin = []*objs.TXIn{txIn}
 	newValueStore := &objs.ValueStore{
 		VSPreImage: &objs.VSPreImage{
@@ -225,7 +225,7 @@ func makeTransfer(t *testing.T, sender objs.Signer, receiver objs.Signer, transf
 		t.Fatal(err)
 	}
 
-	tx := &objs.Tx{}
+	tx := &objs.Tx{Fee: new(uint256.Uint256).SetZero()}
 	tx.Vin = []*objs.TXIn{txIn}
 	newValueStoreSender := &objs.ValueStore{
 		VSPreImage: &objs.VSPreImage{
