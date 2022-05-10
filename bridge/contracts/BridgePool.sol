@@ -9,12 +9,21 @@ import "hardhat/console.sol";
 import {BridgePoolErrorCodes} from "contracts/libraries/errorCodes/BridgePoolErrorCodes.sol";
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 import "contracts/libraries/MerkleProofLibrary.sol";
+import "contracts/DepositNotifier.sol";
 
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
-contract BridgePool is Initializable, ImmutableFactory {
-    address internal _erc20TokenContract;
-    address internal _bTokenContract;
+contract BridgePool is
+    Initializable,
+    ImmutableFactory,
+    ImmutableBridgePool,
+    ImmutableDepositNotifier
+{
+    address internal immutable _erc20TokenContract;
+    address internal immutable _bTokenContract;
+    using MerkleProofParserLibrary for bytes;
+    using MerkleProofLibrary for MerkleProofParserLibrary.MerkleProof;
+
     struct UTXO {
         uint32 chainID;
         address owner;
@@ -36,26 +45,26 @@ contract BridgePool is Initializable, ImmutableFactory {
         public
         onlyFactory
         initializer
-    {
-        _erc20TokenContract = erc20TokenContract_;
-        _bTokenContract = bTokenContract_;
-    }
+    {}
 
     function deposit(
         uint8 accountType_,
         address aliceNetAddress_,
         uint256 erc20Amount_,
         uint256 bTokenAmount_,
-        address ethAddress_
+        address from_
     ) public onlyFactory {
-        ERC20(_erc20TokenContract).transferFrom(ethAddress_, address(this), erc20Amount_);
-        ERC20(_bTokenContract).transferFrom(ethAddress_, address(this), bTokenAmount_);
+        ERC20(_erc20TokenContract).transferFrom(from_, address(this), erc20Amount_);
+        ERC20(_bTokenContract).transferFrom(from_, address(this), bTokenAmount_);
         BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        emit Deposit(aliceNetAddress_, erc20Amount_);
+        DepositNotifier(_depositNotifierAddress()).doEmit(
+            _saltForBridgePool(),
+            _erc20TokenContract,
+            erc20Amount_,
+            from_
+        );
+        // emit Deposit(aliceNetAddress_, erc20Amount_);
     }
-
-    using MerkleProofParserLibrary for bytes;
-    using MerkleProofLibrary for MerkleProofParserLibrary.MerkleProof;
 
     function withdraw(
         bytes memory encodedMerkleProof,

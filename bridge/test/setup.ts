@@ -17,6 +17,7 @@ import {
   ATokenMinter,
   BridgePool,
   BToken,
+  DepositNotifier,
   ETHDKG,
   Foundation,
   LegacyToken,
@@ -558,6 +559,15 @@ export const getFixture = async (
     [aToken.address, bToken.address]
   )) as BridgePool;
 
+  // DepositNotifier
+  const depositNotifier = (await deployStaticWithFactory(
+    factory,
+    "DepositNotifier",
+    "DepositNotifier",
+    [0],
+    [0]
+  )) as DepositNotifier;
+
   await posFixtureSetup(factory, aToken, legacyToken);
 
   const blockNumber = BigInt(await ethers.provider.getBlockNumber());
@@ -576,6 +586,7 @@ export const getFixture = async (
     snapshots,
     ethdkg,
     bridgePool,
+    depositNotifier,
     factory,
     namedSigners,
     aTokenMinter,

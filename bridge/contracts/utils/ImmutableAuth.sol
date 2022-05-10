@@ -16,6 +16,15 @@ abstract contract ImmutableFactory is DeterministicAddress {
         _;
     }
 
+    modifier onlyFactoryChildren(bytes32 salt) {
+        address expected = getMetamorphicContractAddress(salt, _factoryAddress());
+        require(
+            msg.sender == expected,
+            string(abi.encodePacked(ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_FACTORY_CHILDREN))
+        );
+        _;
+    }
+
     constructor(address factory_) {
         _factory = factory_;
     }
@@ -157,6 +166,33 @@ abstract contract ImmutableBridgePool is ImmutableFactory {
 
     function _saltForBridgePool() internal pure returns (bytes32) {
         return 0x427269646765506f6f6c00000000000000000000000000000000000000000000;
+    }
+}
+
+abstract contract ImmutableDepositNotifier is ImmutableFactory {
+    address private immutable _depositNotifier;
+
+    modifier onlyDepositNotifier() {
+        require(
+            msg.sender == _depositNotifier,
+            string(abi.encodePacked(ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_DEPOSITNOTIFIER))
+        );
+        _;
+    }
+
+    constructor() {
+        _depositNotifier = getMetamorphicContractAddress(
+            0x4465706f7369744e6f7469666965720000000000000000000000000000000000,
+            _factoryAddress()
+        );
+    }
+
+    function _depositNotifierAddress() internal view returns (address) {
+        return _depositNotifier;
+    }
+
+    function _saltForDepositNotifier() internal pure returns (bytes32) {
+        return 0x4465706f7369744e6f7469666965720000000000000000000000000000000000;
     }
 }
 

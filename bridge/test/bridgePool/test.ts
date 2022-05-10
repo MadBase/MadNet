@@ -1,5 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
+import { defaultAbiCoder } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 import { expect } from "../chai-setup";
 import {
@@ -67,7 +68,7 @@ describe("Testing BridgePool methods", async () => {
     immutableAuthErrorCodesContract =
       await ImmutableAuthErrorCodesContract.deploy();
     await immutableAuthErrorCodesContract.deployed();
-    fixture = await getFixture();
+    fixture = await getFixture(false, true, false);
     let signers = await ethers.getSigners();
     [admin, user, user2] = signers;
     await init(fixture);
@@ -132,22 +133,35 @@ describe("Testing BridgePool methods", async () => {
   });
 
   describe("Testing business logic", async () => {
-    it("Should make a deposit with amount parameters and emit event", async () => {
+    it.only("Should make a deposit with amount parameters and emit event", async () => {
       expectedState = await getState(fixture);
       expectedState.Balances.aToken.user -= erc20Amount;
       expectedState.Balances.aToken.bridgePool += erc20Amount;
       expectedState.Balances.bToken.user -= bTokenFee.toBigInt();
       expectedState.Balances.bToken.totalSupply -= bTokenFee.toBigInt();
       expectedState.Balances.eth.bridgePool += ethsReceived.toBigInt();
-      await factoryCallAnyFixture(fixture, "bridgePool", "deposit", [
-        1,
+      let receipt = await factoryCallAnyFixture(
+        fixture,
+        "bridgePool",
+        "deposit",
+        [1, user.address, erc20Amount, bTokenFee, user.address]
+      );
+      let encodedEventEmitted = receipt.events?.at(-1)?.data as string;
+      let nonce = 1;
+      let networkId = 0;
+      let eventExpected = [
+        BigNumber.from(nonce),
+        fixture.aToken.address,
         user.address,
-        erc20Amount,
-        bTokenFee,
-        user.address,
-      ]);
+        BigNumber.from(erc20Amount),
+        BigNumber.from(networkId),
+      ];
+      let eventEmitted = defaultAbiCoder.decode(
+        ["uint256", "address", "address", "uint256", "uint256"],
+        encodedEventEmitted
+      );
+      expect(eventExpected).to.be.deep.equal(eventEmitted);
       showState("After Deposit", await getState(fixture));
-
       expect(await getState(fixture)).to.be.deep.equal(expectedState);
     });
 
