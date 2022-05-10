@@ -133,7 +133,7 @@ describe("Testing BridgePool methods", async () => {
   });
 
   describe("Testing business logic", async () => {
-    it.only("Should make a deposit with amount parameters and emit event", async () => {
+    it("Should make a deposit with parameters and emit correspondent event", async () => {
       expectedState = await getState(fixture);
       expectedState.Balances.aToken.user -= erc20Amount;
       expectedState.Balances.aToken.bridgePool += erc20Amount;
@@ -188,7 +188,7 @@ describe("Testing BridgePool methods", async () => {
       expect(await getState(fixture)).to.be.deep.equal(expectedState);
     });
 
-    it("Should not make a withdraw for amount specified on burned UTXO with wrong audit path", async () => {
+    it("Should not make a withdraw for amount specified on burned UTXO with wrong merkle proof", async () => {
       let wrongMerkleProof =
         "0x016665cda80a6c60e1215c1882b25b4744bd9d95c1218a2fd17827ab809c68196fd9bf0000000000000000000000000000000000000000000000000000000000000000af469f3b9864a5132323df8bdd9cbd59ea728cd7525b65252133a5a02f1566ee00010003a8793650a7050ac58cf53ea792426b97212251673788bf0b4045d0bb5bdc3843aafb9eb5ced6edc2826e734abad6235c8cf638c812247fd38f04e7080d431933b9c6d6f24756341fde3e8055dd3a83743a94dddc122ab3f32a3db0c4749ff57bad";
       await expect(
@@ -227,31 +227,31 @@ describe("Testing BridgePool methods", async () => {
           user2.address,
         ])
       ).to.be.revertedWith(
-        bridgePoolErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED()
+        bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER()
       );
     });
-  });
 
-  it("Should make a withdraw for amount specified on burned UTXO with verified binary proof", async () => {
-    // Make first a deposit to withdraw afterwards
-    await factoryCallAnyFixture(fixture, "bridgePool", "deposit", [
-      1,
-      user.address,
-      erc20Amount,
-      bTokenFee,
-      user.address,
-    ]);
-    showState("After Deposit", await getState(fixture));
-    expectedState = await getState(fixture);
-    expectedState.Balances.aToken.user += erc20Amount;
-    expectedState.Balances.aToken.bridgePool -= erc20Amount;
-    await factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
-      merkleProof,
-      encodedBurnedUTXO,
-      stateRoot,
-      user.address,
-    ]);
-    showState("After withdraw", await getState(fixture));
-    expect(await getState(fixture)).to.be.deep.equal(expectedState);
+    it("Should make a withdraw for amount specified on burned UTXO with verified binary proof", async () => {
+      // Make first a deposit to withdraw afterwards
+      await factoryCallAnyFixture(fixture, "bridgePool", "deposit", [
+        1,
+        user.address,
+        erc20Amount,
+        bTokenFee,
+        user.address,
+      ]);
+      showState("After Deposit", await getState(fixture));
+      expectedState = await getState(fixture);
+      expectedState.Balances.aToken.user += erc20Amount;
+      expectedState.Balances.aToken.bridgePool -= erc20Amount;
+      await factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
+        merkleProof,
+        encodedBurnedUTXO,
+        stateRoot,
+        user.address,
+      ]);
+      showState("After withdraw", await getState(fixture));
+      expect(await getState(fixture)).to.be.deep.equal(expectedState);
+    });
   });
 });
