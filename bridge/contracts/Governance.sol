@@ -4,8 +4,6 @@ pragma solidity ^0.8.11;
 import "contracts/interfaces/IGovernor.sol";
 import {GovernanceErrorCodes} from "contracts/libraries/errorCodes/GovernanceErrorCodes.sol";
 
-// delete this line
-
 /// @custom:salt Governance
 /// @custom:deploy-type deployUpgradeable
 contract Governance is IGovernor {
