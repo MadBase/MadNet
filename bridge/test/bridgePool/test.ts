@@ -101,6 +101,28 @@ describe("Testing BridgePool methods", async () => {
       await fixture.bToken.totalSupply(),
       bTokenFee
     );
+    // Take a mock snapshot
+    let encodedMockBlockClaims = defaultAbiCoder.encode(
+      [
+        "uint32",
+        "uint32",
+        "uint32",
+        "bytes32",
+        "bytes32",
+        "bytes32",
+        "bytes32",
+      ],
+      [
+        0,
+        0,
+        0,
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0x0d66a8a0babec3d38b67b5239c1683f15a57e087f3825fac3d70fd6a243ed30b",
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ]
+    );
+    fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
     showState("Initial", await getState(fixture));
   });
 
@@ -123,7 +145,6 @@ describe("Testing BridgePool methods", async () => {
         fixture.bridgePool.withdraw(
           merkleProof,
           encodedBurnedUTXO,
-          stateRoot,
           user.address
         )
       ).to.be.revertedWith(
@@ -181,7 +202,6 @@ describe("Testing BridgePool methods", async () => {
       await factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
         merkleProof,
         encodedBurnedUTXO,
-        stateRoot,
         user.address,
       ]);
       showState("After withdraw", await getState(fixture));
@@ -195,7 +215,6 @@ describe("Testing BridgePool methods", async () => {
         factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
           wrongMerkleProof,
           encodedBurnedUTXO,
-          stateRoot,
           user.address,
         ])
       ).to.be.revertedWith(
@@ -210,7 +229,6 @@ describe("Testing BridgePool methods", async () => {
         factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
           merkleProof,
           encodedBurnedUTXO,
-          wrongStateRoot,
           user.address,
         ])
       ).to.be.revertedWith(
@@ -223,7 +241,6 @@ describe("Testing BridgePool methods", async () => {
         factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
           merkleProof,
           encodedBurnedUTXO,
-          stateRoot,
           user2.address,
         ])
       ).to.be.revertedWith(
@@ -247,7 +264,6 @@ describe("Testing BridgePool methods", async () => {
       await factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
         merkleProof,
         encodedBurnedUTXO,
-        stateRoot,
         user.address,
       ]);
       showState("After withdraw", await getState(fixture));

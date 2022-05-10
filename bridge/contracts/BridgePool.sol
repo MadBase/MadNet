@@ -10,6 +10,8 @@ import {BridgePoolErrorCodes} from "contracts/libraries/errorCodes/BridgePoolErr
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 import "contracts/libraries/MerkleProofLibrary.sol";
 import "contracts/DepositNotifier.sol";
+import "contracts/Snapshots.sol";
+import "contracts/libraries/parsers/BClaimsParserLibrary.sol";
 
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
@@ -17,7 +19,8 @@ contract BridgePool is
     Initializable,
     ImmutableFactory,
     ImmutableBridgePool,
-    ImmutableDepositNotifier
+    ImmutableDepositNotifier,
+    ImmutableSnapshots
 {
     address internal immutable _erc20TokenContract;
     address internal immutable _bTokenContract;
@@ -69,9 +72,11 @@ contract BridgePool is
     function withdraw(
         bytes memory encodedMerkleProof,
         bytes memory encodedBurnedUTXO,
-        bytes32 stateRoot,
         address receiver
     ) public onlyFactory {
+        bytes memory dummy;
+        BClaimsParserLibrary.BClaims memory bClaims = Snapshots(_snapshotsAddress())
+            .getBlockClaimsFromLatestSnapshot();
         MerkleProofParserLibrary.MerkleProof memory merkleProof = encodedMerkleProof
             .extractMerkleProof();
         UTXO memory burnedUTXO = abi.decode(encodedBurnedUTXO, (UTXO));
@@ -83,7 +88,7 @@ contract BridgePool is
             )
         );
         require(
-            merkleProof.checkProof(stateRoot, leafHash),
+            merkleProof.checkProof(bClaims.stateRoot, leafHash),
             string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED))
         );
         ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value);
