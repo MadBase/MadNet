@@ -124,10 +124,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          working-directory: ./
+      - name: install-golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+      - name: run golangci-lint
+        run: golangci-lint run ./...
 
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
