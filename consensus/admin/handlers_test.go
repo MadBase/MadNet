@@ -2,13 +2,16 @@ package admin
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	aobjs "github.com/MadBase/MadNet/application/objs"
+	utxo "github.com/MadBase/MadNet/application/utxohandler"
 	trie "github.com/MadBase/MadNet/badgerTrie"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/config"
@@ -31,10 +34,12 @@ import (
 )
 
 type ahTestProxy struct {
-	logger    *logrus.Logger
-	db        *db.Database
-	ah        *Handlers
-	secretKey []byte
+	logger         *logrus.Logger
+	db             *db.Database
+	ah             *Handlers
+	secretKey      []byte
+	rawConsensusDb *badger.DB
+	utxoHandler    *utxo.UTXOHandler
 }
 
 var _ appmock.Application = &ahTestProxy{}
@@ -50,10 +55,7 @@ func (p *ahTestProxy) SetNextValidValue(vv *objs.Proposal) {
 
 // ApplyState is defined on the interface object
 func (p *ahTestProxy) ApplyState(txn *badger.Txn, chainID, height uint32, txs []interfaces.Transaction) ([]byte, error) {
-	fmt.Printf("ahTestProxy.ApplyState()\n")
-	//err := p.SetTxCacheItem() AddTxs(txn, 1, []interfaces.Transaction{tx})
-	//assert.Nil(t, err)
-	return nil, nil
+	return p.utxoHandler.ApplyState(txn, aobjs.TxVec{}, 1)
 }
 
 //GetValidProposal is defined on the interface object
@@ -183,12 +185,20 @@ func setupAHTests(t *testing.T) (testProxy *ahTestProxy, closeFn func()) {
 	db := &db.Database{}
 	db.Init(rawConsensusDb)
 
+	hndlr := utxo.NewUTXOHandler(rawConsensusDb)
+	err = hndlr.Init(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	secretKey := mncrypto.Hasher([]byte("someSuperFancySecretThatWillBeHashed"))
 
 	testProxy = &ahTestProxy{
-		logger:    logger,
-		db:        db,
-		secretKey: secretKey,
+		logger:         logger,
+		db:             db,
+		secretKey:      secretKey,
+		rawConsensusDb: rawConsensusDb,
+		utxoHandler:    hndlr,
 	}
 
 	ethPubKey := []byte("b904C0A2d203Ceb2B518055f116064666C028240")
@@ -299,14 +309,17 @@ func TestAdminHandler_AddValidatorSet(t *testing.T) {
 	vs := generateValidatorSet(t)
 
 	err := ahTestProxy.ah.AddValidatorSet(vs)
-	assert.Nil(t, err, err)
+	assert.Nil(t, err)
 }
 
 func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 	ahTestProxy, closeFn := setupAHTests(t)
 	defer closeFn()
+	var xxx = false
+	didRunCallback := &xxx
 
 	ahTestProxy.ah.RegisterSnapshotCallback(func(bh *objs.BlockHeader) error {
+		*didRunCallback = true
 		t.Logf("SnapshotCallback is being called!")
 		ahTestProxy.logger.Printf("SnapshotCallback is being called 2!")
 		//panic("sss")
@@ -318,25 +331,82 @@ func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 	err := ahTestProxy.ah.AddValidatorSet(vs)
 	assert.Nil(t, err, err)
 
-	bhs := makeGoodBlock(t, 32)
-
 	//err := ahTestProxy.ah.AddSnapshot(bh, false)
 	//assert.Nil(t, err)
 
-	for i := 0; i < 31; i++ {
-		err := ahTestProxy.db.Update(func(txn *badger.Txn) error {
-			return ahTestProxy.ah.database.SetBroadcastBlockHeader(txn, bhs[i])
-		})
+	bhs := ahTestProxy.makeGoodBlock(t, 32)
+
+	err = ahTestProxy.db.Update(func(txn *badger.Txn) error {
+		addrBytes, err := hex.DecodeString("9AC1c9afBAec85278679fF75Ef109217f26b1417")
+		assert.Nil(t, err)
+		ownState := &objs.OwnState{
+			VAddr:             addrBytes,
+			SyncToBH:          bhs[0],
+			MaxBHSeen:         bhs[0],
+			CanonicalSnapShot: bhs[0],
+			PendingSnapShot:   bhs[0],
+		}
+		return ahTestProxy.db.SetOwnState(txn, ownState)
+	})
+	assert.Nil(t, err)
+
+	for i := 0; i < 32; i++ {
+		//t.Logf("iteration i: %v, block: %#v\n", i, bhs[i].BClaims)
+		binary, err := bhs[i].MarshalBinary()
+		assert.Nil(t, err)
+		//t.Logf("binary: %x", binary)
+		bht := &objs.BlockHeader{}
+		err = bht.UnmarshalBinary(binary)
+		assert.Nil(t, err)
+
+		if i == 0 {
+			err = ahTestProxy.db.Update(func(txn *badger.Txn) error {
+				err := ahTestProxy.db.SetSnapshotBlockHeader(txn, bhs[i])
+				assert.Nil(t, err)
+
+				return err
+			})
+			assert.Nil(t, err)
+		} else {
+			err = ahTestProxy.db.Update(func(txn *badger.Txn) error {
+				err := ahTestProxy.db.SetBroadcastBlockHeader(txn, bhs[i])
+				assert.Nil(t, err)
+
+				_, err = ahTestProxy.ah.database.GetBroadcastBlockHeader(txn)
+				assert.Nil(t, err)
+				//t.Logf("got bh: %#v", bh.BClaims)
+
+				return err
+			})
+			assert.Nil(t, err)
+
+		}
+
+		// err = ahTestProxy.db.View(func(txn *badger.Txn) error {
+		// 	bh, err := ahTestProxy.ah.database.GetBroadcastBlockHeader(txn)
+		// 	assert.Nil(t, err)
+		// 	t.Logf("got bh: %#v", bh.BClaims)
+
+		// 	return err
+		// })
 
 		assert.Nil(t, err)
+
+		//ahTestProxy.rawConsensusDb.
+
+		//<-time.After(2 * time.Second)
 	}
 
-	err = ahTestProxy.ah.AddSnapshot(bhs[31], false)
-	assert.Nil(t, err)
+	// err = ahTestProxy.ah.AddSnapshot(bhs[31], true)
+	// assert.Nil(t, err)
+
+	<-time.After(5 * time.Second)
+
+	assert.True(t, *didRunCallback)
 }
 
-func makeGoodBlock(t *testing.T, nBlocks int) []*objs.BlockHeader {
-	bclaimsList, txHashListList, err := generateChain(nBlocks)
+func (ah *ahTestProxy) makeGoodBlock(t *testing.T, nBlocks int) []*objs.BlockHeader {
+	bclaimsList, txHashListList, err := ah.generateChain(nBlocks)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +441,7 @@ func makeGoodBlock(t *testing.T, nBlocks int) []*objs.BlockHeader {
 	return bhs
 }
 
-func generateChain(nBlocks int) ([]*objs.BClaims, [][][]byte, error) {
+func (ah *ahTestProxy) generateChain(nBlocks int) ([]*objs.BClaims, [][][]byte, error) {
 	chain := []*objs.BClaims{}
 	txHashes := [][][]byte{}
 
@@ -394,14 +464,23 @@ func generateChain(nBlocks int) ([]*objs.BClaims, [][][]byte, error) {
 			}
 		}
 
+		var stateRoot []byte
+		err = ah.db.Update(func(txn *badger.Txn) error {
+			stateRoot, err = ah.ApplyState(txn, 1, uint32(i)+1, nil)
+			return err
+		})
+		if err != nil || stateRoot == nil {
+			panic(err)
+		}
+
 		bclaims := &objs.BClaims{
 			ChainID:    1,
 			Height:     uint32(i) + 1,
 			TxCount:    1,
 			PrevBlock:  prevBlockHash,
 			TxRoot:     txRoot,
-			StateRoot:  crypto.Hasher([]byte("")),
-			HeaderRoot: crypto.Hasher([]byte("")),
+			StateRoot:  stateRoot,
+			HeaderRoot: crypto.Hasher([]byte("header root")),
 		}
 		chain = append(chain, bclaims)
 	}
