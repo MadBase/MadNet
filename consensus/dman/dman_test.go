@@ -13,7 +13,6 @@ import (
 	aobjs "github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/application/objs/uint256"
 	trie "github.com/MadBase/MadNet/badgerTrie"
-	"github.com/MadBase/MadNet/consensus/appmock"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -38,9 +37,9 @@ type dmanTestProxy struct {
 	testTx        *aobjs.Tx
 }
 
-// assert struct `dmanTestProxy` implements `reqBusView` , `appmock.Application`, `databaseView` interfaces
+// assert struct `dmanTestProxy` implements `reqBusView` , `interfaces.Application`, `databaseView` interfaces
 var _ reqBusView = &dmanTestProxy{}
-var _ appmock.Application = &dmanTestProxy{}
+var _ interfaces.Application = &dmanTestProxy{}
 var _ databaseView = &dmanTestProxy{}
 
 //var _ typeProxyIface = &dmanTestProxy{}

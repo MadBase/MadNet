@@ -15,7 +15,6 @@ import (
 	trie "github.com/MadBase/MadNet/badgerTrie"
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/config"
-	"github.com/MadBase/MadNet/consensus/appmock"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -42,7 +41,7 @@ type ahTestProxy struct {
 	utxoHandler    *utxo.UTXOHandler
 }
 
-var _ appmock.Application = &ahTestProxy{}
+var _ interfaces.Application = &ahTestProxy{}
 
 const (
 	notImpl = "not implemented"
