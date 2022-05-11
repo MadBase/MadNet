@@ -164,6 +164,7 @@ jobs:
         run: |
             set -euo pipefail
             ./scripts/main.sh init 5
-            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingGPK
-            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldAccuseOneValidator
+            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingKey
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingGPK
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldAccuseOneValidator
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjDispute
