@@ -57,16 +57,29 @@ contract BridgePool is
         uint256 bTokenAmount_,
         address from_
     ) public onlyFactory {
-        ERC20(_erc20TokenContract).transferFrom(from_, address(this), erc20Amount_);
-        ERC20(_bTokenContract).transferFrom(from_, address(this), bTokenAmount_);
+        require(
+            ERC20(_erc20TokenContract).transferFrom(from_, address(this), erc20Amount_),
+            string(
+                abi.encodePacked(
+                    BridgePoolErrorCodes.BRIDGEPOOL_COULD_NOT_TRANSFER_DEPOSIT_AMOUNT_FROM_SENDER
+                )
+            )
+        );
+        require(
+            ERC20(_bTokenContract).transferFrom(from_, address(this), bTokenAmount_),
+            string(
+                abi.encodePacked(
+                    BridgePoolErrorCodes.BRIDGEPOOL_COULD_NOT_TRANSFER_DEPOSIT_FEE_FROM_SENDER
+                )
+            )
+        );
         BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        DepositNotifier(_depositNotifierAddress()).doEmit(
+        DepositNotifier(_depositNotifierAddress()).doEmit( // Should aliceNetAddress_  be an arg to?
             _saltForBridgePool(),
             _erc20TokenContract,
             erc20Amount_,
             from_
         );
-        // emit Deposit(aliceNetAddress_, erc20Amount_);
     }
 
     function withdraw(
@@ -84,15 +97,33 @@ contract BridgePool is
         require(
             burnedUTXO.owner == receiver,
             string(
-                abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER)
+                abi.encodePacked(
+                    BridgePoolErrorCodes.BRIDGEPOOL_RECEIVER_IS_NOT_OWNER_ON_PROOF_OF_BURN_UTXO
+                )
             )
         );
         require(
             merkleProof.checkProof(bClaims.stateRoot, leafHash),
-            string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED))
+            string(abi.encodePacked(BridgePoolErrorCodes.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN))
         );
-        ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value);
-        ERC20(_erc20TokenContract).transferFrom(address(this), receiver, burnedUTXO.value);
+
+        require(
+            ERC20(_erc20TokenContract).approve(address(this), burnedUTXO.value),
+            string(
+                abi.encodePacked(
+                    BridgePoolErrorCodes
+                        .BRIDGEPOOL_COULD_NOT_APPROVE_ALLOWANCE_TO_TRANSFER_WITHDRAW_AMOUNT_TO_RECEIVER
+                )
+            )
+        );
+        require(
+            ERC20(_erc20TokenContract).transferFrom(address(this), receiver, burnedUTXO.value),
+            string(
+                abi.encodePacked(
+                    BridgePoolErrorCodes.BRIDGEPOOL_COULD_NOT_TRANSFER_WITHDRAW_AMOUNT_TO_RECEIVER
+                )
+            )
+        );
     }
 
     receive() external payable {}

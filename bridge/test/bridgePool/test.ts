@@ -28,9 +28,6 @@ describe("Testing BridgePool methods", async () => {
   let erc20AmountWei: BigNumber;
   let expectedState: state;
   // Mock a merkle proof for a burned UTXO on alicenet
-  // Merkle tree hashed key
-  let keyHash = ethers.utils.keccak256(Buffer.from("A"));
-  // Merkle tree value (alicenet burned UTXO)
   let burnedUTXO = {
     chainId: 0,
     owner: "0x9AC1c9afBAec85278679fF75Ef109217f26b1417",
@@ -39,10 +36,6 @@ describe("Testing BridgePool methods", async () => {
     txHash:
       "0x0000000000000000000000000000000000000000000000000000000000000000",
   };
-  // Merkle tree hashed value
-  let valueHash = ethers.utils.keccak256(
-    Buffer.from(JSON.stringify(burnedUTXO))
-  );
   // Encode burned UTXO
   let encodedBurnedUTXO = ethers.utils.defaultAbiCoder.encode(
     [
@@ -50,7 +43,7 @@ describe("Testing BridgePool methods", async () => {
     ],
     [burnedUTXO]
   );
-  // These values can be obtained from accusation_builder_test.go
+  // These values can be obtained from accusation_builder_test.go execution
   let merkleProof = // capnproto
     "0x010005cda80a6c60e1215c1882b25b4744bd9d95c1218a2fd17827ab809c68196fd9bf0000000000000000000000000000000000000000000000000000000000000000af469f3b9864a5132323df8bdd9cbd59ea728cd7525b65252133a5a02f1566ee00010003a8793650a7050ac58cf53ea792426b97212251673788bf0b4045d0bb5bdc3843aafb9eb5ced6edc2826e734abad6235c8cf638c812247fd38f04e7080d431933b9c6d6f24756341fde3e8055dd3a83743a94dddc122ab3f32a3db0c4749ff57bad";
   let stateRoot = // stateRoot
@@ -72,8 +65,6 @@ describe("Testing BridgePool methods", async () => {
     let signers = await ethers.getSigners();
     [admin, user, user2] = signers;
     await init(fixture);
-    // let expectedState = await getState(contractAddresses, userAddresses);
-    // await factoryCallAnyFixture(fixture, "aToken", "setAdmin", [admin.address]);
     ethIn = ethers.utils.parseEther(bTokenFeeInETH.toString());
     erc20AmountWei = ethers.utils.parseUnits(erc20Amount.toString());
     // mint and approve some ERC20 tokens to deposit
@@ -210,7 +201,7 @@ describe("Testing BridgePool methods", async () => {
 
     it("Should not make a withdraw for amount specified on burned UTXO with wrong merkle proof", async () => {
       let wrongMerkleProof =
-        "0x016665cda80a6c60e1215c1882b25b4744bd9d95c1218a2fd17827ab809c68196fd9bf0000000000000000000000000000000000000000000000000000000000000000af469f3b9864a5132323df8bdd9cbd59ea728cd7525b65252133a5a02f1566ee00010003a8793650a7050ac58cf53ea792426b97212251673788bf0b4045d0bb5bdc3843aafb9eb5ced6edc2826e734abad6235c8cf638c812247fd38f04e7080d431933b9c6d6f24756341fde3e8055dd3a83743a94dddc122ab3f32a3db0c4749ff57bad";
+        "0xFF0005cda80a6c60e1215c1882b25b4744bd9d95c1218a2fd17827ab809c68196fd9bf0000000000000000000000000000000000000000000000000000000000000000af469f3b9864a5132323df8bdd9cbd59ea728cd7525b65252133a5a02f1566ee00010003a8793650a7050ac58cf53ea792426b97212251673788bf0b4045d0bb5bdc3843aafb9eb5ced6edc2826e734abad6235c8cf638c812247fd38f04e7080d431933b9c6d6f24756341fde3e8055dd3a83743a94dddc122ab3f32a3db0c4749ff57bad";
       await expect(
         factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
           wrongMerkleProof,
@@ -218,13 +209,12 @@ describe("Testing BridgePool methods", async () => {
           user.address,
         ])
       ).to.be.revertedWith(
-        bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER()
+        bridgePoolErrorCodesContract.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN()
       );
     });
 
     it("Should not make a withdraw for amount specified on burned UTXO with wrong root", async () => {
-      let wrongStateRoot =
-        "0xFF66a8a0babec3d38b67b5239c1683f15a57e087f3825fac3d70fd6a243ed30b";
+      let wrongStateRoot = "0x00";
       await expect(
         factoryCallAnyFixture(fixture, "bridgePool", "withdraw", [
           merkleProof,
@@ -232,7 +222,7 @@ describe("Testing BridgePool methods", async () => {
           user.address,
         ])
       ).to.be.revertedWith(
-        bridgePoolErrorCodesContract.BRIDGEPOOL_PROOF_OF_BURN_NOT_VERIFIED()
+        bridgePoolErrorCodesContract.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN()
       );
     });
 
@@ -244,7 +234,7 @@ describe("Testing BridgePool methods", async () => {
           user2.address,
         ])
       ).to.be.revertedWith(
-        bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_NOT_PROOF_OF_BURN_OWNER()
+        bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_IS_NOT_OWNER_ON_PROOF_OF_BURN_UTXO()
       );
     });
 

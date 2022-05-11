@@ -2,7 +2,6 @@
 pragma solidity ^0.8.11;
 
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
-import "hardhat/console.sol";
 
 library MerkleProofLibrary {
     /// @notice Check if the bit at the given `index` in `self` is set. Function
