@@ -9,9 +9,9 @@ on:
 env:
   NODE_VERSION: 16.x
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
+#concurrency:
+#  group: ${{ github.ref }}
+#  cancel-in-progress: true
 
 defaults:
   run:
