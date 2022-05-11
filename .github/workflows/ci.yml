@@ -164,7 +164,10 @@ jobs:
         run: |
             set -euo pipefail
             ./scripts/main.sh init 5
-            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
+            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjSubmission
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldRetryTrue
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldNotRetryAfterSuccessfullyAccusingAllMissingParticipants
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingKey
