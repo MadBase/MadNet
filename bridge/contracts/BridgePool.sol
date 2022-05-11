@@ -34,7 +34,6 @@ contract BridgePool is
         uint256 fee;
         bytes32 txHash;
     }
-    event Deposit(address from, uint256 value);
 
     constructor(address erc20TokenContract_, address bTokenContract_)
         public
@@ -74,7 +73,7 @@ contract BridgePool is
             )
         );
         BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        DepositNotifier(_depositNotifierAddress()).doEmit( // Should aliceNetAddress_  be an arg to?
+        DepositNotifier(_depositNotifierAddress()).doEmit( // Shouldn't aliceNetAddress_ be an arg too?
             _saltForBridgePool(),
             _erc20TokenContract,
             erc20Amount_,

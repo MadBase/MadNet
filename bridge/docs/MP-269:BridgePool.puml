@@ -1,38 +1,38 @@
 @startuml name
 Actor User
-Participant "BridgePool" as MadnetFactory #LightBlue
-Participant "MadByte\n(ERC20Upgradeable)" as MadByte #LightGreen
-Participant "MadToken\n(Legacy ERC20)" as MadToken #Orange
-Participant "ATokenMinter" as ATokenMinter #LightCoral
-Participant "ATokenBurner" as ATokenBurner #LightCyan
-title New ERC20Upgradeable AToken with External Minter/Burner Helper
+Participant "BridgePool" #LightBlue
+Participant "ERC20Token" #LightGreen
+Participant "BToken" #Orange
+Participant "DepositNotifier" #LightGoldenRodYellow
+Participant "Eths" #LightGray
+Participant "Snapshots" #LightSalmon
+title BridgePool
 
-User -> MadByte : approve(BridegPool,tokenAmount)
-User -> BridegPool : deposit(tokenAmount)
+User -> ERC20Token : approve(BridgePool,erc20Amount)
+User -> BToken : approve(BridgePool,bTokenFeeAmount)
+User -> BridgePool : deposit(accountType_,aliceNetAddress_,erc20Amount_,bTokenFeeAmount_,from_)
 group deposit
     group transfer       
-        MadByte -> BridgePool : transferFrom\n(user,BridgePool,tokenAmount)
-        MadByte --> BridgePool: madBytes {tokenAmount}
+        ERC20Token --> BridgePool : erc20Amount
+        BToken --> BridgePool: bTokenFeeAmount
     end
     group burn        
-        BridgePool -> MadByte : burn(tokenAmount,0)
-        MadByte --> BridgePool: eths {poolBalance/4}
+        BridgePool -> BridgePool : burnTo(BridgePool, bTokensFeeAmount)
+        Eths --> BridgePool
     end
-    group createDeposit        
-        BridgePool -> BridgePool : depositId = createDeposit(user.address, eths, false)
-        BridgePool -> EventEmitter: _emitDepositEvent(depositID, user.address, eths)
+    group notifyDeposit        
+        BridgePool -> DepositNotifier: doEmit(_saltForBridgePool(),_erc20TokenContract,erc20Amount_,from_)
     end
 end
-User -> BridegPool : withdraw(depositID)
-group withdraw       
-    BridgePool -> EventEmitter: _emitWithdrawalRequestEvent(depositID)
-
-end
-User -> ATokenMinter : mint(user,amount) [onlyFactory]
-group externalMint        
-    ATokenMinter -> AToken : externalMint(user, amount)\n[onlyATokenMinter]
-    AToken -> AToken : _mint(user, amount) 
-    AToken --> User: AToken amount
+User -> BridgePool : withdraw(encodedMerkleProof, burnedUTXO, receiver)
+group withdraw 
+    group verify merkle proof
+        BridgePool -> Snapshots: bClaims = getBlockClaimsFromLatestSnapshot()
+        BridgePool -> BridgePool : merkleProof.checkProof(bClaims.stateRoot, merkleProof.computeLeafHash()),
+    end
+    group transfer       
+        ERC20Token --> User: burnedUTXO.amount
+    end
 end
 @enduml
 
