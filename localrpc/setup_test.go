@@ -171,7 +171,7 @@ func validatorNode() {
 	publicKey := pubKey
 	// create execution context for application
 	ctx = context.Background()
-	nodeCtx, _ := context.WithCancel(ctx)
+	nodeCtx := ctx
 	// defer cf()
 
 	// setup logger for program assembly operations
@@ -367,7 +367,7 @@ func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (t
 	signature := txin.Signature
 	/* 	fmt.Printf("Hash %x \n", hash)
 	   	fmt.Printf("Signature %x \n", signature) */
-	transactionData := *&pb.TransactionData{
+	transactionData := &pb.TransactionData{
 		Tx: &pb.Tx{
 			Vin: []*pb.TXIn{
 				&pb.TXIn{
@@ -402,8 +402,7 @@ func getTransactionRequest(ConsumedTxHash []byte, account []byte, val uint64) (t
 		},
 	}
 	/* 	fmt.Println(transactionData)
-	 */
-	return &transactionData, hash, signature
+	 */return transactionData, hash, signature
 }
 
 func getSignerData() (*crypto.Secp256k1Signer, []byte) {
