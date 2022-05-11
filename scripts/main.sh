@@ -164,10 +164,11 @@ case $1 in
     ;;
     hardhat_node)
         ./scripts/base-scripts/hardhat_node.sh &
-        HARDHAT_NODE_SH_PID="$!"
+        trap 'pkill -9 -f hardhat' SIGTERM
+#        HARDHAT_NODE_SH_PID="$!"
 #        trap "echo 'Intercepted SIGTERM main.sh - $$ - $HARDHAT_NODE_SH_PID' && kill -9 $HARDHAT_NODE_SH_PID" SIGTERM SIGINT SIGKILL EXIT
-        echo "Intercepted SIGTERM main.sh - $$ - $HARDHAT_NODE_SH_PID"
-        trap "trap - SIGTERM && kill -- $HARDHAT_NODE_SH_PID" SIGTERM SIGINT SIGKILL EXIT
+#        echo "Intercepted SIGTERM main.sh - $$ - $HARDHAT_NODE_SH_PID"
+#        trap "trap - SIGTERM && kill -- $HARDHAT_NODE_SH_PID" SIGTERM SIGINT SIGKILL EXIT
 
         wait
     ;;
