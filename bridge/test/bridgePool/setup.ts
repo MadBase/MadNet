@@ -1,7 +1,16 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "ethers/lib/ethers";
+import { defaultAbiCoder } from "ethers/lib/utils";
 import { ethers } from "hardhat";
-import { Fixture } from "../setup";
+import {
+  BridgePoolErrorCodes,
+  ImmutableAuthErrorCodes,
+} from "../../typechain-types";
+import {
+  callFunctionAndGetReturnValues,
+  factoryCallAnyFixture,
+  Fixture,
+} from "../setup";
 
 let admin: SignerWithAddress;
 let user: SignerWithAddress;
@@ -25,7 +34,7 @@ export interface state {
     };
     eth: {
       address: string;
-      // We leave user balance as number to round values and avoid gas consumed comparison
+      // We leave user balance as number to round values and avoid consumed gas comparison
       admin: number;
       user: number;
       bridgePool: bigint;
@@ -72,24 +81,6 @@ export async function getState(fixture: Fixture) {
   return state;
 }
 
-// export async function getState(contracts: stateActor[], users: stateActor[]) {
-//   let state: state;
-//   let actorStates: stateActorBalance;
-//   contracts.map(async (contract, i) => {
-//     users.map(async (user, i) => {
-//       let stateActorBalance: stateActorBalance = {
-//         actor: user,
-//         balance: await (contract.actor as aToken).balanceOf(
-//           user.actor.address
-//         ),
-//       };
-//       state.balances.push(actorStates);
-//     });
-//   });
-
-//   return state;
-// }
-
 export function showState(title: string, state: state) {
   if (process.env.npm_config_detailed == "true") {
     // execute "npm --detailed=true test" to see this output
@@ -99,43 +90,101 @@ export function showState(title: string, state: state) {
 
 export function format(number: BigNumber) {
   return parseFloat((+ethers.utils.formatEther(number)).toFixed(0));
-  // return parseInt(ethers.utils.formatUnits(number, 0));
 }
 
 export function formatBigInt(number: BigNumber) {
   return BigInt(parseFloat((+ethers.utils.formatEther(number)).toFixed(0)));
-  // return parseInt(ethers.utils.formatUnits(number, 0));
 }
 
-export function getUserNotInRoleReason(address: string, role: string) {
-  let reason =
-    "AccessControl: account " +
-    address.toLowerCase() +
-    " is missing role " +
-    role;
-  return reason;
-}
+export var testData = {
+  immutableAuthErrorCodesContract: {} as ImmutableAuthErrorCodes,
+  bridgePoolErrorCodesContract: {} as BridgePoolErrorCodes,
+  admin: {} as SignerWithAddress,
+  user: {} as SignerWithAddress,
+  user2: {} as SignerWithAddress,
+  ethIn: BigNumber.from(0),
+  ethsReceived: BigNumber.from(0),
+  bTokenFeeInETH: 10,
+  totalErc20Amount: BigNumber.from(20000).toBigInt(),
+  erc20Amount: BigNumber.from(100).toBigInt(),
+  bTokenAmount: BigNumber.from(100).toBigInt(),
+  // The following merkle proof and stateRoot values can be obtained from accusation_builder_test.go execution
+  merkleProof:
+    "0x010005cda80a6c60e1215c1882b25b4744bd9d95c1218a2fd17827ab809c68196fd9bf0000000000000000000000000000000000000000000000000000000000000000af469f3b9864a5132323df8bdd9cbd59ea728cd7525b65252133a5a02f1566ee00010003a8793650a7050ac58cf53ea792426b97212251673788bf0b4045d0bb5bdc3843aafb9eb5ced6edc2826e734abad6235c8cf638c812247fd38f04e7080d431933b9c6d6f24756341fde3e8055dd3a83743a94dddc122ab3f32a3db0c4749ff57bad", // capnproto
+  stateRoot:
+    "0x0d66a8a0babec3d38b67b5239c1683f15a57e087f3825fac3d70fd6a243ed30b", // stateRoot
+  // Mock a merkle proof for a burned UTXO on alicenet
+  burnedUTXO: {
+    chainId: 0,
+    owner: "0x9AC1c9afBAec85278679fF75Ef109217f26b1417",
+    value: 100,
+    fee: 1,
+    txHash:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+};
 
 export async function init(fixture: Fixture) {
-  // const contractName = await fixture.aToken.name();
-  // [admin, user] = await ethers.getSigners();
-  // await fixture.madToken.connect(admin).approve(admin.address, 1000);
-  // await fixture.madToken
-  //   .connect(admin)
-  //   .transferFrom(admin.address, user.address, 1000);
-  // showState("Initial", await getState(fixture));
+  let signers = await ethers.getSigners();
+  [testData.admin, testData.user, testData.user2] = signers;
+  const BridgePoolErrorCodesContract = await ethers.getContractFactory(
+    "BridgePoolErrorCodes"
+  );
+  testData.bridgePoolErrorCodesContract =
+    await BridgePoolErrorCodesContract.deploy();
+  await testData.bridgePoolErrorCodesContract.deployed();
+  const ImmutableAuthErrorCodesContract = await ethers.getContractFactory(
+    "ImmutableAuthErrorCodes"
+  );
+  testData.immutableAuthErrorCodesContract =
+    await ImmutableAuthErrorCodesContract.deploy();
+  await testData.immutableAuthErrorCodesContract.deployed();
+  testData.ethIn = ethers.utils.parseEther(testData.bTokenFeeInETH.toString());
+  // mint and approve some ERC20 tokens to deposit
+  await factoryCallAnyFixture(fixture, "aTokenMinter", "mint", [
+    testData.user.address,
+    testData.totalErc20Amount,
+  ]);
+  await fixture.aToken
+    .connect(testData.user)
+    .approve(fixture.bridgePool.address, testData.totalErc20Amount);
+  // mint and approve some bTokens to deposit (and burn)
+  await callFunctionAndGetReturnValues(
+    fixture.bToken,
+    "mintTo",
+    testData.admin,
+    [testData.user.address, 0],
+    testData.ethIn
+  );
+  await fixture.bToken
+    .connect(testData.user)
+    .approve(fixture.bridgePool.address, BigNumber.from(testData.bTokenAmount));
+  // Calculate eths to be received by burning bTokens
+  testData.ethsReceived = await fixture.bToken.bTokensToEth(
+    await fixture.bToken.getPoolBalance(),
+    await fixture.bToken.totalSupply(),
+    testData.bTokenAmount
+  );
+  let encodedMockBlockClaims = getMockBlockClaimsForStateRoot(
+    testData.stateRoot
+  );
+  // Take a mock snapshot
+  fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
+  showState("Initial", await getState(fixture));
 }
 
-export async function getResultsFromTx(tx: any) {
-  let abi = [
-    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
-  ];
-  let iface = new ethers.utils.Interface(abi);
-  let receipt = await ethers.provider.getTransactionReceipt(tx.hash);
-  console.log("Logs", receipt);
-  let logs =
-    typeof receipt.logs[2] !== "undefined" ? receipt.logs[2] : receipt.logs[0];
-  let log = iface.parseLog(logs);
-  const { from, to, tokenId } = log.args;
-  return tokenId;
+export function getMockBlockClaimsForStateRoot(stateRoot: string) {
+  let encodedMockBlockClaims = defaultAbiCoder.encode(
+    ["uint32", "uint32", "uint32", "bytes32", "bytes32", "bytes32", "bytes32"],
+    [
+      0,
+      0,
+      0,
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      stateRoot,
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+    ]
+  );
+  return encodedMockBlockClaims;
 }
