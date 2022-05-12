@@ -76,7 +76,6 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         groupSignature_;
         bClaims_;
         BClaimsParserLibrary.BClaims memory blockClaims;
-        console.log(bClaims_.length);
         if (bClaims_.length == 1) {
             //If claims are not passed on call we create blockClaims from 0
             blockClaims = BClaimsParserLibrary.BClaims(0, 0, 0, 0x00, 0x00, 0x00, 0x00);
