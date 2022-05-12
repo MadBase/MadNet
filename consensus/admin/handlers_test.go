@@ -19,7 +19,6 @@ import (
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
-	mncrypto "github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/crypto/bn256"
 	"github.com/MadBase/MadNet/dynamics"
 	"github.com/MadBase/MadNet/interfaces"
@@ -140,7 +139,7 @@ type MockTransaction struct {
 
 // TxHash is defined on the interface object
 func (m *MockTransaction) TxHash() ([]byte, error) {
-	return mncrypto.Hasher(m.V), nil
+	return crypto.Hasher(m.V), nil
 }
 
 //MarshalBinary is defined on the interface object
@@ -190,7 +189,7 @@ func setupAHTests(t *testing.T) (testProxy *ahTestProxy, closeFn func()) {
 		t.Fatal(err)
 	}
 
-	secretKey := mncrypto.Hasher([]byte("someSuperFancySecretThatWillBeHashed"))
+	secretKey := crypto.Hasher([]byte("someSuperFancySecretThatWillBeHashed"))
 
 	testProxy = &ahTestProxy{
 		logger:         logger,
@@ -218,7 +217,6 @@ func setupAHTests(t *testing.T) (testProxy *ahTestProxy, closeFn func()) {
 	synchronizer := &synchronizerMock{}
 
 	go func(closeChan chan struct{}) {
-		//defer s.wg.Done()
 		defer func() { fmt.Println("Stopping AdminInterupt loop") }()
 		fmt.Println("Starting AdminInterupt loop")
 		for {
@@ -230,6 +228,11 @@ func setupAHTests(t *testing.T) (testProxy *ahTestProxy, closeFn func()) {
 			}
 		}
 	}(closeCh)
+
+	// start goroutine to emulate Handler.InitializationMonitor()
+	closeChInitializationMonitor := make(chan struct{})
+	deferables = append(deferables, func() { close(closeChInitializationMonitor) })
+	go testProxy.ah.InitializationMonitor(closeChInitializationMonitor)
 
 	return
 }
@@ -314,14 +317,11 @@ func TestAdminHandler_AddValidatorSet(t *testing.T) {
 func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 	ahTestProxy, closeFn := setupAHTests(t)
 	defer closeFn()
-	var xxx = false
-	didRunCallback := &xxx
+	var didRunCallback bool = false
 
 	ahTestProxy.ah.RegisterSnapshotCallback(func(bh *objs.BlockHeader) error {
-		*didRunCallback = true
-		t.Logf("SnapshotCallback is being called!")
-		ahTestProxy.logger.Printf("SnapshotCallback is being called 2!")
-		//panic("sss")
+		didRunCallback = true
+		ahTestProxy.logger.Printf("SnapshotCallback is being called!")
 		return nil
 	})
 
@@ -330,11 +330,9 @@ func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 	err := ahTestProxy.ah.AddValidatorSet(vs)
 	assert.Nil(t, err, err)
 
-	//err := ahTestProxy.ah.AddSnapshot(bh, false)
-	//assert.Nil(t, err)
-
 	bhs := ahTestProxy.makeGoodBlock(t, 32)
 
+	// add own state with custom validator address
 	err = ahTestProxy.db.Update(func(txn *badger.Txn) error {
 		addrBytes, err := hex.DecodeString("9AC1c9afBAec85278679fF75Ef109217f26b1417")
 		assert.Nil(t, err)
@@ -350,10 +348,9 @@ func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 	assert.Nil(t, err)
 
 	for i := 0; i < 32; i++ {
-		//t.Logf("iteration i: %v, block: %#v\n", i, bhs[i].BClaims)
 		binary, err := bhs[i].MarshalBinary()
 		assert.Nil(t, err)
-		//t.Logf("binary: %x", binary)
+
 		bht := &objs.BlockHeader{}
 		err = bht.UnmarshalBinary(binary)
 		assert.Nil(t, err)
@@ -373,35 +370,18 @@ func TestAdminHandler_RegisterSnapshotCallback(t *testing.T) {
 
 				_, err = ahTestProxy.ah.database.GetBroadcastBlockHeader(txn)
 				assert.Nil(t, err)
-				//t.Logf("got bh: %#v", bh.BClaims)
 
 				return err
 			})
 			assert.Nil(t, err)
-
 		}
 
-		// err = ahTestProxy.db.View(func(txn *badger.Txn) error {
-		// 	bh, err := ahTestProxy.ah.database.GetBroadcastBlockHeader(txn)
-		// 	assert.Nil(t, err)
-		// 	t.Logf("got bh: %#v", bh.BClaims)
-
-		// 	return err
-		// })
-
 		assert.Nil(t, err)
-
-		//ahTestProxy.rawConsensusDb.
-
-		//<-time.After(2 * time.Second)
 	}
 
-	// err = ahTestProxy.ah.AddSnapshot(bhs[31], true)
-	// assert.Nil(t, err)
-
-	<-time.After(5 * time.Second)
-
-	assert.True(t, *didRunCallback)
+	<-time.After(3 * time.Second)
+	assert.True(t, didRunCallback)
+	assert.True(t, ahTestProxy.ah.IsInitialized())
 }
 
 func (ah *ahTestProxy) makeGoodBlock(t *testing.T, nBlocks int) []*objs.BlockHeader {

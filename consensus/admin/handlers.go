@@ -222,28 +222,6 @@ func (ah *Handlers) AddSnapshot(bh *objs.BlockHeader, safeToProceedConsensus boo
 	return nil
 }
 
-// UpdateDynamicStorage updates dynamic storage values.
-func (ah *Handlers) UpdateDynamicStorage(txn *badger.Txn, key, value string, epoch uint32) error {
-	mutex, ok := ah.getLock()
-	if !ok {
-		return nil
-	}
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	update, err := dynamics.NewUpdate(key, value, epoch)
-	if err != nil {
-		utils.DebugTrace(ah.logger, err)
-		return err
-	}
-	err = ah.storage.UpdateStorage(txn, update)
-	if err != nil {
-		utils.DebugTrace(ah.logger, err)
-		return err
-	}
-	return nil
-}
-
 // IsInitialized returns if the database has been initialized yet
 func (ah *Handlers) IsInitialized() bool {
 	ah.RLock()

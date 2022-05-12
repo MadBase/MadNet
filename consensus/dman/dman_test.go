@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -28,21 +27,16 @@ import (
 
 type dmanTestProxy struct {
 	sync.Mutex
-	callIndex     int
-	expectedCalls []testingProxyCall
-	returns       [][]interface{}
-	skipCallCheck bool
-	db            *db.Database
-	logger        *logrus.Logger
-	testTx        *aobjs.Tx
+	callIndex int
+	db        *db.Database
+	logger    *logrus.Logger
+	testTx    *aobjs.Tx
 }
 
 // assert struct `dmanTestProxy` implements `reqBusView` , `interfaces.Application`, `databaseView` interfaces
 var _ reqBusView = &dmanTestProxy{}
 var _ interfaces.Application = &dmanTestProxy{}
 var _ databaseView = &dmanTestProxy{}
-
-//var _ typeProxyIface = &dmanTestProxy{}
 
 // implementation of reqBusView interface
 
@@ -625,52 +619,6 @@ func Test_DownloadTxs(t *testing.T) {
 
 	assert.True(t, dman.downloadActor.txc.Contains(hash))
 	assert.False(t, dman.downloadActor.bhc.Contains(1))
-}
-
-func generateFullChain(length int) ([]*objs.BClaims, [][][]byte, error) {
-	chain := []*objs.BClaims{}
-	txHashes := [][][]byte{}
-	txhash := crypto.Hasher([]byte(strconv.Itoa(1)))
-	txHshLst := [][]byte{txhash}
-	txRoot, err := objs.MakeTxRoot(txHshLst)
-	if err != nil {
-		return nil, nil, err
-	}
-	txHashes = append(txHashes, txHshLst)
-	bclaims := &objs.BClaims{
-		ChainID:    1,
-		Height:     1,
-		TxCount:    1,
-		PrevBlock:  crypto.Hasher([]byte("foo")),
-		TxRoot:     txRoot,
-		StateRoot:  crypto.Hasher([]byte("")),
-		HeaderRoot: crypto.Hasher([]byte("")),
-	}
-	chain = append(chain, bclaims)
-	for i := 1; i < length; i++ {
-		bhsh, err := chain[i-1].BlockHash()
-		if err != nil {
-			return nil, nil, err
-		}
-		txhash := crypto.Hasher([]byte(strconv.Itoa(i)))
-		txHshLst := [][]byte{txhash}
-		txRoot, err := objs.MakeTxRoot(txHshLst)
-		if err != nil {
-			return nil, nil, err
-		}
-		txHashes = append(txHashes, txHshLst)
-		bclaims := &objs.BClaims{
-			ChainID:    1,
-			Height:     uint32(len(chain) + 1),
-			TxCount:    1,
-			PrevBlock:  bhsh,
-			TxRoot:     txRoot,
-			StateRoot:  chain[i-1].StateRoot,
-			HeaderRoot: chain[i-1].HeaderRoot,
-		}
-		chain = append(chain, bclaims)
-	}
-	return chain, txHashes, nil
 }
 
 func testingOwner() aobjs.Signer {

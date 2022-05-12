@@ -127,20 +127,16 @@ func (a *RootActor) DownloadBlockHeader(height, round uint32) {
 }
 
 func (a *RootActor) download(b DownloadRequest, retry bool) {
-	a.logger.Infof("RA got download(). downloadRequest: %#v, retry: %#v, ", b, retry)
 	select {
 	case <-a.closeChan:
-		a.logger.Infof("RA got download() <-a.closeChan")
 		return
 	default:
-		a.logger.Infof("RA got download() default")
 		a.wg.Add(1)
 		go a.doDownload(b, retry)
 	}
 }
 
 func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
-	a.logger.Infof("RA got doDownload(). downloadRequest: %#v, retry: %#v, ", b, retry)
 	defer a.wg.Done()
 	switch b.DownloadType() {
 	case PendingTxRequest, MinedTxRequest:
@@ -244,16 +240,13 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 			a.reqs[b.Identifier()] = true
 			return true
 		}()
-		a.logger.Infof("RA got doDownload() BlockHeaderRequest: b: %#v, retry: %v, ok: %v", b, retry, ok)
 		if !ok {
 			return
 		}
 		select {
 		case <-a.closeChan:
-			a.logger.Infof("RA got doDownload() BlockHeaderRequest <-a.closeChan")
 			return
 		case a.dispatchQ <- b:
-			a.logger.Infof("RA got doDownload() BlockHeaderRequest a.dispatchQ <- b")
 			a.await(b, retry)
 		}
 	default:
@@ -262,13 +255,10 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 }
 
 func (a *RootActor) await(req DownloadRequest, retry bool) {
-	a.logger.Info("RA got await()")
 	select {
 	case <-a.closeChan:
-		a.logger.Infof("RA got await() <-a.closeChan. req: %#v", req)
 		return
 	case resp := <-req.ResponseChan():
-		a.logger.Infof("RA got await() resp := <-req.ResponseChan(). resp: %#v, req: %#v", resp, req)
 		if resp == nil {
 			return
 		}
@@ -300,7 +290,6 @@ func (a *RootActor) await(req DownloadRequest, retry bool) {
 			}
 		case BlockHeaderRequest:
 			r := resp.(*BlockHeaderDownloadResponse)
-			a.logger.Infof("RA got await() BlockHeaderRequest. resp: %#v, req: %#v, r: %#v", resp, req, r)
 			if r.Err != nil {
 				utils.DebugTrace(a.logger, r.Err)
 				if retry {
@@ -310,13 +299,11 @@ func (a *RootActor) await(req DownloadRequest, retry bool) {
 			}
 			ok := func() bool {
 				if err := a.bhc.Add(r.BH); err != nil {
-					a.logger.Warnf("error adding BH to cache: %v", err)
 					utils.DebugTrace(a.logger, err)
 					return false
 				}
 				return true
 			}()
-			a.logger.Infof("RA got await() BlockHeaderRequest. ok: %v", ok)
 			if ok {
 				return
 			}
@@ -369,11 +356,9 @@ func (a *blockActor) getHeight() uint32 {
 }
 
 func (a *blockActor) run() {
-	a.Logger.Info("BA got run()")
 	for {
 		select {
 		case <-a.closeChan:
-			a.Logger.Info("BA got run() <-a.closeChan")
 			return
 		case req := <-a.WorkQ:
 			ok := func() bool {
@@ -385,7 +370,6 @@ func (a *blockActor) run() {
 				}
 				return true
 			}()
-			a.Logger.Infof("BA got run() req := <-a.WorkQ | ok: %v, req: %#v", ok, req)
 			if !ok {
 				continue
 			}
@@ -395,7 +379,6 @@ func (a *blockActor) run() {
 }
 
 func (a *blockActor) await(req DownloadRequest) {
-	a.Logger.Info("BA got await()")
 	var subReq DownloadRequest
 	switch req.DownloadType() {
 	case PendingTxRequest, MinedTxRequest:
@@ -408,24 +391,19 @@ func (a *blockActor) await(req DownloadRequest) {
 		}
 	case BlockHeaderRequest:
 		reqTyped := req.(*BlockHeaderDownloadRequest)
-		a.Logger.Infof("BA got run() BlockHeaderRequest | reqTyped: %v", reqTyped)
 		subReq = NewBlockHeaderDownloadRequest(reqTyped.Height, reqTyped.Round, reqTyped.Dtype)
 		select {
 		case <-a.closeChan:
-			a.Logger.Infof("BA got run() BlockHeaderRequest <-a.closeChan")
 			return
 		case a.dispatchQ <- subReq:
-			a.Logger.Infof("BA got run() BlockHeaderRequest a.dispatchQ <- subReq")
 		}
 	default:
 		panic(fmt.Sprintf("req download type not found: %v", req.DownloadType()))
 	}
 	select {
 	case <-a.closeChan:
-		a.Logger.Infof("BA got run() <-a.closeChan")
 		return
 	case resp := <-subReq.ResponseChan():
-		a.Logger.Infof("BA got run() resp := <-subReq.ResponseChan() | resp: %#v", resp)
 		if resp == nil {
 			close(req.ResponseChan())
 			return
@@ -438,17 +416,14 @@ func (a *blockActor) await(req DownloadRequest) {
 			}
 			return true
 		}()
-		a.Logger.Infof("BA got run() resp := <-subReq.ResponseChan() | ok: %v", ok)
 		if !ok {
 			close(req.ResponseChan())
 			return
 		}
 		select {
 		case <-a.closeChan:
-			a.Logger.Infof("BA got run() last <-a.closeChan")
 			return
 		case req.ResponseChan() <- resp:
-			a.Logger.Infof("BA got run() last req.ResponseChan() <- resp")
 		}
 	}
 }
@@ -496,14 +471,11 @@ func (a *downloadActor) start() {
 }
 
 func (a *downloadActor) run() {
-	a.Logger.Info("downloadActor got run()")
 	for {
 		select {
 		case <-a.closeChan:
-			a.Logger.Info("downloadActor got run() <-a.closeChan")
 			return
 		case req := <-a.WorkQ:
-			a.Logger.Infof("downloadActor got run() req := <-a.WorkQ. req: %#v", req)
 			switch req.DownloadType() {
 			case PendingTxRequest:
 				select {
@@ -522,9 +494,7 @@ func (a *downloadActor) run() {
 			case BlockHeaderRequest:
 				select {
 				case a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest):
-					a.Logger.Infof("downloadActor got run() BlockHeaderRequest. a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest)")
 				default:
-					a.Logger.Infof("downloadActor got run() BlockHeaderRequest. default")
 					a.bha.start()
 					a.BlockDispatchQ <- req.(*BlockHeaderDownloadRequest)
 				}
@@ -708,12 +678,10 @@ func (a *blockHeaderDownloadActor) start() {
 }
 
 func (a *blockHeaderDownloadActor) run() {
-	a.Logger.Info("blockHeaderDownloadActor got run()")
 	for {
 		select {
 		case <-time.After(10 * time.Second):
 			a.Lock()
-			a.Logger.Infof("blockHeaderDownloadActor got run() <-time.After(10 * time.Second). a.numWorkers: %v", a.numWorkers)
 
 			if a.numWorkers > 1 {
 				a.numWorkers--
@@ -722,10 +690,8 @@ func (a *blockHeaderDownloadActor) run() {
 			}
 			a.Unlock()
 		case <-a.closeChan:
-			a.Logger.Info("blockHeaderDownloadActor got run() <-a.closeChan")
 			return
 		case reqOrig := <-a.WorkQ:
-			a.Logger.Infof("blockHeaderDownloadActor got run() reqOrig := <-a.WorkQ. reqOrig: %#v", reqOrig)
 			bh, err := func(req *BlockHeaderDownloadRequest) (*objs.BlockHeader, error) {
 				opts := []grpc.CallOption{
 					grpc_retry.WithBackoff(grpc_retry.BackoffExponentialWithJitter(backoffAmount*time.Millisecond, .1)),
@@ -745,7 +711,6 @@ func (a *blockHeaderDownloadActor) run() {
 				}
 				return bhLst[0], nil
 			}(reqOrig)
-			a.Logger.Infof("blockHeaderDownloadActor got run() reqOrig := <-a.WorkQ. bh: %#v, err: %v", bh, err)
 			reqOrig.ResponseChan() <- NewBlockHeaderDownloadResponse(reqOrig, bh, BlockHeaderRequest, err)
 		}
 	}
