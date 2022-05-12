@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +23,8 @@ func TestDisputeMissingShareDistributionTask_ShouldAccuseOneValidatorWhoDidNotDi
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
 
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -47,7 +49,8 @@ func TestDisputeMissingShareDistributionTask_ShouldAccuseAllValidatorsWhoDidNotD
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -72,7 +75,8 @@ func TestDisputeMissingShareDistributionTask_ShouldNotAccuseValidatorsWhoDidDist
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		if idx == n-1 {
@@ -112,7 +116,8 @@ func TestDisputeMissingShareDistributionTask_DisputeMissingShareDistributionTask
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		shouldRetry := task.ShouldRetry(ctx, logger, suite.eth)
 		assert.True(t, shouldRetry)
@@ -130,7 +135,8 @@ func TestDisputeMissingShareDistributionTask_DisputeMissingShareDistributionTask
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -161,7 +167,8 @@ func TestDisputeMissingShareDistributionTask_ShouldAccuseOneValidatorWhoDidNotDi
 		// disputeMissingShareDist
 		disputeMissingShareDistTask := suite.disputeMissingShareDistTasks[idx]
 
-		err := disputeMissingShareDistTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingShareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingShareDistTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -172,7 +179,7 @@ func TestDisputeMissingShareDistributionTask_ShouldAccuseOneValidatorWhoDidNotDi
 		// disputeShareDist
 		disputeShareDistTask := suite.disputeShareDistTasks[idx]
 
-		err = disputeShareDistTask.Initialize(ctx, logger, suite.eth, state)
+		err = disputeShareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeShareDistTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)

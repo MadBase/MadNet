@@ -128,7 +128,7 @@ func TestMarshalAndUnmarshalParticipant(t *testing.T) {
 		Index:     1,
 		PublicKey: pub,
 		Nonce:     1,
-		Phase:     0,
+		Phase:     objects.RegistrationOpen,
 	}
 
 	// marshal

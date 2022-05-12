@@ -59,7 +59,8 @@ func TestKeyShareSubmission_Bad3(t *testing.T) {
 
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.NotNil(t, err)
 	}
 }
@@ -81,7 +82,8 @@ func TestKeyShareSubmission_Bad4(t *testing.T) {
 		state := suite.dkgStates[idx]
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		// mess uo here
