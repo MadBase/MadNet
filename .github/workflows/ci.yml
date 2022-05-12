@@ -164,11 +164,11 @@ jobs:
         run: |
             set -euo pipefail
             ./scripts/main.sh init 5
-            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
+            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjSubmission
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestRegisterTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestMPKSubmission
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestKeyShareSubmission
-#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjSubmission
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldRetryTrue

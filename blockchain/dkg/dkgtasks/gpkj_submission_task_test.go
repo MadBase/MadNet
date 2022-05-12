@@ -15,7 +15,7 @@ import (
 )
 
 //We test to ensure that everything behaves correctly.
-func TestGPKjSubmissionGoodAllValid(t *testing.T) {
+func TestGPKjSubmission_GoodAllValid(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -56,7 +56,7 @@ func TestGPKjSubmissionGoodAllValid(t *testing.T) {
 // We begin by submitting invalid information.
 // Here, we submit nil for the state interface;
 // this should raise an error.
-func TestGPKjSubmissionBad1(t *testing.T) {
+func TestGPKjSubmission_Bad1(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -82,7 +82,7 @@ func TestGPKjSubmissionBad1(t *testing.T) {
 // We test to ensure that everything behaves correctly.
 // Here, we should raise an error because we did not successfully complete
 // the key share submission phase.
-func TestGPKjSubmissionBad2(t *testing.T) {
+func TestGPKjSubmission_Bad2(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -110,7 +110,7 @@ func TestGPKjSubmissionBad2(t *testing.T) {
 // One or more validators should submit invalid gpkj information;
 // that is, the gpkj public key and signature should not verify.
 // This should result in no submission.
-func TestGPKjSubmissionBad3(t *testing.T) {
+func TestGPKjSubmission_Bad3(t *testing.T) {
 	// Perform correct registration setup.
 
 	// Perform correct share submission
