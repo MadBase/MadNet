@@ -160,7 +160,7 @@ jobs:
               sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
               cd $REPO_PATH
       - name: Run tests
-        timeout-minutes: 60
+        timeout-minutes: 30
         run: |
             set -euo pipefail
             ./scripts/main.sh init 5
