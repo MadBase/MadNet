@@ -50,11 +50,7 @@ func (lrpc *Client) Connect(ctx context.Context) error {
 			lrpc.TimeOut = constants.MsgTimeout
 		}
 		// Set up a connection to the server.
-		// SA1019: grpc.WithTimeout is deprecated: use DialContext instead of Dial and context.WithTimeout instead.  Will be supported throughout 1.x
-		// conn, err := grpc.Dial(lrpc.Address, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(lrpc.TimeOut))
-		ctx2, cf := context.WithTimeout(ctx, lrpc.TimeOut)
-		defer cf()
-		conn, err := grpc.DialContext(ctx2, lrpc.Address, grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(lrpc.Address, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(lrpc.TimeOut))
 		if err != nil {
 			return err
 		}

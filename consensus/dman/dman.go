@@ -36,10 +36,7 @@ func (dm *DMan) Init(database databaseView, app interfaces.Application, reqBus r
 		database,
 	}
 	dm.downloadActor = &RootActor{}
-	err := dm.downloadActor.Init(dm.logger, proxy)
-	if err != nil {
-		dm.logger.Panic(err)
-	}
+	dm.downloadActor.Init(dm.logger, proxy)
 }
 
 func (dm *DMan) Start() {

@@ -177,14 +177,9 @@ func (c *cipherState) rotateKey() {
 	// | \
 	// |  \
 	// ck  k'
-	_, err := h.Read(c.salt[:])
-	if err != nil {
-		panic(err)
-	}
-	_, err = h.Read(nextKey[:])
-	if err != nil {
-		panic(err)
-	}
+	h.Read(c.salt[:])
+	h.Read(nextKey[:])
+
 	c.InitializeKey(nextKey)
 }
 
@@ -230,14 +225,8 @@ func (s *symmetricState) mixKey(input []byte) {
 	// | \
 	// |  \
 	// ck  k
-	_, err := h.Read(s.chainingKey[:])
-	if err != nil {
-		panic(err)
-	}
-	_, err = h.Read(s.tempKey[:])
-	if err != nil {
-		panic(err)
-	}
+	h.Read(s.chainingKey[:])
+	h.Read(s.tempKey[:])
 
 	// cipher.k = temp_key
 	s.InitializeKey(s.tempKey)
@@ -300,10 +289,10 @@ type handshakeState struct {
 	initiator bool
 
 	localStatic    *secp256k1.PrivateKey
-	localEphemeral *secp256k1.PrivateKey //nolint:unused,structcheck //this is being used, the linter gives false positives
+	localEphemeral *secp256k1.PrivateKey
 
 	remoteStatic    *secp256k1.PublicKey
-	remoteEphemeral *secp256k1.PublicKey //nolint:unused,structcheck //this is being used, the linter gives false positives
+	remoteEphemeral *secp256k1.PublicKey
 }
 
 // newHandshakeState returns a new instance of the handshake state initialized
@@ -468,7 +457,7 @@ func (b *Machine) GenActOne() ([ActOneSize]byte, error) {
 	)
 
 	// e
-	b.localEphemeral, err = b.ephemeralGen() 
+	b.localEphemeral, err = b.ephemeralGen()
 	if err != nil {
 		return actOne, err
 	}
@@ -692,31 +681,19 @@ func (b *Machine) split() {
 	// messages and the second 32-bytes to decrypt their messages. For the
 	// responder the opposite is true.
 	if b.initiator {
-		_, err := h.Read(sendKey[:])
-		if err != nil {
-			panic(err)
-		}
+		h.Read(sendKey[:])
 		b.sendCipher = cipherState{}
 		b.sendCipher.InitializeKeyWithSalt(b.chainingKey, sendKey)
 
-		_, err = h.Read(recvKey[:])
-		if err != nil {
-			panic(err)
-		}
+		h.Read(recvKey[:])
 		b.recvCipher = cipherState{}
 		b.recvCipher.InitializeKeyWithSalt(b.chainingKey, recvKey)
 	} else {
-		_, err := h.Read(recvKey[:])
-		if err != nil {
-			panic(err)
-		}
+		h.Read(recvKey[:])
 		b.recvCipher = cipherState{}
 		b.recvCipher.InitializeKeyWithSalt(b.chainingKey, recvKey)
 
-		_, err = h.Read(sendKey[:])
-		if err != nil {
-			panic(err)
-		}
+		h.Read(sendKey[:])
 		b.sendCipher = cipherState{}
 		b.sendCipher.InitializeKeyWithSalt(b.chainingKey, sendKey)
 	}

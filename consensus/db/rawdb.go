@@ -56,7 +56,9 @@ func (db *rawDataBase) Sync() error {
 }
 
 func (db *rawDataBase) GarbageCollect() error {
-	return db.db.RunValueLogGC(constants.BadgerDiscardRatio)
+	db.db.RunValueLogGC(constants.BadgerDiscardRatio)
+	db.db.RunValueLogGC(constants.BadgerDiscardRatio)
+	return nil
 }
 
 func (db *rawDataBase) DropPrefix(k []byte) error {

@@ -48,11 +48,9 @@ func (rpcch *clientHandler) HandleConnection(p2pconn interfaces.P2PConn) (*grpc.
 			return nil, errors.New("connection is nil")
 		}
 	}
-	ctx, cf := context.WithTimeout(context.Background(), time.Second*5)
-	defer cf()
-	conn, err := grpc.DialContext(
-		ctx,
+	conn, err := grpc.Dial(
 		p2pconn.RemoteAddr().String(), // THIS WILL NEVER BE DIALED
+		grpc.WithTimeout(time.Second*5),
 		grpc.WithContextDialer(contextDialer),
 		grpc.WithInsecure(),
 		grpc.WithBlock(),

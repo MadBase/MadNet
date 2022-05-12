@@ -111,15 +111,7 @@ func (s *Server) startWriter() {
 				continue
 			}
 
-			err = s.conn.SetWriteDeadline(time.Now().Add(time.Second))
-			if err != nil {
-				if w.errorchan != nil {
-					w.errorchan <- err
-				} else {
-					s.logger.Errorf("SetWriteDeadline error: %T %v\n", err, err)
-				}
-				continue
-			}
+			s.conn.SetWriteDeadline(time.Now().Add(time.Second))
 			_, err = s.conn.Write(b)
 
 			if err != nil {
