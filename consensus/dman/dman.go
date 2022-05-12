@@ -9,8 +9,6 @@ import (
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 
-	"github.com/MadBase/MadNet/consensus/appmock"
-
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/interfaces"
 	"github.com/MadBase/MadNet/logging"
@@ -22,12 +20,12 @@ import (
 type DMan struct {
 	downloadActor *RootActor
 	database      databaseView
-	appHandler    appmock.Application
+	appHandler    interfaces.Application
 	bnVal         *crypto.BNGroupValidator
 	logger        *logrus.Logger
 }
 
-func (dm *DMan) Init(database databaseView, app appmock.Application, reqBus reqBusView) {
+func (dm *DMan) Init(database databaseView, app interfaces.Application, reqBus reqBusView) {
 	dm.logger = logging.GetLogger(constants.LoggerDMan)
 	dm.database = database
 	dm.appHandler = app
@@ -38,7 +36,10 @@ func (dm *DMan) Init(database databaseView, app appmock.Application, reqBus reqB
 		database,
 	}
 	dm.downloadActor = &RootActor{}
-	dm.downloadActor.Init(dm.logger, proxy)
+	err := dm.downloadActor.Init(dm.logger, proxy)
+	if err != nil {
+		dm.logger.Panic(err)
+	}
 }
 
 func (dm *DMan) Start() {
