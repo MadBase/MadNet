@@ -99,7 +99,10 @@ describe("Testing BridgePool methods", async () => {
         "0x0000000000000000000000000000000000000000000000000000000000000000";
       const encodedMockBlockClaims =
         getMockBlockClaimsForStateRoot(wrongStateRoot);
-      fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
+      await fixture.snapshots.snapshot(
+        Buffer.from("0x0"),
+        encodedMockBlockClaims
+      );
       expectedState = await getState(fixture);
       const reason = ethers.utils.parseBytes32String(
         await testData.bridgePoolErrorCodesContract.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN()

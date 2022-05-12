@@ -95,7 +95,7 @@ export function formatBigInt(number: BigNumber) {
   return BigInt(parseFloat((+ethers.utils.formatEther(number)).toFixed(0)));
 }
 
-export var testData = {
+export let testData = {
   immutableAuthErrorCodesContract: {} as ImmutableAuthErrorCodes,
   bridgePoolErrorCodesContract: {} as BridgePoolErrorCodes,
   admin: {} as SignerWithAddress,
