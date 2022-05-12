@@ -16,7 +16,7 @@ import (
 )
 
 //Here we test the happy path.
-func TestShareDistributionGood(t *testing.T) {
+func TestShareDistribution_Good(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -43,7 +43,7 @@ func TestShareDistributionGood(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (invalid elliptic curve point).
 // This should result in a failed submission.
-func TestShareDistributionBad1(t *testing.T) {
+func TestShareDistribution_Bad1(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -104,7 +104,7 @@ func TestShareDistributionBad1(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (identity element).
 // This should result in a failed submission.
-func TestShareDistributionBad2(t *testing.T) {
+func TestShareDistribution_Bad2(t *testing.T) {
 	n := 4
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -165,7 +165,7 @@ func TestShareDistributionBad2(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (incorrect commitment length)
 // This should result in a failed submission.
-func TestShareDistributionBad4(t *testing.T) {
+func TestShareDistribution_Bad4(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -228,7 +228,7 @@ func TestShareDistributionBad4(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (incorrect encrypted shares length)
 // This should result in a failed submission.
-func TestShareDistributionBad5(t *testing.T) {
+func TestShareDistribution_Bad5(t *testing.T) {
 	n := 6
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -277,7 +277,7 @@ func TestShareDistributionBad5(t *testing.T) {
 
 // We begin by submitting invalid information;
 // we submit nil state information
-func TestShareDistributionBad6(t *testing.T) {
+func TestShareDistribution_Bad6(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -301,7 +301,7 @@ func TestShareDistributionBad6(t *testing.T) {
 
 // We test to ensure that everything behaves correctly.
 // We submit invalid state information (again).
-func TestShareDistributionBad7(t *testing.T) {
+func TestShareDistribution_Bad7(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -324,7 +324,7 @@ func TestShareDistributionBad7(t *testing.T) {
 	}
 }
 
-func TestShareDistributionShouldRetryTrue(t *testing.T) {
+func TestShareDistribution_ShouldRetryTrue(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -346,7 +346,7 @@ func TestShareDistributionShouldRetryTrue(t *testing.T) {
 	}
 }
 
-func TestShareDistributionShouldRetryFalse(t *testing.T) {
+func TestShareDistribution_ShouldRetryFalse(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()

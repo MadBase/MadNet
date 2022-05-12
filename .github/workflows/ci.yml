@@ -133,7 +133,7 @@ jobs:
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
     needs: golang-build
-    timeout-minutes: 30
+#    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -160,17 +160,17 @@ jobs:
               sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
               cd $REPO_PATH
       - name: Run tests
-        timeout-minutes: 30
+        timeout-minutes: 60
         run: |
             set -euo pipefail
             ./scripts/main.sh init 5
-            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestRegisterTask
+#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestRegisterTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestMPKSubmission
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestKeyShareSubmission
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestGPKjSubmission
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
-#            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
+            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldRetryTrue
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestShouldNotRetryAfterSuccessfullyAccusingAllMissingParticipants
 #            go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingKey
