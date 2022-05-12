@@ -152,6 +152,12 @@ case $1 in
     deploy)
         ./scripts/base-scripts/deploy.sh
     ;;
+    sync-testnet)
+        ./scripts/base-scripts/sync-testnet.sh
+    ;;
+    fork-testnet)
+        ./scripts/base-scripts/hardhat-testnet-fork.sh
+    ;;
     validator)
         RUN_VALIDATOR $2
     ;;

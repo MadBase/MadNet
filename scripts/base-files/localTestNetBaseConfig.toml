@@ -6,12 +6,12 @@ consensus = "debug"
 admin = "debug"
 
 [chain]
-id = 1337
-stateDB = ""
+id = 67
+stateDB = "./scripts/generated/stateDBs/integration/"
 stateDBInMemory = false
 transactionDB = ""
 transactionDBInMemory = true
-monitorDB = ""
+monitorDB = "scripts/generated/monitorDBs/integration/"
 monitorDBInMemory = false
 
 [bootnode]
@@ -21,11 +21,11 @@ cacheSize = 20
 [transport]
 upnp = false
 originLimit = 50
-privateKey = ""
+privateKey = "0E6A7E40AC1C69C936DD03EAB9669651"
 bootNodeAddresses = "0000002a|029570051a8573e865af31a066eb100e7744bcbd05d814e899a763500163675be9@127.0.0.1:4242"
-p2pListeningAddress = ""
-discoveryListeningAddress = ""
-localStateListeningAddress = ""
+p2pListeningAddress = "0.0.0.0:4343"
+discoveryListeningAddress = "0.0.0.0:4445"
+localStateListeningAddress = "0.0.0.0:8885"
 peerLimitMax = 24
 peerLimitMin = 3
 
@@ -35,7 +35,7 @@ interval = "7s"
 timeout = "1h"
 
 [ethereum]
-defaultAccount = ""
+defaultAccount = "0x546F99F244b7B58B855330AE0E2BC1b30b41302F"
 endpoint = "http://localhost:8545"
 endpointPeers = 0
 keystore = ""
@@ -59,6 +59,6 @@ ethTimeout = "5s"
 status = true
 
 [validator]
-rewardAccount = ""
+rewardAccount = "0x546F99F244b7B58B855330AE0E2BC1b30b41302F"
 rewardCurveSpec = 1
 symmetricKey = "someSuperFancySecretThatWillBeHashed"

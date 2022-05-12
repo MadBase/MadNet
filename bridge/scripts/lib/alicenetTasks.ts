@@ -1,12 +1,16 @@
 import toml from "@iarna/toml";
+import { exec, spawn } from "child_process";
 import { BigNumber, ContractTransaction } from "ethers";
 import fs from "fs";
+import { tasks } from "hardhat";
 import { task, types } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 // import { ValidatorPool } from "../../typechain-types";
-import { BASE_CONFIG_PATH, DEFAULT_CONFIG_OUTPUT_DIR, TEST_BASE_CONFIG_PATH, VALIDATOR1_COBFIG_PATH, VALIDATOR_CONFIG_DIR } from "./constants";
+import { ALICENET_FACTORY, BASE_CONFIG_PATH, DEFAULT_CONFIG_OUTPUT_DIR, TEST_BASE_CONFIG_PATH, VALIDATOR1_COBFIG_PATH, VALIDATOR_CONFIG_DIR } from "./constants";
 import { readDeploymentArgs } from "./deployment/deploymentConfigUtil";
-
+import axios, { AxiosError, AxiosRequestConfig } from "axios"
+import { hexlify } from "ethers/lib/utils";
+import { sign } from "crypto";
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -732,31 +736,33 @@ task("fundValidators", "manually put 100 eth in each validator account")
   )
   .setAction(async (taskArgs, hre) => {
     const signers = await hre.ethers.getSigners();
-    const configPath = taskArgs.configPath;
-    let validatorConfigs: Array<string> = [];
-    // get all the validator address from their toml config file, possibly check if generated is there
-    validatorConfigs = fs.readdirSync(configPath);
-    // extract the address out of each validator config file
-    const accounts: Array<string> = [];
-    validatorConfigs.forEach((val) => {
-      if (val.slice(0, 9) === "validator") {
-        accounts.push(getValidatorAccount(`${configPath}/${val}`));
-      }
-    });
-
-    for (const account of accounts) {
-      const bal = await hre.ethers.provider.getBalance(account);
-      if (bal.lt(hre.ethers.utils.parseEther("90.0"))) {
-        const txResponse = await signers[0].sendTransaction({
-          to: account,
-          value: hre.ethers.utils.parseEther("100.0"),
-        });
-        await txResponse.wait();
-        console.log(
-          `account ${account} has ${await hre.ethers.provider.getBalance(
-            account
-          )}`
-        );
+    if((await signers[0].getBalance()).gt(hre.ethers.utils.parseEther("1500000000000.0"))){
+      const configPath = taskArgs.configPath;
+      let validatorConfigs: Array<string> = [];
+      // get all the validator address from their toml config file, possibly check if generated is there
+      validatorConfigs = fs.readdirSync(configPath);
+      // extract the address out of each validator config file
+      const accounts: Array<string> = [];
+      validatorConfigs.forEach((val) => {
+        if (val.slice(0, 9) === "validator") {
+          accounts.push(getValidatorAccount(`${configPath}/${val}`));
+        }
+      });
+  
+      for (const account of accounts) {
+        const bal = await hre.ethers.provider.getBalance(account);
+        if (bal.lt(hre.ethers.utils.parseEther("90.0"))) {
+          const txResponse = await signers[0].sendTransaction({
+            to: account,
+            value: hre.ethers.utils.parseEther("100.0"),
+          });
+          await txResponse.wait();
+          console.log(
+            `account ${account} has ${await hre.ethers.provider.getBalance(
+              account
+            )}`
+          );
+        }
       }
     }
   });
@@ -837,17 +843,177 @@ run a validator with testBaseConfigFile
 
 */
 
-task("generateTestNodeConfig")
-.setAction(async () => {
+task("generate-validator-config", "modifies an existing validator with values from specified base config file")
+.addOptionalParam("validatorId", "the number that identifies the validator you want to use, default is 1", "1")
+.addOptionalParam("baseConfigPath", "path to the base configuration file", BASE_CONFIG_PATH)
+.setAction(async (taskArgs, hre) => {
   //get the testBaseConfig file 
-  let data = fs.readFileSync(TEST_BASE_CONFIG_PATH);
+  let data = fs.readFileSync(taskArgs.baseConfigPath);
   const testBaseConfig:any = toml.parse(data.toString())
   //get a validator file 
-  data = fs.readFileSync(VALIDATOR1_COBFIG_PATH);
+  data = fs.readFileSync(VALIDATOR_CONFIG_DIR + "validator" + taskArgs.validatorId+ ".toml");
   let validator1Config:any = toml.parse(data.toString());
   validator1Config.ethereum.endpoint = testBaseConfig.ethereum.endpoint;
   validator1Config.ethereum.registryAddress = testBaseConfig.ethereum.registryAddress;
   validator1Config.transport.bootNodeAddresses = testBaseConfig.transport.bootNodeAddresses;
+  validator1Config.ethereum.startingBlock = testBaseConfig.ethereum.startingBlock;
   const output = toml.stringify(validator1Config);
-  fs.writeFileSync(VALIDATOR_CONFIG_DIR + `validator1.toml`, output)
+  fs.writeFileSync(VALIDATOR_CONFIG_DIR + `validator${taskArgs.validatorId}.toml`, output)
 });
+
+task("get-latest-blockheight", "gets the latest external chain height")
+.addOptionalParam("rpcUrl", "the provider url for the chain to querry from","https://testnet.eth.mnexplore.com/")
+.setAction(async (taskArgs, hre) => {
+  const provider = new hre.ethers.providers.JsonRpcProvider(taskArgs.rpcUrl)
+  const blocknum = await provider.getBlockNumber() - 100;
+  console.log(blocknum)
+  return blocknum
+});
+
+task("create-local-test-genesis-node", "start and syncs a node with testnet")
+.addOptionalParam("configPath", "path to the nodes config file", "./scripts/base-files/testBaseConfig.toml")
+.setAction(async (taskArgs, hre) => {
+
+  let valNode = spawn(
+    "./madnet",
+    ["--config", taskArgs.configPath, "validator"],
+    {
+      cwd: "../",
+      shell: true
+    }
+  )
+  valNode.stdout.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  valNode.stderr.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  valNode.on('close', (code) => {
+    console.log(`child process exited with code ${code}`);
+  });
+  let synced = false;
+  let pauseNode = 0;
+  while(!synced){
+    try{
+      let requestConfig: AxiosRequestConfig = { 
+        timeout: 2000,
+      }
+      let response = await axios.post("http://0.0.0.0:8884/" + "get-block-number", {}, requestConfig)
+      if(response.status === 200){
+        pauseNode = response.data;
+        console.log(response.data)
+        synced = true;
+      }      
+    }catch(err:any){
+      if(err){
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+  }
+  valNode.kill(1)
+  return pauseNode;
+});
+
+task("fork-external-chain", "")
+.addOptionalParam("rpcUrl",)
+.setAction(async (taskArgs) => {
+  let hardhatNode = spawn(
+    "npm",
+    ["run", "fork-testnet"],
+  );
+  hardhatNode.stdout.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  hardhatNode.stderr.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  hardhatNode.on('close', (code) => {
+    console.log(`child process exited with code ${code}`);
+  });
+
+  while(1){
+
+  }
+  
+});
+
+
+task("start-local-genesis-node", "starts a node already synce with remote testnet on local testnet")
+.addOptionalParam("rpcUrl", "rpc url to fork the chain from, default value is test-net ropsten endpoint", "https://testnet.eth.mnexplore.com/")
+.setAction(async (taskArgs, hre) => { 
+  let valNode = spawn(
+    "./madnet",
+    ["--config", "./scripts/base-files/localTestNetBaseConfig.toml", "validator"],
+    {
+      cwd: "../",
+      shell: true
+    }
+  );
+
+  valNode.stdout.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  valNode.stderr.on("data", (data)=> {
+    console.log(data.toString())
+  })
+  valNode.on('close', (code) => {
+    console.log(`child process exited with code ${code}`);
+  });
+
+});
+
+task("enable-hardhat-impersonate")
+.addParam("account", "account to impersonate")
+.setAction(async (taskArgs, hre) => {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [taskArgs.account],
+  }); 
+});
+
+task("mine-num-blocks")
+.addParam("numBlocks", "number of blocks to mine")
+.setAction(async (taskArgs, hre) => {
+  let numBlocks = parseInt(taskArgs.numBlocks, 10)
+  console.log()
+  await hre.network.provider.send("hardhat_mine", ["0x" + numBlocks.toString(16)])
+});
+
+
+task("pause-consensus-at-height")
+.addParam("height", "alicenet height to pause consensus on")
+.addOptionalParam("factoryAddress", "address of the factory contract that deployed all the defaults to ropsten testnet factory", "0x9bebADdd34730b83b1372e4ED1BD67e4f84A02C8")
+.addOptionalParam("signer", "account that deployed factory, defaults to ", "0x137425E39a2A981ed83Fe490dedE1aB139840B87")
+.setAction(async (taskArgs, hre) => {
+  //get the signer for the owner of the factory
+  const signer = await hre.ethers.getSigner(taskArgs.signer)
+  const factory = await hre.ethers.getContractAt(ALICENET_FACTORY, taskArgs.factoryAddress, signer);
+  const valPoolAddress = await factory.lookup(hre.ethers.utils.formatBytes32String("ValidatorPool"));
+  const valPool = await hre.ethers.getContractFactory("ValidatorPool");
+  const pauseConsensusAt = valPool.interface.encodeFunctionData("pauseConsensusOnArbitraryHeight", [taskArgs.height])
+  const txResponse = await factory.callAny(valPoolAddress, 0, pauseConsensusAt)
+  //wait for the tx to be mined
+  await txResponse.wait();
+});
+
+task("unregister-all-validators", "unregisters all the validators")
+.addOptionalParam("factoryAddress", "address of the factory contract that deployed all the defaults to ropsten testnet factory", "0x9bebADdd34730b83b1372e4ED1BD67e4f84A02C8")
+.addOptionalParam("signer", "account that deployed factory, defaults to ", "0x137425E39a2A981ed83Fe490dedE1aB139840B87")
+.setAction(async (taskArgs, hre) => {
+  //get the signer for the owner of the factory
+  const signer = await hre.ethers.getSigner(taskArgs.signer)
+  const factory = await hre.ethers.getContractAt(ALICENET_FACTORY, taskArgs.factoryAddress, signer);
+  const valPoolAddress = await factory.lookup(hre.ethers.utils.formatBytes32String("ValidatorPool"));
+  const valPool = await hre.ethers.getContractAt("ValidatorPool", valPoolAddress);
+  const unregisterValidators = valPool.interface.encodeFunctionData("unregisterAllValidators")
+  //unregister all the validators
+  const txResponse = await factory.callAny(valPoolAddress, 0, unregisterValidators)
+  //wait for the tx to be mined
+  await txResponse.wait();
+});
+
+async function unregisterAllValidators(hre: HardhatRuntimeEnvironment, ValPoolAddr: string){
+  
+  let valPool = await hre.ethers.getContractAt("ValidatorPool", ValPoolAddr);
+  await valPool.unregisterAllValidators()
+}
