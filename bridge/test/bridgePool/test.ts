@@ -12,7 +12,7 @@ import {
 } from "./setup";
 let fixture: Fixture;
 let expectedState: state;
-let encodedBurnedUTXO = ethers.utils.defaultAbiCoder.encode(
+const encodedBurnedUTXO = ethers.utils.defaultAbiCoder.encode(
   [
     "tuple(uint256 chainId, address owner, uint256 value, uint256 fee, bytes32 txHash)",
   ],
@@ -33,8 +33,8 @@ describe("Testing BridgePool methods", async () => {
       expectedState.Balances.bToken.user -= testData.bTokenAmount;
       expectedState.Balances.bToken.totalSupply -= testData.bTokenAmount;
       expectedState.Balances.eth.bridgePool += testData.ethsReceived.toBigInt();
-      let nonce = 1;
-      let networkId = 0;
+      const nonce = 1;
+      const networkId = 0;
       await expect(
         fixture.bridgePool
           .connect(testData.user)
@@ -45,7 +45,7 @@ describe("Testing BridgePool methods", async () => {
             testData.bTokenAmount
           )
       )
-        //TODO: change to  .to.emit(fixture.depositNotifier, "Deposited") upon merging of PR-126
+        // TODO: change to  .to.emit(fixture.depositNotifier, "Deposited") upon merging of PR-126
         .to.emit(fixture.bridgePool, "Deposited")
         .withArgs(
           BigNumber.from(nonce),
@@ -60,7 +60,7 @@ describe("Testing BridgePool methods", async () => {
 
     it("Should make a withdraw for amount specified on burned UTXO upon proof verification", async () => {
       // Make first a deposit to withdraw afterwards
-      fixture.bridgePool
+      await fixture.bridgePool
         .connect(testData.user)
         .deposit(
           1,
@@ -72,7 +72,7 @@ describe("Testing BridgePool methods", async () => {
       expectedState = await getState(fixture);
       expectedState.Balances.aToken.user += testData.erc20Amount;
       expectedState.Balances.aToken.bridgePool -= testData.erc20Amount;
-      fixture.bridgePool
+      await fixture.bridgePool
         .connect(testData.user)
         .withdraw(testData.merkleProof, encodedBurnedUTXO);
       showState("After withdraw", await getState(fixture));
@@ -80,10 +80,10 @@ describe("Testing BridgePool methods", async () => {
     });
 
     it("Should not make a withdraw for amount specified on burned UTXO with not verified merkle proof", async () => {
-      let wrongMerkleProof =
+      const wrongMerkleProof =
         "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
       expectedState = await getState(fixture);
-      let reason = ethers.utils.parseBytes32String(
+      const reason = ethers.utils.parseBytes32String(
         await testData.bridgePoolErrorCodesContract.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN()
       );
       await expect(
@@ -95,13 +95,13 @@ describe("Testing BridgePool methods", async () => {
     });
 
     it("Should not make a withdraw for amount specified on burned UTXO with wrong root", async () => {
-      let wrongStateRoot =
+      const wrongStateRoot =
         "0x0000000000000000000000000000000000000000000000000000000000000000";
-      let encodedMockBlockClaims =
+      const encodedMockBlockClaims =
         getMockBlockClaimsForStateRoot(wrongStateRoot);
       fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
       expectedState = await getState(fixture);
-      let reason = ethers.utils.parseBytes32String(
+      const reason = ethers.utils.parseBytes32String(
         await testData.bridgePoolErrorCodesContract.BRIDGEPOOL_COULD_NOT_VERIFY_PROOF_OF_BURN()
       );
       await expect(
@@ -113,7 +113,7 @@ describe("Testing BridgePool methods", async () => {
     });
 
     it("Should not make a withdraw to an address that is not the owner in burned UTXO", async () => {
-      let reason = ethers.utils.parseBytes32String(
+      const reason = ethers.utils.parseBytes32String(
         await testData.bridgePoolErrorCodesContract.BRIDGEPOOL_RECEIVER_IS_NOT_OWNER_ON_PROOF_OF_BURN_UTXO()
       );
       expectedState = await getState(fixture);

@@ -14,7 +14,6 @@ import {
 
 let admin: SignerWithAddress;
 let user: SignerWithAddress;
-let user2: SignerWithAddress;
 
 export interface state {
   Balances: {
@@ -44,8 +43,8 @@ export interface state {
 }
 
 export async function getState(fixture: Fixture) {
-  [admin, user, user2] = await ethers.getSigners();
-  let state: state = {
+  [admin, user] = await ethers.getSigners();
+  const state: state = {
     Balances: {
       aToken: {
         address: fixture.aToken.address.slice(-4),
@@ -82,7 +81,7 @@ export async function getState(fixture: Fixture) {
 }
 
 export function showState(title: string, state: state) {
-  if (process.env.npm_config_detailed == "true") {
+  if (process.env.npm_config_detailed === "true") {
     // execute "npm --detailed=true test" to see this output
     console.log(title, state);
   }
@@ -125,7 +124,7 @@ export var testData = {
 };
 
 export async function init(fixture: Fixture) {
-  let signers = await ethers.getSigners();
+  const signers = await ethers.getSigners();
   [testData.admin, testData.user, testData.user2] = signers;
   const BridgePoolErrorCodesContract = await ethers.getContractFactory(
     "BridgePoolErrorCodes"
@@ -165,16 +164,16 @@ export async function init(fixture: Fixture) {
     await fixture.bToken.totalSupply(),
     testData.bTokenAmount
   );
-  let encodedMockBlockClaims = getMockBlockClaimsForStateRoot(
+  const encodedMockBlockClaims = getMockBlockClaimsForStateRoot(
     testData.stateRoot
   );
   // Take a mock snapshot
-  fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
+  await fixture.snapshots.snapshot(Buffer.from("0x0"), encodedMockBlockClaims);
   showState("Initial", await getState(fixture));
 }
 
 export function getMockBlockClaimsForStateRoot(stateRoot: string) {
-  let encodedMockBlockClaims = defaultAbiCoder.encode(
+  return defaultAbiCoder.encode(
     ["uint32", "uint32", "uint32", "bytes32", "bytes32", "bytes32", "bytes32"],
     [
       0,
@@ -186,5 +185,4 @@ export function getMockBlockClaimsForStateRoot(stateRoot: string) {
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     ]
   );
-  return encodedMockBlockClaims;
 }
