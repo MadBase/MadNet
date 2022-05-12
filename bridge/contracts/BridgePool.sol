@@ -9,7 +9,6 @@ import "hardhat/console.sol";
 import {BridgePoolErrorCodes} from "contracts/libraries/errorCodes/BridgePoolErrorCodes.sol";
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 import "contracts/libraries/MerkleProofLibrary.sol";
-import "contracts/DepositNotifier.sol";
 import "contracts/Snapshots.sol";
 import "contracts/libraries/parsers/BClaimsParserLibrary.sol";
 import "contracts/utils/ERC20SafeTransfer.sol";
@@ -20,7 +19,6 @@ contract BridgePool is
     Initializable,
     ImmutableFactory,
     ImmutableBridgePool,
-    ImmutableDepositNotifier,
     ImmutableSnapshots,
     ERC20SafeTransfer
 {
@@ -36,6 +34,15 @@ contract BridgePool is
         uint256 fee;
         bytes32 txHash;
     }
+
+    //TODO: remove and use DepositNotifier
+    event Deposited(
+        uint256 nonce,
+        address ercContract,
+        address owner,
+        uint256 number, // If fungible, this is the amount. If non-fungible, this is the id
+        uint256 networkId
+    );
 
     constructor(address erc20TokenContract_, address bTokenContract_)
         public
@@ -74,12 +81,15 @@ contract BridgePool is
             )
         );
         BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        DepositNotifier(_depositNotifierAddress()).doEmit(
-            _saltForBridgePool(),
-            _erc20TokenContract,
-            erc20Amount_,
-            aliceNetAddress_
-        );
+        //TODO: remove and use DepositNotifier
+        emit Deposited(1, _erc20TokenContract, aliceNetAddress_, erc20Amount_, 0);
+        // Uncomment upon merging of PR-126
+        // DepositNotifier(_depositNotifierAddress()).doEmit(
+        //     _saltForBridgePool(),
+        //     _erc20TokenContract,
+        //     erc20Amount_,i
+        //     aliceNetAddress_
+        // );
     }
 
     function withdraw(bytes memory encodedMerkleProof, bytes memory encodedBurnedUTXO) public {

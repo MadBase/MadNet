@@ -45,7 +45,8 @@ describe("Testing BridgePool methods", async () => {
             testData.bTokenAmount
           )
       )
-        .to.emit(fixture.depositNotifier, "Deposited")
+        //TODO: change to  .to.emit(fixture.depositNotifier, "Deposited") upon merging of PR-126
+        .to.emit(fixture.bridgePool, "Deposited")
         .withArgs(
           BigNumber.from(nonce),
           fixture.aToken.address,
