@@ -76,11 +76,12 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         groupSignature_;
         bClaims_;
         BClaimsParserLibrary.BClaims memory blockClaims;
-        if (bClaims_.length == 0) {
-            //If claims are not defined on call we set them to 0
+        console.log(bClaims_.length);
+        if (bClaims_.length == 1) {
+            //If claims are not passed on call we create blockClaims from 0
             blockClaims = BClaimsParserLibrary.BClaims(0, 0, 0, 0x00, 0x00, 0x00, 0x00);
         } else {
-            // If claims are defined we create a snapshot with them
+            // If claims are passed we create blockClaims with parameter
             blockClaims = abi.decode(bClaims_, (BClaimsParserLibrary.BClaims));
         }
         _epoch++;

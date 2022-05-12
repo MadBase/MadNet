@@ -10,7 +10,7 @@ library MerkleProofLibrary {
     /// @param self the input bitmap as bytes
     /// @param index the index to check if it's set
     /// @return `true` if the value of the bit is `1`, `false` if the value of the bit is `0`
-    function bitSet(bytes memory self, uint16 index) internal view returns (bool) {
+    function bitSet(bytes memory self, uint16 index) internal pure returns (bool) {
         uint256 val;
         assembly {
             val := shr(sub(255, index), and(mload(add(self, 0x20)), shl(sub(255, index), 1)))
@@ -25,7 +25,7 @@ library MerkleProofLibrary {
     ///check if it's set
     /// @return `true` if the value of the bit is `1`, `false` if the value of
     /// the bit is `0`
-    function bitSetBytes32(bytes32 self, uint16 index) internal view returns (bool) {
+    function bitSetBytes32(bytes32 self, uint16 index) internal pure returns (bool) {
         uint256 val;
         assembly {
             val := shr(sub(255, index), and(self, shl(sub(255, index), 1)))
@@ -38,7 +38,7 @@ library MerkleProofLibrary {
     /// @return the leaf hash
     function computeLeafHash(MerkleProofParserLibrary.MerkleProof memory _proof)
         internal
-        view
+        pure
         returns (bytes32)
     {
         uint16 trieHeight = 256;

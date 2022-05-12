@@ -44,10 +44,7 @@ contract BridgePool is
         uint256 networkId
     );
 
-    constructor(address erc20TokenContract_, address bTokenContract_)
-        public
-        ImmutableFactory(msg.sender)
-    {
+    constructor(address erc20TokenContract_, address bTokenContract_) ImmutableFactory(msg.sender) {
         _erc20TokenContract = erc20TokenContract_;
         _bTokenContract = bTokenContract_;
     }
@@ -82,7 +79,7 @@ contract BridgePool is
         );
         BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
         //TODO: remove and use DepositNotifier
-        emit Deposited(1, _erc20TokenContract, aliceNetAddress_, erc20Amount_, 0);
+        emit Deposited(accountType_, _erc20TokenContract, aliceNetAddress_, erc20Amount_, 0);
         // Uncomment upon merging of PR-126
         // DepositNotifier(_depositNotifierAddress()).doEmit(
         //     _saltForBridgePool(),
