@@ -150,7 +150,7 @@ jobs:
               with:
                   repository: ethereum/go-ethereum
                   path: './go-ethereum'
-            - name: Install ethkey
+            - name: Install geth and ethkey
               run: |
                   REPO_PATH=$(pwd)
                   cd go-ethereum
@@ -159,9 +159,13 @@ jobs:
                   cd  /usr/local/bin
                   sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
                   cd $REPO_PATH
+                  sudo add-apt-repository -y ppa:ethereum/ethereum
+                  sudo apt-get update
+                  sudo apt-get install -y ethereum
+                  geth --version
             - name: Run tests
-              timeout-minutes: 15
+              timeout-minutes: 40
               run: |
                   set -euo pipefail
                   ./scripts/main.sh init 5
-                  go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
+                  go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingRegistrationTask
