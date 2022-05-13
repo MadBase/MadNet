@@ -160,8 +160,8 @@ jobs:
                   sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
                   cd $REPO_PATH
             - name: Run tests
-              timeout-minutes: 20
+              timeout-minutes: 15
               run: |
                   set -euo pipefail
                   ./scripts/main.sh init 5
-                  go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
+                  go test -v github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeShareDistributionTask
