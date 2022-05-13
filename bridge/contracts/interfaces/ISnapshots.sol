@@ -40,7 +40,7 @@ interface ISnapshots {
 
     function getChainId() external view returns (uint256);
 
-    function getEpoch() external view returns (uint256);
+    function getEpoch() external view returns (uint32);
 
     function getEpochLength() external view returns (uint256);
 

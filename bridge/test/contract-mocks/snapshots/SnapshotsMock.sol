@@ -119,7 +119,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _chainId;
     }
 
-    function getEpoch() public view returns (uint256) {
+    function getEpoch() public view returns (uint32) {
         return _epoch;
     }
 

@@ -6,6 +6,8 @@ import "contracts/interfaces/IETHDKG.sol";
 import "contracts/utils/ImmutableAuth.sol";
 import "contracts/libraries/snapshots/SnapshotRingBuffer.sol";
 
+
+
 abstract contract SnapshotsStorage is ImmutableETHDKG, ImmutableValidatorPool, SnapshotRingBuffer {
     using RingBuffer for SnapshotBuffer;
     using EpochLib for Epoch;
@@ -49,6 +51,7 @@ abstract contract SnapshotsStorage is ImmutableETHDKG, ImmutableValidatorPool, S
         }
         if (height_ % _epochLength == 0) {
             //TODO make sure this does what i think it does
+            uint32 epoch = uint32(height_ / _epochLength);
             return uint32(height_ / _epochLength);
         }
         return uint32((height_ / _epochLength) + 1);

@@ -17,7 +17,7 @@ library RingBuffer {
 
     function get(SnapshotBuffer memory self_, uint32 epoch_)
         internal
-        view
+        pure
         returns (Snapshot memory)
     {
         return self_._array[_indexFor(self_, epoch_)];
@@ -46,7 +46,8 @@ library RingBuffer {
     * @param epoch_ epoch_ number associated with the snapshot 
     */
     function _indexFor(SnapshotBuffer memory self_, uint32 epoch_) internal pure returns(uint256) {
-        require(epoch_ > 0);
+        //TODO determine if this is necessary 
+        // require(epoch_ > 0);
         return epoch_ % self_._array.length;
     }
 }

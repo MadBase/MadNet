@@ -52,7 +52,7 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
         public
         returns (bool)
     {
-        //require the sneder to be a validator
+        //require the sender to be a validator
         require(
             IValidatorPool(_validatorPoolAddress()).isValidator(msg.sender),
             string(abi.encodePacked(SnapshotsErrorCodes.SNAPSHOT_ONLY_VALIDATORS_ALLOWED))
@@ -62,9 +62,10 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
             IValidatorPool(_validatorPoolAddress()).isConsensusRunning(),
             string(abi.encodePacked(SnapshotsErrorCodes.SNAPSHOT_CONSENSUS_RUNNING))
         );
-        uint32 epoch;// = _epochRegister().get();
+        uint32 epoch = getEpoch();
+        // console.log("epoch: %s, height: %s", epoch, blockClaims.height);
         //get the last snapshot 
-        (, Snapshot memory lastSnapshot) = _getSnapshot(epoch);
+        (, Snapshot memory lastSnapshot) = _getLastSnapshot();
         //TODO determine if we need to check 
         // require that the current block number is greater than 
         //blocknumber at last snapshot plus min interval between snaps
@@ -121,7 +122,8 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
         BClaimsParserLibrary.BClaims memory blockClaims = BClaimsParserLibrary.extractBClaims(
             bClaims_
         );
-        //require the new claim to have 
+        //require the new claim to have
+        // console.log("epoch: %s, height: %s", epoch, blockClaims.height);
         require(
             epoch * _epochLength == blockClaims.height,
             string(abi.encodePacked(SnapshotsErrorCodes.SNAPSHOT_INCORRECT_BLOCK_HEIGHT))
@@ -213,8 +215,8 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
         return _chainId;
     }
 
-    function getEpoch() public view returns (uint256) {
-        return _getEpoch();
+    function getEpoch() public view returns (uint32) {
+        return __epoch._value;
     }
 
     function getEpochLength() public view returns (uint256) {

@@ -155,7 +155,7 @@ describe("Snapshots: Migrate state", () => {
       const expectedAliceNetHeights = [76800n, 77824n, 78848n, 79872n, 80896n];
       const expectedEpochs = [75n, 76n, 77n, 78n, 79n];
 
-      expect((await fixture.snapshots.getEpoch()).toBigInt()).to.be.equal(
+      expect(BigInt(await fixture.snapshots.getEpoch())).to.be.equal(
         expectedEpochs[expectedEpochs.length - 1]
       );
       expect(
