@@ -575,7 +575,8 @@ func StartDeployScripts(eth *blockchain.EthereumDetails, ctx context.Context) er
 	// if there is an error with our execution
 	// handle it here
 	if err != nil {
-		return fmt.Errorf("could not execute deploy script: %s", err)
+		log.Printf("Could not execute deploy script: %s", err)
+		return err
 	}
 
 	// inits contracts
