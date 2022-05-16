@@ -3,6 +3,7 @@ package dkgtasks_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/logging"
@@ -57,7 +58,7 @@ func TestDisputeMissingKeySharesTask_FourUnsubmittedKeyShare_DoWork_Success(t *t
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 		disputeMissingKeyshareTask := suite.disputeMissingKeyshareTasks[idx]
-
+		time.Sleep(5 * time.Second)
 		dkgData := objects.NewETHDKGTaskData(state)
 		err := disputeMissingKeyshareTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)

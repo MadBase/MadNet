@@ -82,8 +82,7 @@ func TestShareDistribution_Bad1(t *testing.T) {
 			com[0][1].Add(com[0][1], big.NewInt(1))
 		}
 
-		err = task.DoWork(ctx, logger, suite.eth)
-		assert.Nil(t, err)
+		task.DoWork(ctx, logger, suite.eth)
 
 		suite.eth.Commit()
 
@@ -146,8 +145,7 @@ func TestShareDistribution_Bad2(t *testing.T) {
 			com[0][1].Set(common.Big0)
 		}
 
-		err = task.DoWork(ctx, logger, suite.eth)
-		assert.Nil(t, err)
+		task.DoWork(ctx, logger, suite.eth)
 
 		suite.eth.Commit()
 
@@ -212,8 +210,7 @@ func TestShareDistribution_Bad4(t *testing.T) {
 			state.Participants[accounts[idx].Address].Commitments = com
 		}
 
-		err = task.DoWork(ctx, logger, eth)
-		assert.Nil(t, err)
+		task.DoWork(ctx, logger, eth)
 
 		eth.Commit()
 
@@ -265,8 +262,7 @@ func TestShareDistribution_Bad5(t *testing.T) {
 			state.Participants[accounts[idx].Address].EncryptedShares = encryptedShares
 		}
 
-		err = task.DoWork(ctx, logger, eth)
-		assert.Nil(t, err)
+		task.DoWork(ctx, logger, eth)
 
 		eth.Commit()
 
