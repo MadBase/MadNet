@@ -150,9 +150,20 @@ jobs:
                     TestDisputeMissingShareDistributionTask,
                     TestDisputeMissingRegistrationTask,
                     TestDisputeMissingKeySharesTask,
-                    TestDisputeMissing,
+                    TestDisputeMissingGPKjTask,
                     TestGPKjDispute,
-                    TestCompletion
+                    TestCompletion,
+                    TestRegisteringETHDKGEvents,
+                    TestRegistrationOpenEvent,
+                    TestDKGState,
+                    TestScheduler,
+                    TestBidirectionalJson
+                    TestStartTask,
+                    TestCancellation,
+                    TestEnqueue,
+                    TestSelector,
+                    TestTransferFunds,
+                    TestEthereum
                 ]
         steps:
             # Checkout and tool to format the test output

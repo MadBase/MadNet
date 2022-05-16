@@ -32,7 +32,7 @@ func setupEthereum(t *testing.T, n int) interfaces.Ethereum {
 	return eth
 }
 
-func TestAccountsFound(t *testing.T) {
+func TestEthereum_AccountsFound(t *testing.T) {
 	eth := setupEthereum(t, 4)
 	defer eth.Close()
 
@@ -49,7 +49,7 @@ func TestAccountsFound(t *testing.T) {
 
 }
 
-func TestHardhatNode(t *testing.T) {
+func TestEthereum_HardhatNode(t *testing.T) {
 	privateKeys, _ := dtest.InitializePrivateKeysAndAccounts(4)
 
 	eth, err := blockchain.NewEthereumSimulator(
@@ -97,7 +97,7 @@ func TestHardhatNode(t *testing.T) {
 	t.Logf("done testing")
 }
 
-func TestNewEthereumEndpoint(t *testing.T) {
+func TestEthereum_NewEthereumEndpoint(t *testing.T) {
 
 	eth := setupEthereum(t, 4)
 	defer eth.Close()
