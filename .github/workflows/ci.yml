@@ -172,6 +172,11 @@ jobs:
                 os: [ubuntu-20.04]
                 test-prefix: [TestDisputeMissingRegistrationTask, TestDisputeMissingShareDistributionTask]
         steps:
+            -   uses: actions/checkout@v3
+            -   uses: ./.github/actions/alicenet-config
+            -   name: Set up gotestfmt
+                run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
+
             - name: Run tests
               timeout-minutes: 40
               run: |
