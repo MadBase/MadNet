@@ -130,22 +130,37 @@ jobs:
     #      - name: golangci-lint
     #        uses: golangci/golangci-lint-action@v3
 
-    golang-env-setup:
+    golang-unit-tests:
         runs-on: ${{ matrix.os }}
         needs: golang-build
         timeout-minutes: 60
         strategy:
             matrix:
                 os: [ubuntu-20.04]
-                test-prefix: [ TestDisputeMissingRegistrationTask, TestDisputeMissingShareDistributionTask ]
+                test-prefix: [
+                    TestUtilities,
+                    TestMath,
+                    TestShareDistribution,
+                    TestRegisterTask,
+                    TestMPKSubmission,
+                    TestKeyShareSubmission,
+                    TestGPKjSubmission,
+                    TestDisputeShareDistributionTask,
+                    TestDisputeMissingShareDistributionTask,
+                    TestDisputeMissingRegistrationTask,
+                    TestDisputeMissingKeySharesTask,
+                    TestDisputeMissing,
+                    TestGPKjDispute,
+                    TestCompletion
+                ]
         steps:
+            # Checkout and tool to format the test output
             - uses: actions/checkout@v3
             - uses: ./.github/actions/alicenet-config
-            # tool to format the test output
             - name: Set up gotestfmt
               run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
 
-            # install ubuntu eth missing dependencies
+            # Install ubuntu eth and missing dependencies
             - name: Check out ethereum repo for ethkey
               uses: actions/checkout@master
               with:
@@ -163,7 +178,9 @@ jobs:
                   sudo add-apt-repository -y ppa:ethereum/ethereum
                   sudo apt-get update
                   sudo apt-get install -y ethereum
-            - name: Run tests
+
+            # Run matrix unit test
+            - name: Run tests ${{ matrix.test-prefix }}
               timeout-minutes: 45
               run: |
                   set -euo pipefail

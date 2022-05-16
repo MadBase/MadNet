@@ -15,7 +15,7 @@ import (
 )
 
 // We complete everything correctly, happy path
-func TestCompletionAllGood(t *testing.T) {
+func TestCompletion_AllGood(t *testing.T) {
 	n := 4
 
 	err := dtest.InitializeValidatorFiles(5)
@@ -131,7 +131,7 @@ func TestCompletion_StartFromCompletion(t *testing.T) {
 // We begin by submitting invalid information.
 // This test is meant to raise an error resulting from an invalid argument
 // for the Ethereum interface.
-func TestCompletionBad1(t *testing.T) {
+func TestCompletion_Bad1(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -155,7 +155,7 @@ func TestCompletionBad1(t *testing.T) {
 }
 
 // We test to ensure that everything behaves correctly.
-func TestCompletionBad2(t *testing.T) {
+func TestCompletion_Bad2(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -180,7 +180,7 @@ func TestCompletionBad2(t *testing.T) {
 }
 
 // We complete everything correctly, but we do not complete in time
-func TestCompletionBad3(t *testing.T) {
+func TestCompletion_Bad3(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
