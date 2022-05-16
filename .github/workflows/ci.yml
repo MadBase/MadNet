@@ -135,6 +135,7 @@ jobs:
         needs: golang-build
         timeout-minutes: 60
         strategy:
+            fail-fast: false
             matrix:
                 os: [ubuntu-20.04]
                 test-prefix: [
