@@ -130,10 +130,10 @@ jobs:
     #      - name: golangci-lint
     #        uses: golangci/golangci-lint-action@v3
 
-    golang-unit-tests:
+    golang-env-setup:
         runs-on: ${{ matrix.os }}
         needs: golang-build
-        timeout-minutes: 30
+        timeout-minutes: 20
         strategy:
             matrix:
                 os: [ubuntu-20.04]
@@ -162,9 +162,19 @@ jobs:
                   sudo add-apt-repository -y ppa:ethereum/ethereum
                   sudo apt-get update
                   sudo apt-get install -y ethereum
+
+    golang-unit-tests:
+        runs-on: ${{ matrix.os }}
+        needs: golang-build
+        timeout-minutes: 60
+        strategy:
+            matrix:
+                os: [ubuntu-20.04]
+                test-prefix: [TestDisputeMissingRegistrationTask, TestDisputeMissingShareDistributionTask]
+        steps:
             - name: Run tests
               timeout-minutes: 40
               run: |
                   set -euo pipefail
                   ./scripts/main.sh init 5
-                  go test -v -timeout=40m github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingShareDistributionTask
+                  go test -v -timeout=45m github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run ${{ matrix.test-prefix }}
