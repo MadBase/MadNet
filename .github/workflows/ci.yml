@@ -165,7 +165,7 @@ jobs:
 
     golang-unit-tests:
         runs-on: ${{ matrix.os }}
-        needs: golang-build
+        needs: golang-env-setup
         timeout-minutes: 60
         strategy:
             matrix:
