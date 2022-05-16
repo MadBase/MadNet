@@ -167,4 +167,4 @@ jobs:
               run: |
                   set -euo pipefail
                   ./scripts/main.sh init 5
-                  go test -v -timeout=40m github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingKeySharesTask
+                  go test -v -timeout=40m github.com/MadBase/MadNet/blockchain/dkg/dkgtasks -run TestDisputeMissingRegistrationTask
