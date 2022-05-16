@@ -133,10 +133,11 @@ jobs:
     golang-env-setup:
         runs-on: ${{ matrix.os }}
         needs: golang-build
-        timeout-minutes: 20
+        timeout-minutes: 60
         strategy:
             matrix:
                 os: [ubuntu-20.04]
+                test-prefix: [ TestDisputeMissingRegistrationTask, TestDisputeMissingShareDistributionTask ]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/alicenet-config
@@ -162,23 +163,8 @@ jobs:
                   sudo add-apt-repository -y ppa:ethereum/ethereum
                   sudo apt-get update
                   sudo apt-get install -y ethereum
-
-    golang-unit-tests:
-        runs-on: ${{ matrix.os }}
-        needs: golang-env-setup
-        timeout-minutes: 60
-        strategy:
-            matrix:
-                os: [ubuntu-20.04]
-                test-prefix: [TestDisputeMissingRegistrationTask, TestDisputeMissingShareDistributionTask]
-        steps:
-            -   uses: actions/checkout@v3
-            -   uses: ./.github/actions/alicenet-config
-            -   name: Set up gotestfmt
-                run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
-
             - name: Run tests
-              timeout-minutes: 40
+              timeout-minutes: 45
               run: |
                   set -euo pipefail
                   ./scripts/main.sh init 5
