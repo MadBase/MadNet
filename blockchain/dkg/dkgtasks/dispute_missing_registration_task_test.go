@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDisputeMissingRegistrationTask_DoTaskSuccessOneParticipantAccused(t *testing.T) {
+func TestDisputeMissingRegistrationTask_Group_1_DoTaskSuccessOneParticipantAccused(t *testing.T) {
 	n := 4
 	d := 1
 	suite := StartFromRegistrationOpenPhase(t, n, d, 100)
@@ -40,7 +40,7 @@ func TestDisputeMissingRegistrationTask_DoTaskSuccessOneParticipantAccused(t *te
 	assert.Equal(t, int64(d), badParticipants.Int64())
 }
 
-func TestDisputeMissingRegistrationTask_DoTaskSuccessThreeParticipantAccused(t *testing.T) {
+func TestDisputeMissingRegistrationTask_Group_1_DoTaskSuccessThreeParticipantAccused(t *testing.T) {
 	n := 5
 	d := 3
 	suite := StartFromRegistrationOpenPhase(t, n, d, 100)
@@ -71,7 +71,7 @@ func TestDisputeMissingRegistrationTask_DoTaskSuccessThreeParticipantAccused(t *
 	assert.Equal(t, int64(d), badParticipants.Int64())
 }
 
-func TestDisputeMissingRegistrationTask_DoTaskSuccessAllParticipantsAreBad(t *testing.T) {
+func TestDisputeMissingRegistrationTask_Group_1_DoTaskSuccessAllParticipantsAreBad(t *testing.T) {
 	n := 5
 	d := 5
 	suite := StartFromRegistrationOpenPhase(t, n, d, 100)
@@ -102,7 +102,7 @@ func TestDisputeMissingRegistrationTask_DoTaskSuccessAllParticipantsAreBad(t *te
 	assert.Equal(t, int64(d), badParticipants.Int64())
 }
 
-func TestDisputeMissingRegistrationTask_ShouldRetryTrue(t *testing.T) {
+func TestDisputeMissingRegistrationTask_Group_2_ShouldRetryTrue(t *testing.T) {
 	suite := StartFromRegistrationOpenPhase(t, 5, 1, 100)
 	defer suite.eth.Close()
 
@@ -123,7 +123,7 @@ func TestDisputeMissingRegistrationTask_ShouldRetryTrue(t *testing.T) {
 	}
 }
 
-func TestDisputeMissingRegistrationTask_ShouldNotRetryAfterSuccessfullyAccusingAllMissingParticipants(t *testing.T) {
+func TestDisputeMissingRegistrationTask_Group_2_ShouldNotRetryAfterSuccessfullyAccusingAllMissingParticipants(t *testing.T) {
 	suite := StartFromRegistrationOpenPhase(t, 5, 0, 100)
 	defer suite.eth.Close()
 

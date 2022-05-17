@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRegisterTask_Task(t *testing.T) {
+func TestRegisterTask_Group_1_Task(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	tr := &objects.TypeRegistry{}
@@ -103,7 +103,7 @@ func TestRegisterTask_Task(t *testing.T) {
 
 // We attempt valid registration. Everything should succeed.
 // This test calls Initialize and DoWork.
-func TestRegisterTask_Good2(t *testing.T) {
+func TestRegisterTask_Group_1_Good2(t *testing.T) {
 	n := 6
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -190,7 +190,7 @@ func TestRegisterTask_Good2(t *testing.T) {
 
 // We attempt to submit an invalid transport public key (a point not on the curve).
 // This should raise an error and not allow that participant to proceed.
-func TestRegisterTask_Bad1(t *testing.T) {
+func TestRegisterTask_Group_1_Bad1(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -250,7 +250,7 @@ func TestRegisterTask_Bad1(t *testing.T) {
 
 // We attempt to submit an invalid transport public key (submit identity element).
 // This should raise an error and not allow that participant to proceed.
-func TestRegisterTask_Bad2(t *testing.T) {
+func TestRegisterTask_Group_2_Bad2(t *testing.T) {
 	n := 7
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -307,7 +307,7 @@ func TestRegisterTask_Bad2(t *testing.T) {
 }
 
 // The initialization should fail because we dont allow less than 4 validators
-func TestRegisterTask_Bad4(t *testing.T) {
+func TestRegisterTask_Group_2_Bad4(t *testing.T) {
 	n := 3
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -338,7 +338,7 @@ func TestRegisterTask_Bad4(t *testing.T) {
 // We attempt invalid registration.
 // Here, we try to register after registration has closed.
 // This should raise an error.
-func TestRegisterTask_Bad5(t *testing.T) {
+func TestRegisterTask_Group_2_Bad5(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -394,7 +394,7 @@ func TestRegisterTask_Bad5(t *testing.T) {
 }
 
 // ShouldRetry() return false because the registration was successful
-func TestRegisterTask_ShouldRetryFalse(t *testing.T) {
+func TestRegisterTask_Group_3_ShouldRetryFalse(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 
@@ -483,7 +483,7 @@ func TestRegisterTask_ShouldRetryFalse(t *testing.T) {
 }
 
 // ShouldRetry() return true because the registration was unsuccessful
-func TestRegisterTask_ShouldRetryTrue(t *testing.T) {
+func TestRegisterTask_Group_3_ShouldRetryTrue(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, accounts := dtest.InitializePrivateKeysAndAccounts(n)
 

@@ -15,7 +15,7 @@ import (
 )
 
 //We test to ensure that everything behaves correctly.
-func TestMPKSubmission_GoodAllValid(t *testing.T) {
+func TestMPKSubmission_Group_1_GoodAllValid(t *testing.T) {
 	n := 4
 	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -72,7 +72,7 @@ func TestMPKSubmission_GoodAllValid(t *testing.T) {
 // In this test, *no* validator should submit an mpk.
 // After ending the MPK submission phase, validators should attempt
 // to submit the mpk; this should raise an error.
-func TestMPKSubmission_Bad1(t *testing.T) {
+func TestMPKSubmission_Group_1_Bad1(t *testing.T) {
 	// Perform correct registration setup.
 
 	// Perform correct share submission
@@ -109,7 +109,7 @@ func TestMPKSubmission_Bad1(t *testing.T) {
 
 // We force an error.
 // This is caused by submitting invalid state information (state is nil).
-func TestMPKSubmission_Bad2(t *testing.T) {
+func TestMPKSubmission_Group_1_Bad2(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -135,7 +135,7 @@ func TestMPKSubmission_Bad2(t *testing.T) {
 // We force an error.
 // This is caused by submitting invalid state information by not successfully
 // completing KeyShareSubmission phase.
-func TestMPKSubmission_Bad4(t *testing.T) {
+func TestMPKSubmission_Group_2_Bad4(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -157,7 +157,7 @@ func TestMPKSubmission_Bad4(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestMPKSubmission_ShouldRetry_returnsFalse(t *testing.T) {
+func TestMPKSubmission_Group_2_ShouldRetry_returnsFalse(t *testing.T) {
 	n := 4
 	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 40)
 	defer suite.eth.Close()
@@ -196,7 +196,7 @@ func TestMPKSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	assert.False(t, tasks[0].ShouldRetry(ctx, logger, eth))
 }
 
-func TestMPKSubmission_ShouldRetry_returnsTrue(t *testing.T) {
+func TestMPKSubmission_Group_2_ShouldRetry_returnsTrue(t *testing.T) {
 	n := 4
 	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -214,7 +214,7 @@ func TestMPKSubmission_ShouldRetry_returnsTrue(t *testing.T) {
 	}
 }
 
-func TestMPKSubmission_LeaderElection(t *testing.T) {
+func TestMPKSubmission_Group_2_LeaderElection(t *testing.T) {
 	n := 4
 	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 100)
 	defer suite.eth.Close()
