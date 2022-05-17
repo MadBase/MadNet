@@ -36,7 +36,7 @@ func assertStateMatch(t *testing.T, ms *objects.MonitorState) {
 	assert.Equal(t, uint32(5), ms.LatestDepositSeen)
 
 	//
-	assert.Equal(t, uint8(1), len(ms.Validators[614]))
+	assert.Equal(t, 1, len(ms.Validators[614]))
 	// assert.Equal(t, uint8(7), ms.Validators[614][0].Index)
 }
 

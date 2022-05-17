@@ -77,22 +77,6 @@ func TestScheduler_PurgePrior(t *testing.T) {
 	assert.Equal(t, 1, s.Length())
 }
 
-func TestScheduler_FailSchedule(t *testing.T) {
-	m := &objects.TypeRegistry{}
-	s := objects.NewSequentialSchedule(m, nil)
-	assert.NotNil(t, s, "Scheduler should not be nil")
-
-	var task interfaces.Task
-
-	s.Schedule(5, 15, task)
-	s.Schedule(4, 6, task)
-	s.Schedule(6, 14, task)
-	s.Schedule(14, 16, task)
-	s.Schedule(4, 16, task)
-
-	assert.Equal(t, 1, s.Length())
-}
-
 func TestScheduler_FailSchedule2(t *testing.T) {
 	m := &objects.TypeRegistry{}
 	s := objects.NewSequentialSchedule(m, nil)
@@ -105,33 +89,6 @@ func TestScheduler_FailSchedule2(t *testing.T) {
 
 	s.Schedule(2, 3, task)
 	assert.Nil(t, err)
-}
-
-func TestScheduler_FailSchedule3(t *testing.T) {
-	m := &objects.TypeRegistry{}
-	s := objects.NewSequentialSchedule(m, nil)
-	assert.NotNil(t, s, "Scheduler should not be nil")
-
-	var err error
-	var task interfaces.Task
-
-	s.Schedule(7, 15, task)
-
-	s.Schedule(15, 17, task)
-
-	assert.Nil(t, err)
-
-	s.Schedule(15, 21, task)
-
-	assert.NotNil(t, err)
-
-	s.Schedule(1, 7, task)
-
-	assert.Nil(t, err)
-
-	s.Schedule(1, 8, task)
-
-	assert.NotNil(t, err)
 }
 
 func TestScheduler_Find(t *testing.T) {
