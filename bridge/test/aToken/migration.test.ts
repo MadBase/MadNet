@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { AToken, LegacyToken } from "../../typechain-types";
 import {
-  deployAliceNetFactory,
+  deployFactory,
   deployStaticWithFactory,
   expect,
   Fixture,
@@ -46,7 +46,7 @@ describe("Testing AToken", async () => {
 
     it("Should not allow migrate if migration is locked", async function () {
       const [admin] = await ethers.getSigners();
-      const factory = await deployAliceNetFactory(admin);
+      const factory = await deployFactory("AliceNetFactory", admin);
 
       // LegacyToken
       const legacyToken = (await deployStaticWithFactory(

@@ -12,6 +12,7 @@ import { isHexString } from "ethers/lib/utils";
 import { ethers, network } from "hardhat";
 import {
   AliceNetFactory,
+  AliceNetFactory__factory,
   AToken,
   ATokenBurner,
   ATokenMinter,
@@ -312,7 +313,7 @@ export const deployUpgradeableWithFactory = async (
 export const deployFactoryAndBaseTokens = async (
   admin: SignerWithAddress
 ): Promise<BaseTokensFixture> => {
-  const factory = await deployAliceNetFactory(admin);
+  const factory = await deployFactory("AliceNetFactory", admin);
 
   // LegacyToken
   const legacyToken = (await deployStaticWithFactory(
@@ -348,17 +349,19 @@ export const deployFactoryAndBaseTokens = async (
   };
 };
 
-export const deployAliceNetFactory = async (
-  admin: SignerWithAddress
+export const deployFactory = async (
+  factoryName: string,
+  owner: SignerWithAddress
 ): Promise<AliceNetFactory> => {
-  const txCount = await ethers.provider.getTransactionCount(admin.address);
+  const txCount = await ethers.provider.getTransactionCount(owner.address);
   // calculate the factory address for the constructor arg
   const futureFactoryAddress = ethers.utils.getContractAddress({
-    from: admin.address,
+    from: owner.address,
     nonce: txCount,
   });
-
-  const Factory = await ethers.getContractFactory("AliceNetFactory");
+  const Factory = (await ethers.getContractFactory(
+    factoryName
+  )) as AliceNetFactory__factory;
   const factory = await Factory.deploy(futureFactoryAddress);
   await factory.deployed();
   return factory;

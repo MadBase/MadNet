@@ -8,7 +8,7 @@ import {
 } from "../../../typechain-types";
 import {
   createUsers,
-  deployAliceNetFactory,
+  deployFactory,
   deployStaticWithFactory,
   factoryCallAny,
   getMetamorphicAddress,
@@ -37,7 +37,7 @@ describe("PublicStaking: Skim excess of tokens", async () => {
   beforeEach(async function () {
     const [adminSigner] = await ethers.getSigners();
     await preFixtureSetup();
-    factory = await deployAliceNetFactory(adminSigner);
+    factory = await deployFactory("AliceNetFactory", adminSigner);
 
     const publicStakingAddress = getMetamorphicAddress(
       factory.address,

@@ -7,7 +7,7 @@ import {
 } from "../../../typechain-types";
 import {
   createUsers,
-  deployAliceNetFactory,
+  deployFactory,
   deployStaticWithFactory,
   mineBlocks,
   posFixtureSetup,
@@ -34,7 +34,7 @@ describe("PublicStaking: Accumulator Overflow", async () => {
   beforeEach(async function () {
     const [adminSigner] = await ethers.getSigners();
     await preFixtureSetup();
-    const factory = await deployAliceNetFactory(adminSigner);
+    const factory = await deployFactory("AliceNetFactory", adminSigner);
 
     const legacyToken = (await deployStaticWithFactory(
       factory,
