@@ -39,23 +39,22 @@ func (s *ServicesSuite) SetupTest() {
 	s.eth = eth
 }
 
-func (s *ServicesSuite) TestRegistrationOpenEvent() {
-	t := s.T()
-	eth := s.eth
+func TestRegistrationOpenEvent(t *testing.T) {
+	//eth := s.eth
+	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(5)
+	eth := dtest.ConnectSimulatorEndpoint(t, ecdsaPrivateKeys, 500*time.Second)
+	defer eth.Close()
+
 	c := eth.Contracts()
 	assert.NotNil(t, c, "Need a *Contracts")
 
-	height, err := s.eth.GetCurrentHeight(context.TODO())
+	height, err := eth.GetCurrentHeight(context.TODO())
 	assert.Nil(t, err, "could not get height")
 	assert.Equal(t, uint64(0), height, "Height should be 0")
 
-	s.eth.Commit()
+	eth.Commit()
 
-	height, err = s.eth.GetCurrentHeight(context.TODO())
+	height, err = eth.GetCurrentHeight(context.TODO())
 	assert.Nil(t, err, "could not get height")
 	assert.Equal(t, uint64(1), height, "Height should be 1")
-}
-
-func TestServicesSuite(t *testing.T) {
-	suite.Run(t, new(ServicesSuite))
 }

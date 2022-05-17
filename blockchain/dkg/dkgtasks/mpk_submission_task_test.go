@@ -159,7 +159,7 @@ func TestMPKSubmission_Bad4(t *testing.T) {
 
 func TestMPKSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	n := 4
-	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 100)
+	suite := StartFromKeyShareSubmissionPhase(t, n, 0, 40)
 	defer suite.eth.Close()
 	ctx := context.Background()
 	eth := suite.eth

@@ -78,7 +78,7 @@ func TestDisputeMissingKeySharesTask_FourUnsubmittedKeyShare_DoWork_Success(t *t
 func TestDisputeMissingKeySharesTask_ShouldRetry_False(t *testing.T) {
 	n := 5
 	unsubmittedKeyShares := 1
-	suite := StartFromShareDistributionPhase(t, n, []int{}, []int{}, 300)
+	suite := StartFromShareDistributionPhase(t, n, []int{}, []int{}, 40)
 	defer suite.eth.Close()
 	ctx := context.Background()
 	eth := suite.eth

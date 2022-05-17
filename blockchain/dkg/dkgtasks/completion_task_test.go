@@ -238,7 +238,7 @@ func TestCompletion_Bad3(t *testing.T) {
 
 func TestCompletion_ShouldRetry_returnsFalse(t *testing.T) {
 	n := 4
-	suite := StartFromCompletion(t, n, 100)
+	suite := StartFromCompletion(t, n, 40)
 	defer suite.eth.Close()
 	ctx := context.Background()
 	eth := suite.eth
