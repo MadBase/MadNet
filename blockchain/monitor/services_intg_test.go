@@ -24,11 +24,11 @@ func (s *ServicesSuite) SetupTest() {
 	privateKeys, _ := dtest.InitializePrivateKeysAndAccounts(4)
 	eth, err := blockchain.NewEthereumSimulator(
 		privateKeys,
-		3,
-		2*time.Second,
-		5*time.Second,
+		6,
+		10*time.Second,
+		30*time.Second,
 		0,
-		big.NewInt(9223372036854775807),
+		big.NewInt(math.MaxInt64),
 		50,
 		math.MaxInt64,
 		5*time.Second,
@@ -39,22 +39,23 @@ func (s *ServicesSuite) SetupTest() {
 	s.eth = eth
 }
 
-func TestRegistrationOpenEvent(t *testing.T) {
-	//eth := s.eth
-	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(5)
-	eth := dtest.ConnectSimulatorEndpoint(t, ecdsaPrivateKeys, 500*time.Second)
-	defer eth.Close()
-
+func (s *ServicesSuite) TestRegistrationOpenEvent() {
+	t := s.T()
+	eth := s.eth
 	c := eth.Contracts()
 	assert.NotNil(t, c, "Need a *Contracts")
 
-	height, err := eth.GetCurrentHeight(context.TODO())
+	height, err := s.eth.GetCurrentHeight(context.TODO())
 	assert.Nil(t, err, "could not get height")
 	assert.Equal(t, uint64(0), height, "Height should be 0")
 
-	eth.Commit()
+	s.eth.Commit()
 
-	height, err = eth.GetCurrentHeight(context.TODO())
+	height, err = s.eth.GetCurrentHeight(context.TODO())
 	assert.Nil(t, err, "could not get height")
 	assert.Equal(t, uint64(1), height, "Height should be 1")
+}
+
+func TestServicesSuite(t *testing.T) {
+	suite.Run(t, new(ServicesSuite))
 }
