@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var _ Application = (*MockApplication)(nil)
+var _ interfaces.Application = (*MockApplication)(nil)
 
 //MockApplication is the the receiver for TxHandler interface
 type MockApplication struct {
