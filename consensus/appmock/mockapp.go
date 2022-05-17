@@ -1,8 +1,12 @@
 package appmock
 
 import (
+	"bytes"
+	"errors"
+	appObjs "github.com/MadBase/MadNet/application/objs"
 	trie "github.com/MadBase/MadNet/badgerTrie"
 	"github.com/MadBase/MadNet/consensus/objs"
+	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
 	"github.com/MadBase/MadNet/errorz"
 	"github.com/MadBase/MadNet/interfaces"
@@ -18,6 +22,9 @@ type MockApplication struct {
 	logger     *logrus.Logger
 	validValue *objs.Proposal
 	MissingTxn bool
+	txs        []interfaces.Transaction
+	leafs      []trie.LeafNode
+	shouldFail bool
 }
 
 const (
@@ -29,9 +36,27 @@ func (m *MockApplication) SetNextValidValue(vv *objs.Proposal) {
 	m.validValue = vv
 }
 
+// SetLeafs is defined on the interface object
+func (m *MockApplication) SetLeafs(leafs []trie.LeafNode) {
+	m.leafs = leafs
+}
+
+// SetTxs is defined on the interface object
+func (m *MockApplication) SetTxs(txs []*appObjs.Tx) {
+	m.txs = make([]interfaces.Transaction, len(txs))
+	for i := 0; i < len(txs); i++ {
+		m.txs[i] = txs[i]
+	}
+}
+
+// SetNextValidValue is defined on the interface object
+func (m *MockApplication) SetShouldFail(shouldFail bool) {
+	m.shouldFail = shouldFail
+}
+
 // New returns a mocked Application
 func New() *MockApplication {
-	return &MockApplication{logging.GetLogger("test"), nil, false}
+	return &MockApplication{logging.GetLogger("test"), nil, false, nil, nil, false}
 }
 
 // ApplyState is defined on the interface object
@@ -41,16 +66,42 @@ func (m *MockApplication) ApplyState(*badger.Txn, uint32, uint32, []interfaces.T
 
 //GetValidProposal is defined on the interface object
 func (m *MockApplication) GetValidProposal(txn *badger.Txn, chainID, height, maxBytes uint32) ([]interfaces.Transaction, []byte, error) {
-	return nil, m.validValue.PClaims.BClaims.StateRoot, nil
+	if chainID == 7777 {
+		return nil, nil, errors.New("error")
+	}
+	if chainID == 8888 {
+		tx := &appObjs.Tx{
+			Fee: nil,
+		}
+		txs := []interfaces.Transaction{tx}
+
+		return txs, nil, nil
+	}
+	return m.txs, m.validValue.PClaims.BClaims.StateRoot, nil
 }
 
 // PendingTxAdd is defined on the interface object
-func (m *MockApplication) PendingTxAdd(*badger.Txn, uint32, uint32, []interfaces.Transaction) error {
+func (m *MockApplication) PendingTxAdd(txn *badger.Txn, chainID uint32, height uint32, txs []interfaces.Transaction) error {
+	if chainID == 7777 {
+		return errorz.ErrInvalid{}.New("already  mined")
+	}
 	return nil
 }
 
 //IsValid is defined on the interface object
 func (m *MockApplication) IsValid(txn *badger.Txn, chainID uint32, height uint32, stateHash []byte, _ []interfaces.Transaction) (bool, error) {
+	if chainID == 7777 {
+		return false, errorz.ErrInvalid{}.New("")
+	}
+
+	if chainID == 8888 {
+		return false, errors.New("error")
+	}
+
+	if chainID == 9999 {
+		return false, nil
+	}
+
 	if m.MissingTxn {
 		return false, errorz.ErrMissingTransactions
 	}
@@ -79,7 +130,10 @@ func (m *MockApplication) UnmarshalTx(v []byte) (interfaces.Transaction, error) 
 
 // StoreSnapShotNode is defined on the interface object
 func (m *MockApplication) StoreSnapShotNode(txn *badger.Txn, batch []byte, root []byte, layer int) ([][]byte, int, []trie.LeafNode, error) {
-	panic(notImpl)
+	if m.shouldFail {
+		return nil, 0, nil, errors.New("error")
+	}
+	return [][]byte{{123}}, 0, m.leafs, nil
 }
 
 // GetSnapShotNode is defined on the interface object
@@ -89,12 +143,23 @@ func (m *MockApplication) GetSnapShotNode(txn *badger.Txn, height uint32, key []
 
 // StoreSnapShotStateData is defined on the interface object
 func (m *MockApplication) StoreSnapShotStateData(txn *badger.Txn, key []byte, value []byte, data []byte) error {
-	panic(notImpl)
+	if m.shouldFail {
+		return errors.New("error")
+	}
+	return nil
 }
 
 // GetSnapShotStateData is defined on the interface object
 func (m *MockApplication) GetSnapShotStateData(txn *badger.Txn, key []byte) ([]byte, error) {
-	panic(notImpl)
+	if bytes.Equal(make([]byte, constants.HashLen), key) {
+		return nil, errors.New("error")
+	}
+
+	if bytes.Equal([]byte{123}, key) {
+		return nil, badger.ErrKeyNotFound
+	}
+
+	return make([]byte, constants.HashLen), nil
 }
 
 // FinalizeSnapShotRoot is defined on the interface object
@@ -104,7 +169,10 @@ func (m *MockApplication) FinalizeSnapShotRoot(txn *badger.Txn, root []byte, hei
 
 // BeginSnapShotSync is defined on the interface object
 func (m *MockApplication) BeginSnapShotSync(txn *badger.Txn) error {
-	panic(notImpl)
+	if m.shouldFail {
+		return errors.New("error")
+	}
+	return nil
 }
 
 // FinalizeSync is defined on the interface object

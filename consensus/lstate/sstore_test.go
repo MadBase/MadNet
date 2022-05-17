@@ -2,6 +2,7 @@ package lstate
 
 import (
 	"context"
+	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
 	"github.com/MadBase/MadNet/constants"
@@ -9,6 +10,7 @@ import (
 	bn256 "github.com/MadBase/MadNet/crypto/bn256/cloudflare"
 	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strconv"
@@ -19,7 +21,7 @@ func TestStore_LoadLocalState_Ok(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 
 	_ = store.database.Update(func(txn *badger.Txn) error {
 		err := store.database.SetOwnState(txn, os)
@@ -86,7 +88,7 @@ func TestStore_WriteState_Ok(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 	rss := createRoundStates(os, rs, vs, &objs.OwnValidatingState{})
 
 	_ = store.database.Update(func(txn *badger.Txn) error {
@@ -103,7 +105,7 @@ func TestStore_WriteState_Errors(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 	rss := createRoundStates(&objs.OwnState{}, rs, vs, &objs.OwnValidatingState{})
 
 	_ = store.database.Update(func(txn *badger.Txn) error {
@@ -127,7 +129,7 @@ func TestStore_WriteState_ConflictLockedValue(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 	ovs := &objs.OwnValidatingState{
 		RoundStarted:         1,
 		PreVoteStepStarted:   1,
@@ -153,7 +155,7 @@ func TestStore_WriteState_ConflictValidValue(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 	ovs := &objs.OwnValidatingState{
 		RoundStarted:         1,
 		PreVoteStepStarted:   1,
@@ -179,7 +181,7 @@ func TestStore_GetDropData_Ok_OS_Validator(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 
 	_ = store.database.Update(func(txn *badger.Txn) error {
 		err := store.database.SetOwnState(txn, os)
@@ -216,7 +218,7 @@ func TestStore_GetDropData_Ok_OS_NotValidator(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(nil, rs)
+	vs := createValidatorsSet(t, nil, rs)
 
 	_ = store.database.Update(func(txn *badger.Txn) error {
 		err := store.database.SetOwnState(txn, os)
@@ -254,7 +256,7 @@ func TestStore_GetGossipValues_Ok1(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 
 	_, bnSigners, bnShares, secpSigners, secpPubks := makeSigners(t)
 	if len(secpPubks) != len(bnShares) {
@@ -324,7 +326,7 @@ func TestStore_GetGossipValues_Ok2(t *testing.T) {
 	store := initStore(t)
 	os := createOwnState(t, 1)
 	rs := createRoundState(t, os)
-	vs := createValidatorsSet(os, rs)
+	vs := createValidatorsSet(t, os, rs)
 
 	_, bnSigners, bnShares, secpSigners, secpPubks := makeSigners(t)
 	if len(secpPubks) != len(bnShares) {
@@ -507,52 +509,81 @@ func createRoundStates(os *objs.OwnState, rs *objs.RoundState, vs *objs.Validato
 	for _, val := range vs.Validators {
 		rss.PeerStateMap[string(val.VAddr)] = rs
 	}
+
+	rss.PeerStateMap[string(os.VAddr)] = rs
 	return rss
 }
 
-func createValidatorsSet(os *objs.OwnState, rs *objs.RoundState) *objs.ValidatorSet {
-	vkey0 := crypto.Hasher([]byte("s0"))[12:]
-	gShare0 := crypto.Hasher([]byte("g0"))
-	val0 := &objs.Validator{
-		VAddr:      vkey0,
-		GroupShare: gShare0,
-	}
-	vkey1 := crypto.Hasher([]byte("s1"))[12:]
-	gShare1 := crypto.Hasher([]byte("g1"))
-	val1 := &objs.Validator{
-		VAddr:      vkey1,
-		GroupShare: gShare1,
-	}
-	vkey2 := crypto.Hasher([]byte("s2"))[12:]
-	gShare2 := crypto.Hasher([]byte("g2"))
-	val2 := &objs.Validator{
-		VAddr:      vkey2,
-		GroupShare: gShare2,
-	}
-	vkey3 := crypto.Hasher([]byte("s3"))[12:]
-	gShare3 := crypto.Hasher([]byte("g3"))
-	val3 := &objs.Validator{
-		VAddr:      vkey3,
-		GroupShare: gShare3,
+func createValidatorsSet(t *testing.T, os *objs.OwnState, rs *objs.RoundState) *objs.ValidatorSet {
+	vldtrs := []objects.Validator{
+		createValidator("0x1", 1),
+		createValidator("0x2", 2),
+		createValidator("0x3", 3),
+		createValidator("0x4", 4)}
+
+	validators := make([]*objs.Validator, 0)
+
+	for i, v := range vldtrs {
+		g := &bn256.G2{}
+		g.ScalarBaseMult(big.NewInt(int64(i)))
+		ret := g.Marshal()
+		val := &objs.Validator{
+			VAddr:      v.Account.Bytes(),
+			GroupShare: ret}
+
+		validators = append(validators, val)
 	}
 
 	notBefore := uint32(1)
 	vSet := &objs.ValidatorSet{
-		Validators: []*objs.Validator{val0, val1, val2, val3},
+		Validators: validators,
 		GroupKey:   rs.GroupKey,
 		NotBefore:  notBefore,
 	}
 
 	if os != nil {
-		osGShare := crypto.Hasher([]byte("g4"))
+		g := &bn256.G2{}
+		g.ScalarBaseMult(big.NewInt(int64(len(vSet.Validators))))
+		ret := g.Marshal()
 		osValidator := &objs.Validator{
 			VAddr:      os.VAddr,
-			GroupShare: osGShare,
+			GroupShare: ret,
 		}
 		vSet.Validators = append(vSet.Validators, osValidator)
 	}
 
+	vSet.ValidatorVAddrMap = make(map[string]int)
+	vSet.ValidatorVAddrSet = make(map[string]bool)
+	vSet.ValidatorGroupShareMap = make(map[string]int)
+	vSet.ValidatorGroupShareSet = make(map[string]bool)
+	for idx, v := range vSet.Validators {
+		vSet.ValidatorVAddrMap[string(v.VAddr)] = idx
+		vSet.ValidatorVAddrSet[string(v.VAddr)] = true
+		vSet.ValidatorGroupShareMap[string(v.GroupShare)] = idx
+		vSet.ValidatorGroupShareSet[string(v.GroupShare)] = true
+	}
+
 	return vSet
+}
+
+func createSharedKey(addr common.Address) [4]*big.Int {
+
+	b := addr.Bytes()
+
+	return [4]*big.Int{
+		(&big.Int{}).SetBytes(b),
+		(&big.Int{}).SetBytes(b),
+		(&big.Int{}).SetBytes(b),
+		(&big.Int{}).SetBytes(b)}
+}
+
+func createValidator(addrHex string, idx uint8) objects.Validator {
+	addr := common.HexToAddress(addrHex)
+	return objects.Validator{
+		Account:   addr,
+		Index:     idx,
+		SharedKey: createSharedKey(addr),
+	}
 }
 
 func createRoundState(t *testing.T, os *objs.OwnState) *objs.RoundState {

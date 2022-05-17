@@ -126,8 +126,8 @@ func (ce *Engine) UpdateLocalState() (bool, error) {
 				return err
 			}
 			if !safe {
-				bh, _ := ce.database.GetCommittedBlockHeader(txn, bHeight)
-				ce.database.SetCommittedBlockHeader(txn, bh)
+				//bh, _ := ce.database.GetCommittedBlockHeader(txn, bHeight)
+				//ce.database.SetCommittedBlockHeader(txn, bh)
 				utils.DebugTrace(ce.logger, nil, "not safe")
 				updateLocalState = false
 			} else {
