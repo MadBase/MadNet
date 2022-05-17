@@ -57,7 +57,7 @@ type nodeResponse struct {
 	root           []byte
 	layer          int
 	batch          []byte
-}appman
+}
 
 type stateResponse struct {
 	snapShotHeight uint32
