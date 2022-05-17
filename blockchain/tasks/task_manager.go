@@ -3,12 +3,13 @@ package tasks
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/MadBase/MadNet/blockchain/dkg"
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"sync"
-	"time"
 
 	"github.com/MadBase/MadNet/blockchain/interfaces"
 	"github.com/MadBase/MadNet/blockchain/objects"
@@ -22,11 +23,14 @@ var (
 
 const NonceToLowError = "nonce too low"
 
-func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}) error {
+func StartTask(logger *logrus.Entry, wg *sync.WaitGroup, eth interfaces.Ethereum, task interfaces.Task, state interface{}, onFinishCB *func()) error {
 
 	wg.Add(1)
 	go func() {
 		defer task.DoDone(logger.WithField("Method", "DoDone"))
+		if onFinishCB != nil {
+			defer (*onFinishCB)()
+		}
 		defer wg.Done()
 
 		retryCount := eth.RetryCount()
@@ -227,7 +231,7 @@ func handleExecutedTask(ctx context.Context, logger *logrus.Entry, eth interface
 			logger.Infof("the tx %s was not mined", execData.TxOpts.GetHexTxsHashes())
 
 			if time.Now().After(txReplacement) {
-				logger.Infof("replacing tx %s with higher fee", execData.TxOpts.GetHexTxsHashes())
+				logger.Infof("tx timed out: replacing tx %s with higher fee", execData.TxOpts.GetHexTxsHashes())
 
 				err = retryTaskWithFeeReplacement(ctx, logger, eth, task, execData, retryCount, retryDelay)
 				if err != nil {
@@ -236,6 +240,8 @@ func handleExecutedTask(ctx context.Context, logger *logrus.Entry, eth interface
 				// set new Tx replacement time
 				txReplacement = getTxReplacementTime(txTimeoutForReplacement)
 			} else if receipt != nil && receipt.Status != uint64(1) {
+				logger.Infof("tx timed out: recreating tx %s", execData.TxOpts.GetHexTxsHashes())
+
 				// if the receipt indicates tx failed, then retry creating new tx
 				clearTxOpts(task)
 				err = retryTask(ctx, logger, eth, task, retryCount, retryDelay)

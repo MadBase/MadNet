@@ -17,9 +17,10 @@ var (
 )
 
 type Block struct {
-	Start uint64          `json:"start"`
-	End   uint64          `json:"end"`
-	Task  interfaces.Task `json:"-"`
+	Start     uint64          `json:"start"`
+	End       uint64          `json:"end"`
+	Task      interfaces.Task `json:"-"`
+	IsRunning bool            `json:"isRunning"`
 }
 
 type innerBlock struct {
@@ -47,19 +48,10 @@ func (s *SequentialSchedule) Initialize(typeRegistry *TypeRegistry, adminHandler
 	s.marshaller = typeRegistry
 }
 
-func (s *SequentialSchedule) Schedule(start uint64, end uint64, thing interfaces.Task) (uuid.UUID, error) {
-
-	for _, block := range s.Ranges {
-		if start < block.End && block.Start < end {
-			return nil, ErrOverlappingSchedule
-		}
-	}
-
+func (s *SequentialSchedule) Schedule(start uint64, end uint64, thing interfaces.Task) uuid.UUID {
 	id := uuid.NewRandom()
-
 	s.Ranges[id.String()] = &Block{Start: start, End: end, Task: thing}
-
-	return id, nil
+	return id
 }
 
 func (s *SequentialSchedule) Purge() {
@@ -74,6 +66,25 @@ func (s *SequentialSchedule) PurgePrior(now uint64) {
 			delete(s.Ranges, taskID)
 		}
 	}
+}
+
+func (s *SequentialSchedule) SetRunning(taskId uuid.UUID, running bool) error {
+	block, present := s.Ranges[taskId.String()]
+	if !present {
+		return ErrNotScheduled
+	}
+
+	block.IsRunning = running
+	return nil
+}
+
+func (s *SequentialSchedule) IsRunning(taskId uuid.UUID) (bool, error) {
+	block, present := s.Ranges[taskId.String()]
+	if !present {
+		return false, ErrNotScheduled
+	}
+
+	return block.IsRunning, nil
 }
 
 func (s *SequentialSchedule) Find(now uint64) (uuid.UUID, error) {
