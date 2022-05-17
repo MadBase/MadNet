@@ -79,7 +79,7 @@ CREATE_CONFIGS () {
         sed -e 's/privateKey = .*/privateKey = \"'"$PK"'\"/' > ./scripts/generated/config/validator$l.toml
         echo "$ADDRESS=abc123" >> ./scripts/generated/keystores/passcodes.txt
         mv ./keyfile.json ./scripts/generated/keystores/keys/$ADDRESS
-        jq '.alloc += {"'"$(echo $ADDRESS | cut -c3-)"'": {balance:"80000000000000000"}}' ./scripts/generated/genesis.json > ./scripts/generated/genesis.json.tmp && mv ./scripts/generated/genesis.json.tmp ./scripts/generated/genesis.json
+        jq '.alloc += {"'"$(echo $ADDRESS | cut -c3-)"'": {balance:"10000000000000000000000"}}' ./scripts/generated/genesis.json > ./scripts/generated/genesis.json.tmp && mv ./scripts/generated/genesis.json.tmp ./scripts/generated/genesis.json
         ((LA=LA+1))
         ((PA=PA+1))
         ((DA=DA+1))
@@ -141,6 +141,7 @@ STATUS() {
 PRE_CHECK $1
 case $1 in
     init)
+        ./scripts/base-scripts/init-githooks.sh
         CREATE_CONFIGS $2
     ;;
     geth)
@@ -180,6 +181,12 @@ case $1 in
         trap "trap - SIGTERM && kill -- $GETH_PID" SIGTERM SIGINT SIGKILL EXIT
         
         wait
+    ;;
+    hardhat_local_node)
+        ./scripts/base-scripts/hardhat_local_node.sh
+    ;;
+    load_test)
+        ./scripts/base-scripts/hardhatloadTest.sh
     ;;
     list)
         LIST
