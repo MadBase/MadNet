@@ -106,7 +106,7 @@ jobs:
         with:
           name: alicenet-${{ env.BRANCH_NAME }}-${{ env.OPERATING_SYSTEM }}
           path: ./madnet
-    
+
   golang-vet:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
@@ -195,26 +195,7 @@ jobs:
       - uses: ./.github/actions/alicenet-config
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
-      
-      # Install ubuntu eth and missing dependencies
-      - name: Check out ethereum repo for ethkey
-        uses: actions/checkout@master
-        with:
-          repository: ethereum/go-ethereum
-          path: './go-ethereum'
-      - name: Install geth and ethkey
-        run: |
-          REPO_PATH=$(pwd)
-          cd go-ethereum
-          sudo apt install make gcc
-          make all
-          cd  /usr/local/bin
-          sudo ln -s $REPO_PATH/go-ethereum/build/bin/ethkey /usr/local/bin
-          cd $REPO_PATH
-          sudo add-apt-repository -y ppa:ethereum/ethereum
-          sudo apt-get update
-          sudo apt-get install -y ethereum
-      
+
       # Run matrix blockchain unit tests
       - name: Run tests ${{ matrix.test-cmd }}
         timeout-minutes: 45
