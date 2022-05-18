@@ -49,7 +49,6 @@ func TestMPKSubmission_Group_1_GoodAllValid(t *testing.T) {
 
 		}
 	}
-	time.Sleep(5 * time.Second)
 
 	// Validate MPK
 	for idx, acct := range accounts {
