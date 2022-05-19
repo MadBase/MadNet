@@ -147,7 +147,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          go test -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go test -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus/dman|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
 
   golang-blockchain-tests:
     runs-on: ${{ matrix.os }}
