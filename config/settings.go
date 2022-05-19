@@ -1,14 +1,11 @@
 package config
 
 import (
-	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
-	"github.com/MadBase/MadNet/logging"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type bootnodeConfig struct {
@@ -87,7 +84,7 @@ type validatorConfig struct {
 	SymmetricKey    string
 }
 
-type loggingConfig struct {
+type loglevelConfig struct {
 	Madnet     string
 	Consensus  string
 	Transport  string
@@ -116,6 +113,12 @@ type loggingConfig struct {
 	Test       string
 }
 
+type LogfileConfig struct {
+	FileName   string
+	MinLevel   string
+	MaxAgeDays float64
+}
+
 type firewalldConfig struct {
 	Enabled    bool
 	SocketFile string
@@ -123,8 +126,8 @@ type firewalldConfig struct {
 
 type configuration struct {
 	ConfigurationFileName string
-	LoggingLevels         string // backwards compatibility
-	Logging               loggingConfig
+	Loglevel              loglevelConfig
+	Logfile               LogfileConfig
 	Deploy                deployConfig
 	Ethereum              ethereumConfig
 	Monitor               monitorConfig
@@ -139,48 +142,28 @@ type configuration struct {
 // Configuration contains all active settings
 var Configuration configuration
 
-type s struct {
-	v interface{}
-}
-
-var flagMap map[s]*pflag.Flag
-
-//SetBinding registers a particular Flag as tied to a particular pointer
-func SetBinding(ptr interface{}, f *pflag.Flag) {
-	logger := logging.GetLogger("settings")
-	logger.SetLevel(logrus.WarnLevel)
-	if flagMap == nil {
-		flagMap = make(map[s]*pflag.Flag)
-	}
-	logger.Debugf("registering %q of type %q to %p", f.Name, f.Value.Type(), ptr)
-	flagMap[s{ptr}] = f
-}
-
-//SetValue takes a ptr and updates the value of the flag that's pointing to it
-func SetValue(ptr interface{}, value interface{}) {
-	logger := logging.GetLogger("settings")
-	f, ok := flagMap[s{ptr}]
-	if !ok {
-		logger.Warnf("Could not find binding for %q", ptr)
-	} else {
-		logger.Debugf("Setting value of %q (%q) to %v", ptr, f.Name, value)
-
-		viper.Set(f.Name, value) // Apparently the bindings don't work both directions
-
-		val := fmt.Sprint(value)
-		err := f.Value.Set(val) // This is for cobra but not sure if it matters, but don't want to risk it
-		if err != nil {
-			logger.Warnf("Failed to set value of flag %v to %v", f.Name, val)
-		}
-
-		logger.Infof("retrieved value is %v", f.Value.String())
-	}
-}
-
 func (t transportConfig) BootNodes() []string {
 	bootNodeAddresses := strings.Split(t.BootNodeAddresses, ",")
 	for idx := range bootNodeAddresses {
 		bootNodeAddresses[idx] = strings.TrimSpace(bootNodeAddresses[idx])
 	}
 	return bootNodeAddresses
+}
+
+func LogLevelMap() map[string]logrus.Level {
+	llr := reflect.ValueOf(Configuration.Loglevel)
+	t := llr.Type()
+	len := llr.NumField()
+	levels := make(map[string]logrus.Level, len)
+
+	for i := 0; i < len; i++ {
+		logName := strings.ToLower(t.Field(i).Name)
+		logLevel := strings.ToLower(llr.Field(i).String())
+		lvl, err := logrus.ParseLevel(logLevel)
+		if err == nil {
+			levels[logName] = lvl
+		}
+	}
+
+	return levels
 }

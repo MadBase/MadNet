@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/MadBase/MadNet/cmd/bootnode"
@@ -14,7 +13,6 @@ import (
 	"github.com/MadBase/MadNet/cmd/validator"
 	"github.com/MadBase/MadNet/config"
 	"github.com/MadBase/MadNet/logging"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -27,57 +25,8 @@ type option struct {
 	value interface{}
 }
 
-// Runner wraps a cobra command's Run() and sets up loggers first
-func runner(commandRun func(*cobra.Command, []string)) func(*cobra.Command, []string) {
-	logger := logging.GetLogger("main")
-	return func(a *cobra.Command, b []string) {
-		loggingLevels := config.Configuration.Logging
-		llr := reflect.ValueOf(loggingLevels)
-		for i := 0; i < llr.NumField(); i++ {
-			logName := strings.ToLower(llr.Type().Field(i).Name)
-			logLevel := strings.ToLower(llr.Field(i).String())
-			if logLevel == "" {
-				logLevel = "info"
-			}
-			logger.Infof("Setting log level for '%v' to '%v'", logName, logLevel)
-			setLogger(logName, logLevel)
-		}
-		// backwards compatibility
-		if len(config.Configuration.LoggingLevels) > 0 {
-			loggers := strings.Split(config.Configuration.LoggingLevels, ",")
-			for _, levelSetting := range loggers {
-				settingComponent := strings.Split(levelSetting, "=")
-				if len(settingComponent) != 2 {
-					logger.Fatalf("Malformed log level setting %q", levelSetting)
-				}
-				logger.Infof("Overwriting log level for '%v' to '%v'", settingComponent[0], settingComponent[1])
-				setLogger(settingComponent[0], settingComponent[1])
-			}
-		}
-		commandRun(a, b)
-
-	}
-}
-
-func setLogger(name string, level string) {
-	lgr := logging.GetLogger(name)
-	switch level {
-	case "debug":
-		lgr.SetLevel(logrus.DebugLevel)
-	case "info":
-		lgr.SetLevel(logrus.InfoLevel)
-	case "warn":
-		lgr.SetLevel(logrus.WarnLevel)
-	case "error":
-		lgr.SetLevel(logrus.ErrorLevel)
-	default:
-		lgr.SetLevel(logrus.InfoLevel)
-	}
-}
-
 func main() {
-	logger := logging.GetLogger("main")
-	logger.SetLevel(logrus.InfoLevel)
+	logger := logging.MakeStdOutLogger("main")
 
 	// Root for all commands
 	rootCommand := cobra.Command{
@@ -89,33 +38,35 @@ func main() {
 	options := map[*cobra.Command][]*option{
 		&rootCommand: {
 			{"config", "c", "Name of config file", &config.Configuration.ConfigurationFileName},
-			{"logging", "", "", &config.Configuration.LoggingLevels},
-			{"loglevel.madnet", "", "", &config.Configuration.Logging.Madnet},
-			{"loglevel.consensus", "", "", &config.Configuration.Logging.Consensus},
-			{"loglevel.transport", "", "", &config.Configuration.Logging.Transport},
-			{"loglevel.app", "", "", &config.Configuration.Logging.App},
-			{"loglevel.db", "", "", &config.Configuration.Logging.Db},
-			{"loglevel.gossipbus", "", "", &config.Configuration.Logging.Gossipbus},
-			{"loglevel.badger", "", "", &config.Configuration.Logging.Badger},
-			{"loglevel.peerMan", "", "", &config.Configuration.Logging.PeerMan},
-			{"loglevel.localRPC", "", "", &config.Configuration.Logging.LocalRPC},
-			{"loglevel.dman", "", "", &config.Configuration.Logging.Dman},
-			{"loglevel.peer", "", "", &config.Configuration.Logging.Peer},
-			{"loglevel.yamux", "", "", &config.Configuration.Logging.Yamux},
-			{"loglevel.ethereum", "", "", &config.Configuration.Logging.Ethereum},
-			{"loglevel.main", "", "", &config.Configuration.Logging.Main},
-			{"loglevel.deploy", "", "", &config.Configuration.Logging.Deploy},
-			{"loglevel.utils", "", "", &config.Configuration.Logging.Utils},
-			{"loglevel.monitor", "", "", &config.Configuration.Logging.Monitor},
-			{"loglevel.dkg", "", "", &config.Configuration.Logging.Dkg},
-			{"loglevel.services", "", "", &config.Configuration.Logging.Services},
-			{"loglevel.settings", "", "", &config.Configuration.Logging.Settings},
-			{"loglevel.validator", "", "", &config.Configuration.Logging.Validator},
-			{"loglevel.muxHandler", "", "", &config.Configuration.Logging.MuxHandler},
-			{"loglevel.bootnode", "", "", &config.Configuration.Logging.Bootnode},
-			{"loglevel.p2pmux", "", "", &config.Configuration.Logging.P2pmux},
-			{"loglevel.status", "", "", &config.Configuration.Logging.Status},
-			{"loglevel.test", "", "", &config.Configuration.Logging.Test},
+			{"logfile.fileName", "", "", &config.Configuration.Logfile.FileName},
+			{"logfile.minLevel", "", "", &config.Configuration.Logfile.MinLevel},
+			{"logfile.maxAgeDays", "", "", &config.Configuration.Logfile.MaxAgeDays},
+			{"loglevel.madnet", "", "", &config.Configuration.Loglevel.Madnet},
+			{"loglevel.consensus", "", "", &config.Configuration.Loglevel.Consensus},
+			{"loglevel.transport", "", "", &config.Configuration.Loglevel.Transport},
+			{"loglevel.app", "", "", &config.Configuration.Loglevel.App},
+			{"loglevel.db", "", "", &config.Configuration.Loglevel.Db},
+			{"loglevel.gossipbus", "", "", &config.Configuration.Loglevel.Gossipbus},
+			{"loglevel.badger", "", "", &config.Configuration.Loglevel.Badger},
+			{"loglevel.peerMan", "", "", &config.Configuration.Loglevel.PeerMan},
+			{"loglevel.localRPC", "", "", &config.Configuration.Loglevel.LocalRPC},
+			{"loglevel.dman", "", "", &config.Configuration.Loglevel.Dman},
+			{"loglevel.peer", "", "", &config.Configuration.Loglevel.Peer},
+			{"loglevel.yamux", "", "", &config.Configuration.Loglevel.Yamux},
+			{"loglevel.ethereum", "", "", &config.Configuration.Loglevel.Ethereum},
+			{"loglevel.main", "", "", &config.Configuration.Loglevel.Main},
+			{"loglevel.deploy", "", "", &config.Configuration.Loglevel.Deploy},
+			{"loglevel.utils", "", "", &config.Configuration.Loglevel.Utils},
+			{"loglevel.monitor", "", "", &config.Configuration.Loglevel.Monitor},
+			{"loglevel.dkg", "", "", &config.Configuration.Loglevel.Dkg},
+			{"loglevel.services", "", "", &config.Configuration.Loglevel.Services},
+			{"loglevel.settings", "", "", &config.Configuration.Loglevel.Settings},
+			{"loglevel.validator", "", "", &config.Configuration.Loglevel.Validator},
+			{"loglevel.muxHandler", "", "", &config.Configuration.Loglevel.MuxHandler},
+			{"loglevel.bootnode", "", "", &config.Configuration.Loglevel.Bootnode},
+			{"loglevel.p2pmux", "", "", &config.Configuration.Loglevel.P2pmux},
+			{"loglevel.status", "", "", &config.Configuration.Loglevel.Status},
+			{"loglevel.test", "", "", &config.Configuration.Loglevel.Test},
 			{"chain.id", "", "", &config.Configuration.Chain.ID},
 			{"chain.stateDB", "", "", &config.Configuration.Chain.StateDbPath},
 			{"chain.stateDBInMemory", "", "", &config.Configuration.Chain.StateDbInMemory},
@@ -198,7 +149,8 @@ func main() {
 		cFlags := c.PersistentFlags() // just a convenience thing
 
 		if c.Run != nil {
-			c.Run = runner(c.Run)
+			run := c.Run
+			c.Run = func(a *cobra.Command, b []string) { logging.Init(logger); run(a, b) }
 		}
 
 		if parentCommand, present := hierarchy[c]; present {
@@ -224,6 +176,8 @@ func main() {
 					cFlags.IntVarP(intPtr, o.name, o.short, 0, o.usage)
 				} else if uint64Ptr, ok := o.value.(*uint64); ok {
 					cFlags.Uint64VarP(uint64Ptr, o.name, o.short, 0, o.usage)
+				} else if float64Ptr, ok := o.value.(*float64); ok {
+					cFlags.Float64VarP(float64Ptr, o.name, o.short, 0, o.usage)
 				} else if boolPtr, ok := o.value.(*bool); ok {
 					cFlags.BoolVarP(boolPtr, o.name, o.short, false, o.usage)
 				} else {
@@ -232,7 +186,6 @@ func main() {
 
 				// Viper has to lookup the pflag Cobra created because Cobra can't
 				f := cFlags.Lookup(o.name)
-				config.SetBinding(o.value, f) // Register all the pointers to the flag using them
 				if err := viper.BindPFlag(o.name, f); err != nil {
 					logger.Fatalf("Could not bind to pflag: %v\n", o.name)
 				} else {
@@ -279,7 +232,6 @@ func main() {
 
 		logger.Debugf("onInitialize() -- Configuration:%v", config.Configuration)
 	})
-
 	// Really start application here
 	err := rootCommand.Execute()
 	if err != nil {

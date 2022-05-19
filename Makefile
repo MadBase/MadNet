@@ -7,7 +7,7 @@ YELLOW=\033[0;33;1m
 NOCOL=\033[31;0m
 
 init:
-	./scripts/base-scripts/init-githooks.sh
+	@./scripts/base-scripts/init-githooks.sh
 
 build: init
 	go build -o $(BINARY_NAME) ./cmd/main.go;

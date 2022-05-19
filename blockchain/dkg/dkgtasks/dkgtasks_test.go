@@ -176,10 +176,6 @@ func advanceTo(t *testing.T, eth interfaces.Ethereum, target uint64) {
 }
 
 func IgnoreTestDkgSuccess(t *testing.T) {
-	for _, logger := range logging.GetKnownLoggers() {
-		logger.SetLevel(logrus.DebugLevel)
-	}
-
 	dkgStates, ecdsaPrivateKeys := dtest.InitializeNewDetDkgStateInfo(5)
 
 	t.Logf("dkgStates:%v", dkgStates)

@@ -5,6 +5,7 @@ local-geth/*
 /mngen
 **/__debug_bin
 **/*.log
+**/*.log.json
 *.exe
 *.exe~
 *.dll
@@ -14,6 +15,7 @@ local-geth/*
 *.out
 
 # temp files
+*.tmp
 *.swp
 **/.DS_Store
 **/thumbs.db

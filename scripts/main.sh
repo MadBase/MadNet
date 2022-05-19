@@ -67,6 +67,7 @@ CREATE_CONFIGS () {
         ADDRESS=$(ethkey generate --passwordfile ./scripts/base-files/passwordFile | cut -d' ' -f2)
         PK=$(hexdump -n 16 -e '4/4 "%08X" 1 "\n"' /dev/urandom)
         sed -e 's/defaultAccount = .*/defaultAccount = \"'"$ADDRESS"'\"/' ./scripts/base-files/baseConfig |
+        sed -e 's/fileName = .*/fileName = \"validator'"$l"'.log.json\"/' |
         sed -e 's/rewardAccount = .*/rewardAccount = \"'"$ADDRESS"'\"/' |
         sed -e 's/listeningAddress = .*/listeningAddress = \"0.0.0.0:'"$LA"'\"/' |
         sed -e 's/p2pListeningAddress = .*/p2pListeningAddress = \"0.0.0.0:'"$PA"'\"/' |

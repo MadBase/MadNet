@@ -1,9 +1,12 @@
-logging = "main=info,ethereum=info,consensus=debug"
-
 [loglevel]
 blockchain = "debug"
 consensus = "debug"
 admin = "debug"
+
+[logfile]
+fileName = "validator.log.json"
+minLevel = "debug"
+maxAgeDays = 30
 
 [chain]
 id = 1337

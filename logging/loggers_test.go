@@ -67,8 +67,3 @@ func TestGetLogWriter(t *testing.T) {
 	// TODO: Probably have to capture stdout to really automate this test
 	fmt.Fprintf(out, "Should not be visible even with a test -v ./...")
 }
-
-func TestGetKnownLoggers(t *testing.T) {
-	known := logging.GetKnownLoggers()
-	assert.Equal(t, len(constants.ValidLoggers), len(known))
-}

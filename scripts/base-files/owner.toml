@@ -1,5 +1,3 @@
-logging = "main=info,ethereum=info"
-
 [chain]
 id = 1337
 

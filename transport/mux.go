@@ -15,15 +15,6 @@ import (
 
 var _ interfaces.P2PMux = (*P2PMux)(nil)
 
-var muxConfig *yamux.Config
-var mlog *logrus.Logger
-
-func init() {
-	m := &P2PMux{}
-	muxConfig = m.defaultConfig()
-	mlog = logging.GetLogger(constants.LoggerTransport)
-}
-
 // P2PMux implements the multiplexing handshake protocol for P2PMuxConn
 // construction.
 type P2PMux struct {
@@ -80,7 +71,7 @@ func (pmx *P2PMux) serverMux(ctx context.Context, conn interfaces.P2PConn) (inte
 	rc := make(chan *muxresult)
 	fn := func() {
 		defer close(rc)
-		session, err := yamux.Server(conn, muxConfig)
+		session, err := yamux.Server(conn, pmx.defaultConfig())
 		if err != nil {
 			conn.Close()
 			rc <- &muxresult{nil, err}
@@ -98,6 +89,7 @@ func (pmx *P2PMux) serverMux(ctx context.Context, conn interfaces.P2PConn) (inte
 			rc <- &muxresult{nil, err}
 			return
 		}
+		mlog := logging.GetLogger(constants.LoggerTransport)
 		clientp2pconn := &P2PConn{
 			Conn:         clientConn,
 			logger:       mlog,
@@ -157,7 +149,7 @@ func (pmx *P2PMux) clientMux(ctx context.Context, conn interfaces.P2PConn) (inte
 	rc := make(chan *muxresult)
 	fn := func() {
 		defer close(rc)
-		session, err := yamux.Client(conn, muxConfig)
+		session, err := yamux.Client(conn, pmx.defaultConfig())
 		if err != nil {
 			conn.Close()
 			rc <- &muxresult{nil, err}
@@ -175,6 +167,7 @@ func (pmx *P2PMux) clientMux(ctx context.Context, conn interfaces.P2PConn) (inte
 			rc <- &muxresult{nil, err}
 			return
 		}
+		mlog := logging.GetLogger(constants.LoggerTransport)
 		clientp2pconn := &P2PConn{
 			Conn:         clientConn,
 			initiator:    conn.Initiator(),

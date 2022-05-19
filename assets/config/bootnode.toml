@@ -1,4 +1,17 @@
-logging = "gossipbus=debug,utils=debug,services=debug,ethereum=debug,main=debug,validator=debug,monitor=debug,deploy=debug,consensus=debug,peerMan=debug,muxHandler=debug,p2pmux=debug,app=debug"
+[loglevel]
+gossipbus = "debug"
+utils = "debug"
+services = "debug"
+ethereum = "debug"
+main = "debug"
+validator = "debug"
+monitor = "debug"
+deploy = "debug"
+consensus = "debug"
+peerMan = "debug"
+muxHandler = "debug"
+p2pmux = "debug"
+app = "debug"
 
 [chain]
 id = 1337
