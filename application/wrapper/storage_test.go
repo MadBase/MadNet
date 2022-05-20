@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initializeStorage() *Storage {
-	s := NewStorage(MakeMockStorageGetter())
-	return s
-}
-
 func TestStorageGetMaxBytesFailsWhenNotInitialised(t *testing.T) {
 	s := make([]*Storage, 1)
 	fee, err := s[0].GetMaxBytes()
@@ -100,6 +95,8 @@ func TestStorageInitialisedReturnsExpectedAtomicSwapFee(t *testing.T) {
 	expectedFee := big.NewInt(123)
 	expectedFeeUint256 := &uint256.Uint256{}
 	_, err := expectedFeeUint256.FromBigInt(expectedFee)
+	assert.NoError(t, err)
+
 	msg.SetAtomicSwapFee(expectedFee)
 
 	fee, err := s.GetAtomicSwapFee()
@@ -113,6 +110,7 @@ func TestStorageInitialisedReturnsExpectedDataStoreEpochFee(t *testing.T) {
 	expectedFee := big.NewInt(123)
 	expectedFeeUint256 := &uint256.Uint256{}
 	_, err := expectedFeeUint256.FromBigInt(expectedFee)
+	assert.NoError(t, err)
 	msg.SetDataStoreEpochFee(expectedFee)
 
 	fee, err := s.GetDataStoreEpochFee()
@@ -126,6 +124,8 @@ func TestStorageInitialisedReturnsExpectedValueStoreFee(t *testing.T) {
 	expectedFee := big.NewInt(123)
 	expectedFeeUint256 := &uint256.Uint256{}
 	_, err := expectedFeeUint256.FromBigInt(expectedFee)
+	assert.NoError(t, err)
+
 	msg.SetValueStoreFee(expectedFee)
 
 	fee, err := s.GetValueStoreFee()
@@ -139,6 +139,8 @@ func TestStorageInitialisedReturnsExpectedMinTxFee(t *testing.T) {
 	expectedFee := big.NewInt(123)
 	expectedFeeUint256 := &uint256.Uint256{}
 	_, err := expectedFeeUint256.FromBigInt(expectedFee)
+	assert.NoError(t, err)
+
 	msg.SetMinTxFee(expectedFee)
 
 	fee, err := s.GetMinTxFee()
