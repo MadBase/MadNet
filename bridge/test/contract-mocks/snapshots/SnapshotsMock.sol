@@ -119,7 +119,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _chainId;
     }
 
-    function getEpoch() public view returns (uint32) {
+    function getEpoch() public view returns (uint256) {
         return _epoch;
     }
 
@@ -127,7 +127,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _epochLength;
     }
 
-    function getChainIdFromSnapshot(uint32 epoch_) public view returns (uint256) {
+    function getChainIdFromSnapshot(uint256 epoch_) public view returns (uint256) {
         return _snapshots[epoch_].blockClaims.chainId;
     }
 
@@ -135,7 +135,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _snapshots[_epoch].blockClaims.chainId;
     }
 
-    function getBlockClaimsFromSnapshot(uint32 epoch_)
+    function getBlockClaimsFromSnapshot(uint256 epoch_)
         public
         view
         returns (BClaimsParserLibrary.BClaims memory)
@@ -151,7 +151,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _snapshots[_epoch].blockClaims;
     }
 
-    function getCommittedHeightFromSnapshot(uint32 epoch_) public view returns (uint256) {
+    function getCommittedHeightFromSnapshot(uint256 epoch_) public view returns (uint256) {
         return _snapshots[epoch_].committedAt;
     }
 
@@ -159,7 +159,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _snapshots[_epoch].committedAt;
     }
 
-    function getAliceNetHeightFromSnapshot(uint32 epoch_) public view returns (uint256) {
+    function getAliceNetHeightFromSnapshot(uint256 epoch_) public view returns (uint256) {
         return _snapshots[epoch_].blockClaims.height;
     }
 
@@ -167,7 +167,7 @@ contract SnapshotsMock is Initializable, ImmutableValidatorPool, ISnapshots {
         return _snapshots[_epoch].blockClaims.height;
     }
 
-    function getSnapshot(uint32 epoch_) public view returns (Snapshot memory) {
+    function getSnapshot(uint256 epoch_) public view returns (Snapshot memory) {
         return _snapshots[epoch_];
     }
 

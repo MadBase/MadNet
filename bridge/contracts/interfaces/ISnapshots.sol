@@ -40,15 +40,15 @@ interface ISnapshots {
 
     function getChainId() external view returns (uint256);
 
-    function getEpoch() external view returns (uint32);
+    function getEpoch() external view returns (uint256);
 
     function getEpochLength() external view returns (uint256);
 
-    function getChainIdFromSnapshot(uint32 epoch_) external view returns (uint256);
+    function getChainIdFromSnapshot(uint256 epoch_) external view returns (uint256);
 
     function getChainIdFromLatestSnapshot() external view returns (uint256);
 
-    function getBlockClaimsFromSnapshot(uint32 epoch_)
+    function getBlockClaimsFromSnapshot(uint256 epoch_)
         external
         view
         returns (BClaimsParserLibrary.BClaims memory);
@@ -58,20 +58,20 @@ interface ISnapshots {
         view
         returns (BClaimsParserLibrary.BClaims memory);
 
-    function getCommittedHeightFromSnapshot(uint32 epoch_) external view returns (uint256);
+    function getCommittedHeightFromSnapshot(uint256 epoch_) external view returns (uint256);
 
     function getCommittedHeightFromLatestSnapshot() external view returns (uint256);
 
-    function getAliceNetHeightFromSnapshot(uint32 epoch_) external view returns (uint256);
+    function getAliceNetHeightFromSnapshot(uint256 epoch_) external view returns (uint256);
 
     function getAliceNetHeightFromLatestSnapshot() external view returns (uint256);
 
-    function getSnapshot(uint32 epoch_) external view returns (Snapshot memory);
+    function getSnapshot(uint256 epoch_) external view returns (Snapshot memory);
 
     function getLatestSnapshot() external view returns (Snapshot memory);
 
     function getEpochFromHeight(uint256 height) external view returns (uint256);
-    
+
     function mayValidatorSnapshot(
         uint256 numValidators,
         uint256 myIdx,
