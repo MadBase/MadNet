@@ -36,7 +36,7 @@ export async function deployUpgradeable(
     // deploy the bytecode using the factory
     let txResponse = await factory.deployCreate(deployBytecode);
     let receipt = await txResponse.wait();
-    const proxySalt = await getSalt(contractName);
+    const proxySalt = await getBytes32SaltFromDoc(contractName);
     const res = <
       {
         logicAddress: string;
@@ -91,7 +91,7 @@ export async function upgradeProxy(
   const receipt = await txResponse.wait();
   const res = {
     logicAddress: await getEventVar(receipt, DeployedRawEvent, contractAddrVar),
-    proxySalt: await getSalt(contractName),
+    proxySalt: await getBytes32SaltFromDoc(contractName),
   };
   // upgrade the proxy
   await factory.upgradeProxy(
@@ -117,7 +117,7 @@ export async function deployStatic(
     deployedTemplateEvent,
     contractAddrVar
   );
-  const metaSalt = await getSalt(contractName);
+  const metaSalt = await getBytes32SaltFromDoc(contractName);
   if (typeof metaSalt === "undefined") {
     throw new Error(`Couldn't get the salt for: ${contractName}`);
   }
@@ -176,7 +176,7 @@ async function getDeployUpgradeableMultiCallArgs(
   return [deployProxy, upgradeProxy];
 }
 
-export async function getSalt(contractName: string) {
+export async function getBytes32SaltFromDoc(contractName: string) {
   const qualifiedName: any = await getFullyQualifiedName(contractName);
   const buildInfo = await artifacts.getBuildInfo(qualifiedName);
   let contractOutput: any;
