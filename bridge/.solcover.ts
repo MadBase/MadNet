@@ -1,4 +1,3 @@
-import {preFixtureSetup} from "./test/setup";
 module.exports = {
   configureYulOptimizer: true,
   solcOptimizerDetails: {
@@ -11,5 +10,4 @@ module.exports = {
     constantOptimizer: true,
     yul: true,
   },
-  
 };
