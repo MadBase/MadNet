@@ -138,7 +138,6 @@ jobs:
       matrix:
         os: [ ubuntu-20.04 ]
     steps:
-        # Checkout and tool to format the test output
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
       - name: Set up gotestfmt
@@ -147,7 +146,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          go test -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus/dman|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
 
   golang-blockchain-tests:
     runs-on: ${{ matrix.os }}
@@ -202,4 +201,4 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/main.sh init 5
-          go test -v -timeout=45m ${{ matrix.test-cmd }}
+          go test -tags=integration -v -timeout=45m ${{ matrix.test-cmd }}
