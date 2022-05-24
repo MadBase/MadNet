@@ -1,6 +1,7 @@
 package objects_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/MadBase/MadNet/blockchain/objects"
@@ -35,26 +36,26 @@ func assertStateMatch(t *testing.T, ms *objects.MonitorState) {
 	assert.Equal(t, uint32(5), ms.LatestDepositSeen)
 
 	//
-	assert.Equal(t, uint8(1), len(ms.Validators[614]))
+	assert.Equal(t, 1, len(ms.Validators[614]))
 	// assert.Equal(t, uint8(7), ms.Validators[614][0].Index)
 }
 
-// func TestBidirectionalJson(t *testing.T) {
+func TestBidirectionalJson(t *testing.T) {
 
-// 	// Build up a pseudo-realistic State instance
-// 	ms := createState()
+	// Build up a pseudo-realistic State instance
+	ms := createState()
 
-// 	// Encode the test instance
-// 	raw, err := json.Marshal(ms)
-// 	assert.Nilf(t, err, "Should be no errors marshalling data")
+	// Encode the test instance
+	raw, err := json.Marshal(ms)
+	assert.Nilf(t, err, "Should be no errors marshalling data")
 
-// 	t.Logf("raw:%v", string(raw))
+	t.Logf("raw:%v", string(raw))
 
-// 	// Decode the bytes
-// 	ms2 := &objects.MonitorState{}
-// 	err = json.Unmarshal(raw, ms2)
-// 	assert.Nilf(t, err, "Should be no errors unmarshalling data")
+	// Decode the bytes
+	ms2 := &objects.MonitorState{}
+	err = json.Unmarshal(raw, ms2)
+	assert.Nilf(t, err, "Should be no errors unmarshalling data")
 
-// 	// Good?
-// 	assertStateMatch(t, ms2)
-// }
+	// Good?
+	assertStateMatch(t, ms2)
+}

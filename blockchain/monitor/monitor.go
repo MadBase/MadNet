@@ -150,6 +150,7 @@ func (mon *monitor) LoadState() error {
 		if err != nil {
 			return err
 		}
+
 		return nil
 	}); err != nil {
 		return err
@@ -255,7 +256,7 @@ func (mon *monitor) Start() error {
 	return nil
 }
 
-func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) error {
+func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelChan <-chan bool) {
 
 	defer wg.Done()
 	gcTimer := time.After(time.Second * constants.MonDBGCFreq)
@@ -269,18 +270,28 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 		}
 		select {
 		case <-gcTimer:
-			mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio)
+			err := mon.db.DB().RunValueLogGC(constants.BadgerDiscardRatio) 
+			if err != nil {
+				logger.Errorf("Failed to run value log GC: %v", err)
+			}
 			gcTimer = time.After(time.Second * constants.MonDBGCFreq)
 		case <-cancelChan:
 			mon.logger.Warnf("Received cancel request for event loop.")
 			cf()
-			return nil
+			return
 		case tick := <-time.After(tock):
 			mon.logger.WithTime(tick).Debug("Tick")
 
 			oldMonitorState := mon.State.Clone()
 
-			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize); err != nil {
+			persistMonitorCB := func() {
+				err := mon.PersistState()
+				if err != nil {
+					logger.Errorf("Failed to persist State after MonitorTick(...): %v", err)
+				}
+			}
+
+			if err := MonitorTick(ctx, cf, wg, mon.eth, mon.State, mon.logger, mon.eventMap, mon.adminHandler, mon.batchSize, persistMonitorCB); err != nil {
 				logger.Errorf("Failed MonitorTick(...): %v", err)
 			}
 
@@ -301,6 +312,10 @@ func (mon *monitor) eventLoop(wg *sync.WaitGroup, logger *logrus.Entry, cancelCh
 }
 
 func (m *monitor) MarshalJSON() ([]byte, error) {
+	m.State.RLock()
+	defer m.State.RUnlock()
+	m.State.EthDKG.RLock()
+	defer m.State.EthDKG.RUnlock()
 	rawData, err := json.Marshal(m.State)
 
 	if err != nil {
@@ -324,7 +339,7 @@ func (m *monitor) UnmarshalJSON(raw []byte) error {
 
 // MonitorTick using existing monitorState and incrementally updates it based on current State of Ethereum endpoint
 func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup, eth interfaces.Ethereum, monitorState *objects.MonitorState, logger *logrus.Entry,
-	eventMap *objects.EventMap, adminHandler interfaces.AdminHandler, batchSize uint64) error {
+	eventMap *objects.EventMap, adminHandler interfaces.AdminHandler, batchSize uint64, persistMonitorCB func()) error {
 
 	defer cf()
 	logger = logger.WithFields(logrus.Fields{
@@ -417,17 +432,48 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 		logEntry.Debug("Looking for scheduled task")
 		uuid, err := monitorState.Schedule.Find(currentBlock)
 		if err == nil {
-			task, _ := monitorState.Schedule.Retrieve(uuid)
+			isRunning, err := monitorState.Schedule.IsRunning(uuid)
+			if err != nil {
+				return err
+			}
 
-			taskName, _ := objects.GetNameType(task)
+			if !isRunning {
 
-			log := logEntry.WithFields(logrus.Fields{
-				"TaskID":   uuid.String(),
-				"TaskName": taskName})
+				task, err := monitorState.Schedule.Retrieve(uuid)
+				if err != nil {
+					return err
+				}
 
-			tasks.StartTask(log, wg, eth, task, nil)
+				taskName, _ := objects.GetNameType(task)
 
-			monitorState.Schedule.Remove(uuid)
+				log := logEntry.WithFields(logrus.Fields{
+					"TaskID":   uuid.String(),
+					"TaskName": taskName})
+
+				onFinishCB := func() {
+					err := monitorState.Schedule.SetRunning(uuid, false)
+					if err != nil {
+						logEntry.WithError(err).Error("Failed to set task to not running")
+					}
+					err = monitorState.Schedule.Remove(uuid)
+					if err != nil {
+						logEntry.WithError(err).Error("Failed to remove task from schedule")
+					}
+				}
+				dkgData := objects.ETHDKGTaskData{
+					PersistStateCB: persistMonitorCB,
+					State:          monitorState.EthDKG,
+				}
+				err = tasks.StartTask(log, wg, eth, task, dkgData, &onFinishCB)
+				if err != nil {
+					return err
+				}
+				err = monitorState.Schedule.SetRunning(uuid, true)
+				if err != nil {
+					return err
+				}
+			}
+
 		} else if err == objects.ErrNothingScheduled {
 			logEntry.Debug("No tasks scheduled")
 		} else {
@@ -478,7 +524,10 @@ func PersistSnapshot(ctx context.Context, wg *sync.WaitGroup, eth interfaces.Eth
 	task := tasks.NewSnapshotTask(eth.GetDefaultAccount())
 	task.BlockHeader = bh
 
-	tasks.StartTask(logger, wg, eth, task, nil)
+	err := tasks.StartTask(logger, wg, eth, task, nil, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

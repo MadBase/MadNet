@@ -36,6 +36,7 @@ CLEAN_UP () {
     # Init
     mkdir ./scripts/generated
     mkdir ./scripts/generated/stateDBs
+    mkdir ./scripts/generated/monitorDBs
     mkdir ./scripts/generated/config
     mkdir ./scripts/generated/keystores
     mkdir ./scripts/generated/keystores/keys
@@ -74,10 +75,11 @@ CREATE_CONFIGS () {
         sed -e 's/passcodes = .*/passcodes = \"scripts\/generated\/keystores\/passcodes.txt\"/' |
         sed -e 's/keystore = .*/keystore = \"scripts\/generated\/keystores\/keys\"/' |
         sed -e 's/stateDB = .*/stateDB = \"scripts\/generated\/stateDBs\/validator'"$l"'\/\"/' |
+        sed -e 's/monitorDB = .*/monitorDB = \"scripts\/generated\/monitorDBs\/validator'"$l"'\/\"/' |
         sed -e 's/privateKey = .*/privateKey = \"'"$PK"'\"/' > ./scripts/generated/config/validator$l.toml
         echo "$ADDRESS=abc123" >> ./scripts/generated/keystores/passcodes.txt
         mv ./keyfile.json ./scripts/generated/keystores/keys/$ADDRESS
-        jq '.alloc += {"'"$(echo $ADDRESS | cut -c3-)"'": {balance:"80000000000000000"}}' ./scripts/generated/genesis.json > ./scripts/generated/genesis.json.tmp && mv ./scripts/generated/genesis.json.tmp ./scripts/generated/genesis.json
+        jq '.alloc += {"'"$(echo $ADDRESS | cut -c3-)"'": {balance:"10000000000000000000000"}}' ./scripts/generated/genesis.json > ./scripts/generated/genesis.json.tmp && mv ./scripts/generated/genesis.json.tmp ./scripts/generated/genesis.json
         ((LA=LA+1))
         ((PA=PA+1))
         ((DA=DA+1))
@@ -112,6 +114,12 @@ RUN_VALIDATOR() {
     ./madnet --config ./scripts/generated/config/validator$1.toml validator
 }
 
+RACE_VALIDATOR() {
+    # Run a validator
+    CHECK_EXISTING $1
+    ./madrace --config ./scripts/generated/config/validator$1.toml validator
+}
+
 STATUS() {
     # Check validator status
     CHECK_EXISTING $1
@@ -133,6 +141,7 @@ STATUS() {
 PRE_CHECK $1
 case $1 in
     init)
+        ./scripts/base-scripts/init-githooks.sh
         CREATE_CONFIGS $2
     ;;
     geth)
@@ -146,6 +155,9 @@ case $1 in
     ;;
     validator)
         RUN_VALIDATOR $2
+    ;;
+    race)
+        RACE_VALIDATOR $2
     ;;
     ethdkg)
         ./scripts/base-scripts/ethdkg.sh
@@ -164,11 +176,14 @@ case $1 in
     ;;
     hardhat_node)
         ./scripts/base-scripts/hardhat_node.sh &
-        GETH_PID="$!"
-        
-        trap "trap - SIGTERM && kill -- $GETH_PID" SIGTERM SIGINT SIGKILL EXIT
-        
+        trap 'pkill -9 -f hardhat' SIGTERM
         wait
+    ;;
+    hardhat_local_node)
+        ./scripts/base-scripts/hardhat_local_node.sh
+    ;;
+    load_test)
+        ./scripts/base-scripts/hardhatloadTest.sh
     ;;
     list)
         LIST

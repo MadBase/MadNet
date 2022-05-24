@@ -16,7 +16,7 @@ import (
 )
 
 //Here we test the happy path.
-func TestShareDistributionGood(t *testing.T) {
+func TestShareDistribution_Group_1_Good(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -29,7 +29,8 @@ func TestShareDistributionGood(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		shareDistributionTask := suite.shareDistTasks[idx]
-		err := shareDistributionTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := shareDistributionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = shareDistributionTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -43,7 +44,7 @@ func TestShareDistributionGood(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (invalid elliptic curve point).
 // This should result in a failed submission.
-func TestShareDistributionBad1(t *testing.T) {
+func TestShareDistribution_Group_1_Bad1(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -70,7 +71,9 @@ func TestShareDistributionBad1(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
+		assert.Nil(t, err)
 
 		com := state.Participants[accounts[idx].Address].Commitments
 		// if we're on the last account, we just add 1 to the first commitment (y component)
@@ -104,7 +107,7 @@ func TestShareDistributionBad1(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (identity element).
 // This should result in a failed submission.
-func TestShareDistributionBad2(t *testing.T) {
+func TestShareDistribution_Group_1_Bad2(t *testing.T) {
 	n := 4
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -130,7 +133,9 @@ func TestShareDistributionBad2(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
+		assert.Nil(t, err)
 
 		com := state.Participants[accounts[idx].Address].Commitments
 		// if we're on the last account, change the one of the commitments to 0
@@ -165,7 +170,7 @@ func TestShareDistributionBad2(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (incorrect commitment length)
 // This should result in a failed submission.
-func TestShareDistributionBad4(t *testing.T) {
+func TestShareDistribution_Group_2_Bad4(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -193,7 +198,9 @@ func TestShareDistributionBad4(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
+		assert.Nil(t, err)
 
 		// if we're on the last account, we just add 1 to the first commitment (y component)
 		com := state.Participants[accounts[idx].Address].Commitments
@@ -228,7 +235,7 @@ func TestShareDistributionBad4(t *testing.T) {
 // Here we test for invalid share distribution.
 // One validator attempts to submit invalid commitments (incorrect encrypted shares length)
 // This should result in a failed submission.
-func TestShareDistributionBad5(t *testing.T) {
+func TestShareDistribution_Group_2_Bad5(t *testing.T) {
 	n := 6
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -244,7 +251,9 @@ func TestShareDistributionBad5(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
+		assert.Nil(t, err)
 
 		encryptedShares := state.Participants[accounts[idx].Address].EncryptedShares
 		if idx == badShareIdx {
@@ -277,7 +286,7 @@ func TestShareDistributionBad5(t *testing.T) {
 
 // We begin by submitting invalid information;
 // we submit nil state information
-func TestShareDistributionBad6(t *testing.T) {
+func TestShareDistribution_Group_2_Bad6(t *testing.T) {
 	n := 5
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -295,13 +304,14 @@ func TestShareDistributionBad6(t *testing.T) {
 	task := dkgtasks.NewShareDistributionTask(state, state.PhaseStart, state.PhaseStart+state.PhaseLength)
 	log := logger.WithField("TaskID", "foo")
 
-	err := task.Initialize(ctx, log, eth, nil)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
 
 // We test to ensure that everything behaves correctly.
 // We submit invalid state information (again).
-func TestShareDistributionBad7(t *testing.T) {
+func TestShareDistribution_Group_3_Bad7(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -318,13 +328,14 @@ func TestShareDistributionBad7(t *testing.T) {
 	state := objects.NewDkgState(acct)
 	log := logging.GetLogger("test").WithField("Validator", acct.Address.String())
 	task := dkgtasks.NewShareDistributionTask(state, state.PhaseStart, state.PhaseStart+state.PhaseLength)
-	err := task.Initialize(ctx, log, eth, state)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	if err == nil {
 		t.Fatal("Should have raised error")
 	}
 }
 
-func TestShareDistributionShouldRetryTrue(t *testing.T) {
+func TestShareDistribution_Group_3_ShouldRetryTrue(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -338,7 +349,8 @@ func TestShareDistributionShouldRetryTrue(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		shouldRetry := task.ShouldRetry(ctx, logger, suite.eth)
@@ -346,7 +358,7 @@ func TestShareDistributionShouldRetryTrue(t *testing.T) {
 	}
 }
 
-func TestShareDistributionShouldRetryFalse(t *testing.T) {
+func TestShareDistribution_Group_3_ShouldRetryFalse(t *testing.T) {
 	n := 5
 	suite := StartFromRegistrationOpenPhase(t, n, 0, 100)
 	defer suite.eth.Close()
@@ -359,7 +371,8 @@ func TestShareDistributionShouldRetryFalse(t *testing.T) {
 		logger := logging.GetLogger("test").WithField("Validator", accounts[idx].Address.String())
 
 		task := suite.shareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)

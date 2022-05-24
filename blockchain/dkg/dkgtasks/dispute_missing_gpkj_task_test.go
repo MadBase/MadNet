@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDisputeMissingGPKjTaskFourUnsubmittedGPKj_DoWork_Success(t *testing.T) {
+func TestDisputeMissingGPKjTask_Group_1_FourUnsubmittedGPKj_DoWork_Success(t *testing.T) {
 	n := 10
 	unsubmittedGPKj := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
@@ -27,7 +28,8 @@ func TestDisputeMissingGPKjTaskFourUnsubmittedGPKj_DoWork_Success(t *testing.T) 
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = gpkjSubmissionTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -49,7 +51,8 @@ func TestDisputeMissingGPKjTaskFourUnsubmittedGPKj_DoWork_Success(t *testing.T) 
 		state := dkgStates[idx]
 		disputeMissingGPKjTask := suite.disputeMissingGPKjTasks[idx]
 
-		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingGPKjTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -64,7 +67,7 @@ func TestDisputeMissingGPKjTaskFourUnsubmittedGPKj_DoWork_Success(t *testing.T) 
 	assert.Equal(t, int64(unsubmittedGPKj), badParticipants.Int64())
 }
 
-func TestDisputeMissingGPKjTask_ShouldRetry_False(t *testing.T) {
+func TestDisputeMissingGPKjTask_Group_1_ShouldRetry_False(t *testing.T) {
 	n := 5
 	unsubmittedKeyShares := 1
 	suite := StartFromMPKSubmissionPhase(t, n, 300)
@@ -81,7 +84,8 @@ func TestDisputeMissingGPKjTask_ShouldRetry_False(t *testing.T) {
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = gpkjSubmissionTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -104,7 +108,8 @@ func TestDisputeMissingGPKjTask_ShouldRetry_False(t *testing.T) {
 		state := dkgStates[idx]
 		disputeMissingGPKjTask := suite.disputeMissingGPKjTasks[idx]
 
-		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingGPKjTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -117,7 +122,7 @@ func TestDisputeMissingGPKjTask_ShouldRetry_False(t *testing.T) {
 	}
 }
 
-func TestDisputeMissingGPKjTask_ShouldRetry_True(t *testing.T) {
+func TestDisputeMissingGPKjTask_Group_1_ShouldRetry_True(t *testing.T) {
 	n := 5
 	unsubmittedKeyShares := 1
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
@@ -134,7 +139,8 @@ func TestDisputeMissingGPKjTask_ShouldRetry_True(t *testing.T) {
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = gpkjSubmissionTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -157,7 +163,8 @@ func TestDisputeMissingGPKjTask_ShouldRetry_True(t *testing.T) {
 		state := dkgStates[idx]
 		disputeMissingGPKjTask := suite.disputeMissingGPKjTasks[idx]
 
-		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		shouldRetry := disputeMissingGPKjTask.ShouldRetry(ctx, logger, eth)
@@ -165,7 +172,7 @@ func TestDisputeMissingGPKjTask_ShouldRetry_True(t *testing.T) {
 	}
 }
 
-func TestShouldAccuseOneValidatorWhoDidNotDistributeGPKjAndAnotherSubmittedBadGPKj(t *testing.T) {
+func TestDisputeMissingGPKjTask_Group_2_ShouldAccuseOneValidatorWhoDidNotDistributeGPKjAndAnotherSubmittedBadGPKj(t *testing.T) {
 	n := 5
 	suite := StartFromGPKjPhase(t, n, []int{4}, []int{3}, 100)
 	defer suite.eth.Close()
@@ -180,7 +187,8 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeGPKjAndAnotherSubmittedBadGP
 		// disputeMissingGPKj
 		disputeMissingGPKjTask := suite.disputeMissingGPKjTasks[idx]
 
-		err := disputeMissingGPKjTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingGPKjTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingGPKjTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -191,7 +199,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeGPKjAndAnotherSubmittedBadGP
 		// disputeGPKj
 		disputeGPKjTask := suite.disputeGPKjTasks[idx]
 
-		err = disputeGPKjTask.Initialize(ctx, logger, suite.eth, state)
+		err = disputeGPKjTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeGPKjTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -216,7 +224,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeGPKjAndAnotherSubmittedBadGP
 	assert.False(t, isValidator)
 }
 
-func TestShouldAccuseTwoValidatorWhoDidNotDistributeGPKjAndAnotherTwoSubmittedBadGPKj(t *testing.T) {
+func TestDisputeMissingGPKjTask_Group_2_ShouldAccuseTwoValidatorWhoDidNotDistributeGPKjAndAnotherTwoSubmittedBadGPKj(t *testing.T) {
 	n := 5
 	suite := StartFromGPKjPhase(t, n, []int{3, 4}, []int{1, 2}, 100)
 	defer suite.eth.Close()
@@ -231,7 +239,8 @@ func TestShouldAccuseTwoValidatorWhoDidNotDistributeGPKjAndAnotherTwoSubmittedBa
 		// disputeMissingGPKj
 		disputeMissingGPKjTask := suite.disputeMissingGPKjTasks[idx]
 
-		err := disputeMissingGPKjTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingGPKjTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingGPKjTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -242,7 +251,7 @@ func TestShouldAccuseTwoValidatorWhoDidNotDistributeGPKjAndAnotherTwoSubmittedBa
 		// disputeGPKj
 		disputeGPKjTask := suite.disputeGPKjTasks[idx]
 
-		err = disputeGPKjTask.Initialize(ctx, logger, suite.eth, state)
+		err = disputeGPKjTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeGPKjTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)

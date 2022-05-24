@@ -14,7 +14,7 @@ import (
 )
 
 // We test to ensure that everything behaves correctly.
-func TestGPKjDisputeNoBadGPKj(t *testing.T) {
+func TestGPKjDispute_NoBadGPKj(t *testing.T) {
 	n := 5
 	unsubmittedGPKj := 0
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
@@ -33,7 +33,8 @@ func TestGPKjDisputeNoBadGPKj(t *testing.T) {
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		err = gpkjSubmissionTask.DoWork(ctx, logger, eth)
@@ -66,7 +67,8 @@ func TestGPKjDisputeNoBadGPKj(t *testing.T) {
 
 		disputeBadGPKjTask, _, _, _, _, _ := dkgevents.UpdateStateOnGPKJSubmissionComplete(state, logger, disputePhaseAt)
 
-		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeBadGPKjTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -82,7 +84,7 @@ func TestGPKjDisputeNoBadGPKj(t *testing.T) {
 }
 
 // Here, we have a malicious gpkj submission.
-func TestGPKjDispute1Invalid(t *testing.T) {
+func TestGPKjDispute_1Invalid(t *testing.T) {
 	n := 5
 	unsubmittedGPKj := 0
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
@@ -101,7 +103,8 @@ func TestGPKjDispute1Invalid(t *testing.T) {
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		// inject bad GPKj data
@@ -147,7 +150,8 @@ func TestGPKjDispute1Invalid(t *testing.T) {
 
 		disputeBadGPKjTask, _, _, _, _, _ := dkgevents.UpdateStateOnGPKJSubmissionComplete(state, logger, disputePhaseAt)
 
-		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeBadGPKjTask.DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -164,7 +168,7 @@ func TestGPKjDispute1Invalid(t *testing.T) {
 
 // We test to ensure that everything behaves correctly.
 // Here, we have a malicious accusation.
-func TestGPKjDisputeGoodMaliciousAccusation(t *testing.T) {
+func TestGPKjDispute_GoodMaliciousAccusation(t *testing.T) {
 	n := 5
 	unsubmittedGPKj := 0
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
@@ -183,7 +187,8 @@ func TestGPKjDisputeGoodMaliciousAccusation(t *testing.T) {
 		state := dkgStates[idx]
 		gpkjSubmissionTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubmissionTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		err = gpkjSubmissionTask.DoWork(ctx, logger, eth)
@@ -218,7 +223,8 @@ func TestGPKjDisputeGoodMaliciousAccusation(t *testing.T) {
 
 		disputeBadGPKjTask, _, _, _, _, _ := dkgevents.UpdateStateOnGPKJSubmissionComplete(state, logger, disputePhaseAt)
 
-		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeBadGPKjTask.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		if idx == badAccuserIdx {
 			state.DishonestValidators = objects.ParticipantList{state.GetSortedParticipants()[accusedIdx].Copy()}

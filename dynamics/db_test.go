@@ -2,9 +2,9 @@ package dynamics
 
 import (
 	"bytes"
+	"github.com/dgraph-io/badger/v2"
 	"testing"
 
-	"github.com/dgraph-io/badger/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,8 +13,7 @@ type mockRawDB struct {
 }
 
 func (m *mockRawDB) GetValue(txn *badger.Txn, key []byte) ([]byte, error) {
-	strKey := string(key)
-	strValue, ok := m.rawDB[strKey]
+	strValue, ok := m.rawDB[string(key)]
 	if !ok {
 		return nil, ErrKeyNotPresent
 	}
@@ -51,7 +50,7 @@ func TestMock(t *testing.T) {
 	key := []byte("Key")
 	value := []byte("Key")
 
-	m := &mockRawDB{}
+	m := &MockRawDB{}
 	m.rawDB = make(map[string]string)
 
 	_, err := m.GetValue(nil, key)
@@ -91,7 +90,7 @@ func initializeDB() *Database {
 	logger := newLogger()
 	db := &Database{}
 	db.logger = logger
-	mock := &mockRawDB{}
+	mock := &MockRawDB{}
 	mock.rawDB = make(map[string]string)
 	db.rawDB = mock
 	return db

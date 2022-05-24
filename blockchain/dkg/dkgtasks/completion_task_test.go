@@ -15,8 +15,12 @@ import (
 )
 
 // We complete everything correctly, happy path
-func TestCompletionAllGood(t *testing.T) {
+func TestCompletion_Group_1_AllGood(t *testing.T) {
 	n := 4
+
+	err := dtest.InitializeValidatorFiles(5)
+	assert.Nil(t, err)
+
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
 	ctx := context.Background()
@@ -28,7 +32,8 @@ func TestCompletionAllGood(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = suite.gpkjSubmissionTasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -57,7 +62,8 @@ func TestCompletionAllGood(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := completionTasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := completionTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		amILeading := completionTasks[idx].AmILeading(ctx, eth, logger)
 		err = completionTasks[idx].DoWork(ctx, logger, eth)
@@ -77,7 +83,7 @@ func TestCompletionAllGood(t *testing.T) {
 	}
 }
 
-func TestCompletion_StartFromCompletion(t *testing.T) {
+func TestCompletion_Group_1_StartFromCompletion(t *testing.T) {
 	n := 4
 	suite := StartFromCompletion(t, n, 100)
 	defer suite.eth.Close()
@@ -92,7 +98,8 @@ func TestCompletion_StartFromCompletion(t *testing.T) {
 		state := dkgStates[idx]
 		task := suite.completionTasks[idx]
 
-		err := task.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		amILeading := task.AmILeading(ctx, eth, logger)
 
@@ -124,7 +131,7 @@ func TestCompletion_StartFromCompletion(t *testing.T) {
 // We begin by submitting invalid information.
 // This test is meant to raise an error resulting from an invalid argument
 // for the Ethereum interface.
-func TestCompletionBad1(t *testing.T) {
+func TestCompletion_Group_2_Bad1(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -142,12 +149,13 @@ func TestCompletionBad1(t *testing.T) {
 	task := dkgtasks.NewCompletionTask(state, 1, 100)
 	log := logger.WithField("TaskID", "foo")
 
-	err := task.Initialize(ctx, log, eth, nil)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
 
 // We test to ensure that everything behaves correctly.
-func TestCompletionBad2(t *testing.T) {
+func TestCompletion_Group_2_Bad2(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -164,14 +172,15 @@ func TestCompletionBad2(t *testing.T) {
 	state := objects.NewDkgState(acct)
 	log := logger.WithField("TaskID", "foo")
 	task := dkgtasks.NewCompletionTask(state, 1, 100)
-	err := task.Initialize(ctx, log, eth, state)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	if err == nil {
 		t.Fatal("Should have raised error")
 	}
 }
 
 // We complete everything correctly, but we do not complete in time
-func TestCompletionBad3(t *testing.T) {
+func TestCompletion_Group_2_Bad3(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -185,7 +194,8 @@ func TestCompletionBad3(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -215,8 +225,8 @@ func TestCompletionBad3(t *testing.T) {
 
 	// Do bad Completion task; this should fail because we are past
 	state := dkgStates[0]
-
-	err = completionTasks[0].Initialize(ctx, logger, eth, state)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err = completionTasks[0].Initialize(ctx, logger, eth, dkgData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,9 +236,9 @@ func TestCompletionBad3(t *testing.T) {
 	}
 }
 
-func TestCompletion_ShouldRetry_returnsFalse(t *testing.T) {
+func TestCompletion_Group_3_ShouldRetry_returnsFalse(t *testing.T) {
 	n := 4
-	suite := StartFromCompletion(t, n, 100)
+	suite := StartFromCompletion(t, n, 40)
 	defer suite.eth.Close()
 	ctx := context.Background()
 	eth := suite.eth
@@ -241,7 +251,8 @@ func TestCompletion_ShouldRetry_returnsFalse(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		amILeading := tasks[idx].AmILeading(ctx, eth, logger)
 
@@ -263,7 +274,7 @@ func TestCompletion_ShouldRetry_returnsFalse(t *testing.T) {
 	assert.False(t, tasks[0].ShouldRetry(ctx, logger, eth))
 }
 
-func TestCompletion_ShouldRetry_returnsTrue(t *testing.T) {
+func TestCompletion_Group_3_ShouldRetry_returnsTrue(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -275,8 +286,8 @@ func TestCompletion_ShouldRetry_returnsTrue(t *testing.T) {
 	// Do GPKj Submission task
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
-
-		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := suite.gpkjSubmissionTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = suite.gpkjSubmissionTasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -305,8 +316,8 @@ func TestCompletion_ShouldRetry_returnsTrue(t *testing.T) {
 
 	// Do bad Completion task; this should fail because we are past
 	state := dkgStates[0]
-
-	err = completionTasks[0].Initialize(ctx, logger, eth, state)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err = completionTasks[0].Initialize(ctx, logger, eth, dkgData)
 	assert.Nil(t, err)
 
 	shouldRetry := completionTasks[0].ShouldRetry(ctx, logger, eth)

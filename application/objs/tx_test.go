@@ -10,6 +10,7 @@ import (
 	"github.com/MadBase/MadNet/application/objs/uint256"
 	"github.com/MadBase/MadNet/constants"
 	"github.com/MadBase/MadNet/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 func makeVS(t *testing.T, ownerSigner Signer, i int) *TXOut {
@@ -181,8 +182,8 @@ func makeDSWithValueFee(t *testing.T, ownerSigner Signer, i int, rawData []byte,
 }
 
 func TestTx(t *testing.T) {
-	msg := makeMockStorageGetter()
-	storage := makeStorage(msg)
+	msg := MakeMockStorageGetter()
+	storage := MakeStorage(msg)
 
 	ownerSigner := &crypto.Secp256k1Signer{}
 	if err := ownerSigner.SetPrivk(crypto.Hasher([]byte("a"))); err != nil {
@@ -945,14 +946,13 @@ func TestTxValidateDataStoreIndexesBad1(t *testing.T) {
 func TestTxValidateDataStoreIndexesBad2(t *testing.T) {
 	ds := &DataStore{}
 	utxo := &TXOut{}
-	utxo.NewDataStore(ds)
+	err := utxo.NewDataStore(ds)
+	assert.Nil(t, err)
 	tx := &Tx{
 		Vout: Vout{utxo},
 	}
-	_, err := tx.ValidateDataStoreIndexes(nil)
-	if err == nil {
-		t.Fatal("Should have raised error")
-	}
+	_, err = tx.ValidateDataStoreIndexes(nil)
+	assert.NotNil(t, err)
 }
 
 func TestTxValidateDataStoreIndexesBad3(t *testing.T) {
@@ -961,14 +961,13 @@ func TestTxValidateDataStoreIndexesBad3(t *testing.T) {
 	ds.DSLinker.DSPreImage = &DSPreImage{}
 	ds.DSLinker.DSPreImage.Index = make([]byte, constants.HashLen)
 	utxo := &TXOut{}
-	utxo.NewDataStore(ds)
+	err := utxo.NewDataStore(ds)
+	assert.Nil(t, err)
 	tx := &Tx{
 		Vout: Vout{utxo},
 	}
-	_, err := tx.ValidateDataStoreIndexes(nil)
-	if err == nil {
-		t.Fatal("Should have raised error")
-	}
+	_, err = tx.ValidateDataStoreIndexes(nil)
+	assert.NotNil(t, err)
 }
 
 func TestTxValidateDataStoreIndexesBad4(t *testing.T) {
@@ -1081,8 +1080,8 @@ func TestTxCallTxHashBad2(t *testing.T) {
 }
 
 func TestTxValidateFeesGood1(t *testing.T) {
-	msg := makeMockStorageGetter()
-	storage := makeStorage(msg)
+	msg := MakeMockStorageGetter()
+	storage := MakeStorage(msg)
 
 	tx := &Tx{}
 
@@ -1120,9 +1119,9 @@ func TestTxValidateFeesGood1(t *testing.T) {
 
 func TestTxValidateFeesGood2(t *testing.T) {
 	// Is valid CleanupTx; Validate the fees
-	msg := makeMockStorageGetter()
+	msg := MakeMockStorageGetter()
 	msg.SetMinTxFee(big.NewInt(1))
-	storage := makeStorage(msg)
+	storage := MakeStorage(msg)
 	ownerSigner := &crypto.Secp256k1Signer{}
 	if err := ownerSigner.SetPrivk(crypto.Hasher([]byte("a"))); err != nil {
 		t.Fatal(err)
@@ -1167,8 +1166,8 @@ func TestTxValidateFeesGood2(t *testing.T) {
 }
 
 func TestTxValidateFeesBad1(t *testing.T) {
-	msg := makeMockStorageGetter()
-	storage := makeStorage(msg)
+	msg := MakeMockStorageGetter()
+	storage := MakeStorage(msg)
 
 	tx := &Tx{}
 	err := tx.ValidateFees(0, nil, storage)
@@ -1221,10 +1220,10 @@ func TestTxValidateFeesBad3(t *testing.T) {
 	tx.Vout = []*TXOut{utxo2}
 	tx.Fee = uint256.Zero()
 
-	msg := makeMockStorageGetter()
+	msg := MakeMockStorageGetter()
 	minTxFee := big.NewInt(1)
 	msg.SetMinTxFee(minTxFee)
-	storage := makeStorage(msg)
+	storage := MakeStorage(msg)
 	err = tx.ValidateFees(0, Vout{utxo1}, storage)
 	if err == nil {
 		t.Fatal("Should have raised error")
@@ -1260,10 +1259,10 @@ func TestTxValidateFeesBad4(t *testing.T) {
 	tx.Vout = []*TXOut{utxo2}
 	tx.Fee = uint256.Zero()
 
-	msg := makeMockStorageGetter()
+	msg := MakeMockStorageGetter()
 	minTxFee := big.NewInt(1)
 	msg.SetMinTxFee(minTxFee)
-	storage := makeStorage(msg)
+	storage := MakeStorage(msg)
 	err = tx.ValidateFees(0, nil, storage)
 	if err == nil {
 		t.Fatal("Should have raised error")
@@ -1411,7 +1410,8 @@ func TestTxIsCleanupTxBad4(t *testing.T) {
 
 	utxo2 := &TXOut{}
 	ds := &DataStore{}
-	utxo2.NewDataStore(ds)
+	err = utxo2.NewDataStore(ds)
+	assert.Nil(t, err)
 
 	vin := []*TXIn{txin1}
 	refUTXOs := []*TXOut{utxo1}
@@ -1444,13 +1444,12 @@ func TestTxIsCleanupTxBad5(t *testing.T) {
 	numEpochs := uint32(1)
 	utxo1 := makeDSWithValueFee(t, ownerSigner, 0, rawData, index, iat, numEpochs, fee)
 	txin1, err := utxo1.MakeTxIn()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	utxo2 := &TXOut{}
 	vs := &ValueStore{}
-	utxo2.NewValueStore(vs)
+	err = utxo2.NewValueStore(vs)
+	assert.Nil(t, err)
 
 	vin := []*TXIn{txin1}
 	refUTXOs := []*TXOut{utxo1}
@@ -1648,7 +1647,7 @@ func TestTxIsCleanupTxGood3(t *testing.T) {
 	// This does a full test of validation logic;
 	// these fees should not affect the validity of the cleanup transaction
 	// because no fees apply in this case.
-	msg := makeMockStorageGetter()
+	msg := MakeMockStorageGetter()
 	dsFeeBig := big.NewInt(100)
 	msg.SetDataStoreEpochFee(dsFeeBig)
 	vsFeeBig := big.NewInt(1000)
@@ -1656,7 +1655,7 @@ func TestTxIsCleanupTxGood3(t *testing.T) {
 	tfFeeBig := big.NewInt(10000)
 	msg.SetMinTxFee(tfFeeBig)
 	msg.SetDataStoreEpochFee(dsFeeBig)
-	storage := makeStorage(msg)
+	storage := MakeStorage(msg)
 
 	ownerSigner := &crypto.Secp256k1Signer{}
 	if err := ownerSigner.SetPrivk(crypto.Hasher([]byte("a"))); err != nil {

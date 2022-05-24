@@ -85,12 +85,13 @@ func validator(t *testing.T, idx int, eth interfaces.Ethereum, validatorAcct acc
 
 	events := objects.NewEventMap()
 
-	monitor.SetupEventMap(events, nil, adminHandler, nil)
+	err := monitor.SetupEventMap(events, nil, adminHandler, nil)
+	assert.NoError(t, err)
 
 	var done bool
 
 	for !done {
-		err := monitor.MonitorTick(ctx, cancel, wg, eth, monitorState, logger, events, adminHandler, 10)
+		err := monitor.MonitorTick(ctx, cancel, wg, eth, monitorState, logger, events, adminHandler, 10, nil)
 		assert.Nil(t, err)
 
 		time.Sleep(time.Second)
@@ -141,6 +142,9 @@ func advanceTo(t *testing.T, eth interfaces.Ethereum, target uint64) {
 		Params:  make([]byte, 0),
 	}
 
+	if target < currentBlock {
+		return
+	}
 	blocksToMine := target - currentBlock
 	var blocksToMineString = "0x" + strconv.FormatUint(blocksToMine, 16)
 
@@ -310,7 +314,8 @@ func StartFromRegistrationOpenPhase(t *testing.T, n int, unregisteredValidators 
 		dkgStates[idx] = state
 		regTasks[idx] = regTask
 		dispMissingRegTasks[idx] = dispMissingRegTask
-		err = regTasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err = regTasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		if idx >= n-unregisteredValidators {
@@ -408,7 +413,8 @@ func StartFromShareDistributionPhase(t *testing.T, n int, undistributedSharesIdx
 
 		shareDistTask := suite.shareDistTasks[idx]
 
-		err := shareDistTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := shareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		for _, badIdx := range badSharesIdx {
@@ -493,7 +499,8 @@ func StartFromKeyShareSubmissionPhase(t *testing.T, n int, undistributedShares i
 
 		keyshareSubmissionTask := suite.keyshareSubmissionTasks[idx]
 
-		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := keyshareSubmissionTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		err = keyshareSubmissionTask.DoWork(ctx, logger, suite.eth)
@@ -556,7 +563,8 @@ func StartFromMPKSubmissionPhase(t *testing.T, n int, phaseLength uint16) *TestS
 		task := suite.mpkSubmissionTasks[idx]
 		state := dkgStates[idx]
 
-		err := task.Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		if task.AmILeading(ctx, eth, logger) {
 			err = task.DoWork(ctx, logger, eth)
@@ -612,7 +620,8 @@ func StartFromGPKjPhase(t *testing.T, n int, undistributedGPKjIdx []int, badGPKj
 
 		gpkjSubTask := suite.gpkjSubmissionTasks[idx]
 
-		err := gpkjSubTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := gpkjSubTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		for _, badIdx := range badGPKjIdx {

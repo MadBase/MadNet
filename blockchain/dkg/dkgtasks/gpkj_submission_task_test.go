@@ -15,7 +15,7 @@ import (
 )
 
 //We test to ensure that everything behaves correctly.
-func TestGPKjSubmissionGoodAllValid(t *testing.T) {
+func TestGPKjSubmission_Group_1_GoodAllValid(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -30,7 +30,8 @@ func TestGPKjSubmissionGoodAllValid(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -56,7 +57,7 @@ func TestGPKjSubmissionGoodAllValid(t *testing.T) {
 // We begin by submitting invalid information.
 // Here, we submit nil for the state interface;
 // this should raise an error.
-func TestGPKjSubmissionBad1(t *testing.T) {
+func TestGPKjSubmission_Group_1_Bad1(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -75,14 +76,15 @@ func TestGPKjSubmissionBad1(t *testing.T) {
 	task := dkgtasks.NewGPKjSubmissionTask(state, 1, 100, adminHandler)
 	log := logger.WithField("TaskID", "foo")
 
-	err := task.Initialize(ctx, log, eth, nil)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	assert.NotNil(t, err)
 }
 
 // We test to ensure that everything behaves correctly.
 // Here, we should raise an error because we did not successfully complete
 // the key share submission phase.
-func TestGPKjSubmissionBad2(t *testing.T) {
+func TestGPKjSubmission_Group_1_Bad2(t *testing.T) {
 	n := 4
 	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(n)
 	logger := logging.GetLogger("ethereum")
@@ -100,7 +102,8 @@ func TestGPKjSubmissionBad2(t *testing.T) {
 	log := logger.WithField("TaskID", "foo")
 	adminHandler := new(adminHandlerMock)
 	task := dkgtasks.NewGPKjSubmissionTask(state, 1, 100, adminHandler)
-	err := task.Initialize(ctx, log, eth, state)
+	dkgData := objects.NewETHDKGTaskData(state)
+	err := task.Initialize(ctx, log, eth, dkgData)
 	if err == nil {
 		t.Fatal("Should have raised error")
 	}
@@ -110,7 +113,7 @@ func TestGPKjSubmissionBad2(t *testing.T) {
 // One or more validators should submit invalid gpkj information;
 // that is, the gpkj public key and signature should not verify.
 // This should result in no submission.
-func TestGPKjSubmissionBad3(t *testing.T) {
+func TestGPKjSubmission_Group_2_Bad3(t *testing.T) {
 	// Perform correct registration setup.
 
 	// Perform correct share submission
@@ -136,7 +139,8 @@ func TestGPKjSubmissionBad3(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		eth.Commit()
@@ -152,7 +156,7 @@ func TestGPKjSubmissionBad3(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGPKjSubmission_ShouldRetry_returnsFalse(t *testing.T) {
+func TestGPKjSubmission_Group_2_ShouldRetry_returnsFalse(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -166,7 +170,8 @@ func TestGPKjSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 		err = tasks[idx].DoWork(ctx, logger, eth)
 		assert.Nil(t, err)
@@ -179,7 +184,7 @@ func TestGPKjSubmission_ShouldRetry_returnsFalse(t *testing.T) {
 	}
 }
 
-func TestGPKjSubmission_ShouldRetry_returnsTrue(t *testing.T) {
+func TestGPKjSubmission_Group_2_ShouldRetry_returnsTrue(t *testing.T) {
 	n := 4
 	suite := StartFromMPKSubmissionPhase(t, n, 100)
 	defer suite.eth.Close()
@@ -193,7 +198,8 @@ func TestGPKjSubmission_ShouldRetry_returnsTrue(t *testing.T) {
 	for idx := 0; idx < n; idx++ {
 		state := dkgStates[idx]
 
-		err := tasks[idx].Initialize(ctx, logger, eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := tasks[idx].Initialize(ctx, logger, eth, dkgData)
 		assert.Nil(t, err)
 
 		shouldRetry := tasks[idx].ShouldRetry(ctx, logger, eth)

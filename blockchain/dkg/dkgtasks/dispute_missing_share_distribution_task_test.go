@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/logging"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestShouldAccuseOneValidatorWhoDidNotDistributeShares(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_1_ShouldAccuseOneValidatorWhoDidNotDistributeShares(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{4}, []int{}, 100)
 	defer suite.eth.Close()
@@ -20,7 +21,8 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeShares(t *testing.T) {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
 
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -34,7 +36,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeShares(t *testing.T) {
 	assert.Equal(t, uint64(1), badParticipants.Uint64())
 }
 
-func TestShouldAccuseAllValidatorsWhoDidNotDistributeShares(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_1_ShouldAccuseAllValidatorsWhoDidNotDistributeShares(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{0, 1, 2, 3, 4}, []int{}, 100)
 	defer suite.eth.Close()
@@ -45,7 +47,8 @@ func TestShouldAccuseAllValidatorsWhoDidNotDistributeShares(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -59,7 +62,7 @@ func TestShouldAccuseAllValidatorsWhoDidNotDistributeShares(t *testing.T) {
 	assert.Equal(t, uint64(n), badParticipants.Uint64())
 }
 
-func TestShouldNotAccuseValidatorsWhoDidDistributeShares(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_1_ShouldNotAccuseValidatorsWhoDidDistributeShares(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{}, []int{}, 100)
 	defer suite.eth.Close()
@@ -70,7 +73,8 @@ func TestShouldNotAccuseValidatorsWhoDidDistributeShares(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 
 		if idx == n-1 {
@@ -99,7 +103,7 @@ func TestShouldNotAccuseValidatorsWhoDidDistributeShares(t *testing.T) {
 	assert.Equal(t, uint64(0), badParticipants.Uint64())
 }
 
-func TestDisputeMissingShareDistributionTask_ShouldRetryTrue(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_2_DisputeMissingShareDistributionTask_ShouldRetryTrue(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{0}, []int{}, 100)
 	defer suite.eth.Close()
@@ -110,14 +114,15 @@ func TestDisputeMissingShareDistributionTask_ShouldRetryTrue(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		shouldRetry := task.ShouldRetry(ctx, logger, suite.eth)
 		assert.True(t, shouldRetry)
 	}
 }
 
-func TestDisputeMissingShareDistributionTask_ShouldRetryFalse(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_2_DisputeMissingShareDistributionTask_ShouldRetryFalse(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{}, []int{}, 100)
 	defer suite.eth.Close()
@@ -128,7 +133,8 @@ func TestDisputeMissingShareDistributionTask_ShouldRetryFalse(t *testing.T) {
 	for idx := range accounts {
 		state := suite.dkgStates[idx]
 		task := suite.disputeMissingShareDistTasks[idx]
-		err := task.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := task.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = task.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -144,7 +150,7 @@ func TestDisputeMissingShareDistributionTask_ShouldRetryFalse(t *testing.T) {
 	}
 }
 
-func TestShouldAccuseOneValidatorWhoDidNotDistributeSharesAndAnotherSubmittedBadShares(t *testing.T) {
+func TestDisputeMissingShareDistributionTask_Group_2_ShouldAccuseOneValidatorWhoDidNotDistributeSharesAndAnotherSubmittedBadShares(t *testing.T) {
 	n := 5
 	suite := StartFromShareDistributionPhase(t, n, []int{4}, []int{3}, 100)
 	defer suite.eth.Close()
@@ -159,7 +165,8 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeSharesAndAnotherSubmittedBad
 		// disputeMissingShareDist
 		disputeMissingShareDistTask := suite.disputeMissingShareDistTasks[idx]
 
-		err := disputeMissingShareDistTask.Initialize(ctx, logger, suite.eth, state)
+		dkgData := objects.NewETHDKGTaskData(state)
+		err := disputeMissingShareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeMissingShareDistTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
@@ -170,7 +177,7 @@ func TestShouldAccuseOneValidatorWhoDidNotDistributeSharesAndAnotherSubmittedBad
 		// disputeShareDist
 		disputeShareDistTask := suite.disputeShareDistTasks[idx]
 
-		err = disputeShareDistTask.Initialize(ctx, logger, suite.eth, state)
+		err = disputeShareDistTask.Initialize(ctx, logger, suite.eth, dkgData)
 		assert.Nil(t, err)
 		err = disputeShareDistTask.DoWork(ctx, logger, suite.eth)
 		assert.Nil(t, err)
