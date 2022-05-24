@@ -1,10 +1,9 @@
-name: Alicenet CI
+name: kAlicenet CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, candidate ]
-    paths:
-      - "blockchain"
   pull_request:
     branches: [ main, candidate ]
 
