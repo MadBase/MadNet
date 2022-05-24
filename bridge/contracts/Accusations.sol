@@ -154,7 +154,7 @@ contract Accusations is
         bytes calldata _pClaims0,
         bytes calldata _signature1,
         bytes calldata _pClaims1
-    ) internal view returns (address) {
+    ) public view returns (address) {
         // ecrecover sig0/1 and ensure both are valid and accounts are equal
         address signerAccount0 = recoverMadNetSigner(_signature0, _pClaims0);
         address signerAccount1 = recoverMadNetSigner(_signature1, _pClaims1);
@@ -220,7 +220,7 @@ contract Accusations is
         bytes memory signature,
         bytes memory prefix,
         bytes memory message
-    ) internal pure returns (address) {
+    ) public pure returns (address) {
         require(signature.length == 65, "Accusations: Signature should be 65 bytes");
 
         bytes32 hashedMessage = keccak256(abi.encodePacked(prefix, message));
@@ -247,7 +247,7 @@ contract Accusations is
     /// @param message The message
     /// @return the address of the signer
     function recoverMadNetSigner(bytes memory signature, bytes memory message)
-        internal
+        public
         pure
         returns (address)
     {

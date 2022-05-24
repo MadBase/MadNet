@@ -232,9 +232,8 @@ contract ValidatorPoolMock is
         return false;
     }
 
-    function isAccusable(address participant) public pure returns (bool) {
-        participant;
-        return false;
+    function isAccusable(address participant) public view returns (bool) {
+        return _isValidator(participant);
     }
 
     function getLocation(address validator) public pure returns (string memory) {
