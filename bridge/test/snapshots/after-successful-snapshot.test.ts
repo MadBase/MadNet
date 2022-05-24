@@ -1,5 +1,5 @@
 import { BigNumber } from "ethers";
-import { Snapshots as SnapshotsV1 } from "../../legacy/V1/typechain-types";
+import { Snapshots } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import { completeETHDKGRound } from "../ethdkg/setup";
 import {
@@ -16,7 +16,7 @@ import {
 
 describe("Snapshots: With successful snapshot completed", () => {
   let fixture: Fixture;
-  let snapshots: SnapshotsV1;
+  let snapshots: Snapshots;
   let snapshotNumber: BigNumber;
 
   beforeEach(async function () {
@@ -29,7 +29,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     await mineBlocks(
       (await fixture.snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
-    snapshots = fixture.snapshots;
+    snapshots = fixture.snapshots as Snapshots;
     await snapshots
       .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
       .snapshot(validSnapshot1024.GroupSignature, validSnapshot1024.BClaims);

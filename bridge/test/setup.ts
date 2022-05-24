@@ -13,7 +13,6 @@ import { ethers, network } from "hardhat";
 import { Artifact } from "hardhat/types";
 import SnapshotsV1Artifact from "../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
 import { Snapshots as SnapshotsV1 } from "../legacy/V1/typechain-types";
-import { getBytes32SaltFromDoc } from "../scripts/lib/alicenetFactory";
 import {
   AliceNetFactory,
   AToken,
@@ -310,11 +309,11 @@ export const deployUpgradeableV1WithFactory = async (
 ): Promise<Contract> => {
   const _Contract = new ethers.ContractFactory(
     contractArtifact.abi,
-    contractArtifact.bytecode
+    contractArtifact.bytecode,
+    factory.signer
   );
   const deployCode = (await _Contract.getDeployTransaction(...constructorArgs)
     .data) as BytesLike;
-  console.log(deployCode);
   const transaction = await factory.deployCreate(deployCode);
   let receipt = await transaction.wait();
   if (receipt.gasUsed.gt(10_000_000)) {
@@ -352,9 +351,9 @@ export const deployUpgradeableV1WithFactory = async (
     }
   }
   await factory.upgradeProxy(saltBytes, logicAddr, initCallDataBin);
-  return _Contract.attach(
-    await getContractAddressFromDeployedProxyEvent(transaction2)
-  );
+  let address = await getContractAddressFromDeployedProxyEvent(transaction2);
+  console.log(address);
+  return _Contract.attach(address);
 };
 
 export const deployLogicAndUpgradeWithFactory = async (
@@ -380,7 +379,7 @@ export const deployLogicAndUpgradeWithFactory = async (
   const logicAddr = await getContractAddressFromDeployedRawEvent(transaction);
   let saltBytes;
   if (salt === undefined) {
-    saltBytes = (await getBytes32SaltFromDoc(contractName)) as string;
+    saltBytes = getBytes32Salt(contractName);
   } else {
     saltBytes = getBytes32Salt(salt);
   }
@@ -615,7 +614,7 @@ export const getFixture = async (
       "Snapshots",
       [10, 40],
       [1, 1]
-    )) as SnapshotsMock;
+    )) as Snapshots;
   } else {
     // Snapshots
     snapshots = (await deployUpgradeableV1WithFactory(
@@ -645,7 +644,7 @@ export const getFixture = async (
   if (phaseLength >= blockNumber) {
     await mineBlocks(phaseLength);
   }
-  if ((sync = true)) {
+  if (sync === true) {
     await completeETHDKGRound(validatorsSnapshots, {
       ethdkg: ethdkg,
       validatorPool: validatorPool,
@@ -656,7 +655,7 @@ export const getFixture = async (
     const signedSnapshots = signedData;
     snapshots = snapshots.connect(
       await getValidatorEthAccount(validatorsSnapshots[0])
-    ) as SnapshotsV1;
+    );
     //take 6 snapshots
     for (let i = 0; i < 6; i++) {
       await mineBlocks(
