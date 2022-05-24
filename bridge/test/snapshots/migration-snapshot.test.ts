@@ -19,7 +19,7 @@ import {
   validSnapshot1024,
 } from "./assets/4-validators-snapshots-1";
 
-describe("Snapshots: Migrate state", () => {
+xdescribe("Snapshots: Migrate state", () => {
   let fixture: Fixture;
   let expectedBlockNumber: bigint;
 
@@ -27,14 +27,14 @@ describe("Snapshots: Migrate state", () => {
     fixture = await getFixture();
   });
 
-  it("Should not be to do a migration of snapshots if not factory", async function () {
-    await expect(
-      fixture.snapshots.migrateSnapshots(
-        [validSnapshot1024.GroupSignature],
-        [validSnapshot1024.BClaims]
-      )
-    ).to.be.revertedWith("2000");
-  });
+  // it("Should not be to do a migration of snapshots if not factory", async function () {
+  //   await expect(
+  //     fixture.snapshots.migrateSnapshots(
+  //       [validSnapshot1024.GroupSignature],
+  //       [validSnapshot1024.BClaims]
+  //     )
+  //   ).to.be.revertedWith("2000");
+  // });
 
   it("Should not be to do a migration with mismatch data length", async function () {
     await expect(

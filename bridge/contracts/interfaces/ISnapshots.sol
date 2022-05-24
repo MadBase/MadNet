@@ -28,10 +28,6 @@ interface ISnapshots {
         external
         returns (bool);
 
-    function migrateSnapshots(bytes[] memory groupSignature_, bytes[] memory bClaims_)
-        external
-        returns (bool);
-
     function getSnapshotDesperationDelay() external view returns (uint256);
 
     function getSnapshotDesperationFactor() external view returns (uint256);

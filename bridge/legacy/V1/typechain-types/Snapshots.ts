@@ -4,7 +4,6 @@
 import { EventFragment, FunctionFragment, Result } from "@ethersproject/abi";
 import { Listener, Provider } from "@ethersproject/providers";
 import {
-  BaseContract,
   BigNumber,
   BigNumberish,
   BytesLike,
@@ -15,6 +14,7 @@ import {
   Signer,
   utils,
 } from "ethers";
+import { Snapshots as newSnapshots } from "../../../typechain-types";
 import { OnEvent, TypedEvent, TypedEventFilter, TypedListener } from "./common";
 
 export type SnapshotStruct = {
@@ -298,7 +298,7 @@ export type SnapshotTakenEvent = TypedEvent<
 
 export type SnapshotTakenEventFilter = TypedEventFilter<SnapshotTakenEvent>;
 
-export interface Snapshots extends BaseContract {
+export interface Snapshots extends newSnapshots {
   contractName: "Snapshots";
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;

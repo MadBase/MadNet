@@ -27,6 +27,11 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
     console.log(account.address);
   }
 });
+task("snapshotDeployCode", "", async (taskArgs, hre) => {
+  let snapshotsFactory = await hre.ethers.getContractFactory("Snapshots");
+  let deployTX = snapshotsFactory.getDeployTransaction(1337, 1024);
+  console.log(deployTX.data);
+});
 
 const config: HardhatUserConfig = {
   namedAccounts: {
