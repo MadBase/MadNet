@@ -3,7 +3,6 @@ module github.com/MadBase/MadNet
 go 1.17
 
 require (
-	// github.com/MadBase/bridge v0.0.0-00010101000000-000000000000
 	github.com/MadBase/go-capnproto2/v2 v2.18.0-custom-schema.1
 	github.com/derision-test/go-mockgen v1.1.4
 	github.com/dgraph-io/badger/v2 v2.2007.4
