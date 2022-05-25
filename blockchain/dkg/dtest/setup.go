@@ -40,6 +40,12 @@ import (
 	"github.com/MadBase/MadNet/crypto/bn256/cloudflare"
 )
 
+type nullReader struct{}
+type nullWriter struct{}
+
+func (nullReader) Read(p []byte) (n int, err error)  { return len(p), nil }
+func (nullWriter) Write(p []byte) (n int, err error) { return len(p), nil }
+
 func InitializeNewDetDkgStateInfo(n int) ([]*objects.DkgState, []*ecdsa.PrivateKey) {
 	return InitializeNewDkgStateInfo(n, true)
 }
@@ -481,13 +487,12 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 	fmt.Println("scriptPathJoined2: ", scriptPathJoined)
 
 	cmd := exec.Cmd{
-		Path:   scriptPathJoined,
-		Args:   []string{scriptPathJoined, "hardhat_node"},
-		Dir:    filepath.Join(rootPath...),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Path: scriptPathJoined,
+		Args: []string{scriptPathJoined, "hardhat_node"},
+		Dir:  filepath.Join(rootPath...),
 	}
 
+	setCommandStdOut(&cmd)
 	err := cmd.Start()
 
 	// if there is an error with our execution
@@ -525,6 +530,21 @@ func StartHardHatNode(eth *blockchain.EthereumDetails) error {
 	return nil
 }
 
+// setCommandStdOut If ENABLE_SCRIPT_LOG env variable is set as 'true' the command will show scripts logs
+func setCommandStdOut(cmd *exec.Cmd) {
+
+	flagValue, found := os.LookupEnv("ENABLE_SCRIPT_LOG")
+	enabled, err := strconv.ParseBool(flagValue)
+
+	if err == nil && found && enabled {
+		cmd.Stdout = nullWriter{}
+		cmd.Stderr = nullWriter{}
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+}
+
 func InitializeValidatorFiles(n int) error {
 
 	rootPath := GetMadnetRootPath()
@@ -534,13 +554,12 @@ func InitializeValidatorFiles(n int) error {
 	fmt.Println("scriptPathJoined2: ", scriptPathJoined)
 
 	cmd := exec.Cmd{
-		Path:   scriptPathJoined,
-		Args:   []string{scriptPathJoined, "init", strconv.Itoa(n)},
-		Dir:    filepath.Join(rootPath...),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Path: scriptPathJoined,
+		Args: []string{scriptPathJoined, "init", strconv.Itoa(n)},
+		Dir:  filepath.Join(rootPath...),
 	}
 
+	setCommandStdOut(&cmd)
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not generate validator files: %s", err)
@@ -563,13 +582,12 @@ func StartDeployScripts(eth *blockchain.EthereumDetails, ctx context.Context) er
 	}
 
 	cmd := exec.Cmd{
-		Path:   scriptPathJoined,
-		Args:   []string{scriptPathJoined, "deploy"},
-		Dir:    filepath.Join(rootPath...),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Path: scriptPathJoined,
+		Args: []string{scriptPathJoined, "deploy"},
+		Dir:  filepath.Join(rootPath...),
 	}
 
+	setCommandStdOut(&cmd)
 	err = cmd.Run()
 
 	// if there is an error with our execution
@@ -658,13 +676,12 @@ func RegisterValidators(eth *blockchain.EthereumDetails, validatorAddresses []st
 	args = append(args, validatorAddresses...)
 
 	cmd := exec.Cmd{
-		Path:   scriptPathJoined,
-		Args:   args,
-		Dir:    filepath.Join(rootPath...),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Path: scriptPathJoined,
+		Args: args,
+		Dir:  filepath.Join(rootPath...),
 	}
 
+	setCommandStdOut(&cmd)
 	err := cmd.Run()
 
 	// if there is an error with our execution
