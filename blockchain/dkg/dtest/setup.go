@@ -40,10 +40,8 @@ import (
 	"github.com/MadBase/MadNet/crypto/bn256/cloudflare"
 )
 
-type nullReader struct{}
 type nullWriter struct{}
 
-func (nullReader) Read(p []byte) (n int, err error)  { return len(p), nil }
 func (nullWriter) Write(p []byte) (n int, err error) { return len(p), nil }
 
 func InitializeNewDetDkgStateInfo(n int) ([]*objects.DkgState, []*ecdsa.PrivateKey) {
@@ -537,11 +535,11 @@ func setCommandStdOut(cmd *exec.Cmd) {
 	enabled, err := strconv.ParseBool(flagValue)
 
 	if err == nil && found && enabled {
-		cmd.Stdout = nullWriter{}
-		cmd.Stderr = nullWriter{}
-	} else {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+	} else {
+		cmd.Stdout = nullWriter{}
+		cmd.Stderr = nullWriter{}
 	}
 }
 
