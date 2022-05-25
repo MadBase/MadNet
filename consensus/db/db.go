@@ -1700,7 +1700,7 @@ func (pni *PendingLeafIter) Close() {
 
 func (db *Database) SetSafeToProceed(txn *badger.Txn, height uint32, isSafe bool) error {
 	if height%constants.EpochLength != 1 {
-		panic(fmt.Errorf("the height must be mod 1 epoch length. height: %v\n", height))
+		panic(fmt.Sprintf("the height must be mod 1 epoch length. height: %v", height))
 	}
 	key := &objs.SafeToProceedKey{Prefix: dbprefix.PrefixSafeToProceed(), Height: height}
 	k, err := key.MarshalBinary()
