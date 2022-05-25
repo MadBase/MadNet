@@ -25,7 +25,7 @@ describe("Snapshots: Tests Snapshots methods", () => {
   beforeEach(async function () {
     validators = [];
     stakingTokenIds = [];
-    fixture = await getFixture(true, false);
+    fixture = await getFixture(true, false, undefined, true);
     const [admin, , , , , randomUser] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
     randomSigner = await getValidatorEthAccount(randomUser.address);

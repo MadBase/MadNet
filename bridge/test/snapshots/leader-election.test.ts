@@ -12,7 +12,7 @@ describe("Snapshots: MayValidatorSnapshot", () => {
   let mayValidatorSnapshot: Snapshots["mayValidatorSnapshot"];
 
   before(async () => {
-    const fixture = await getFixture();
+    const fixture = await getFixture(undefined, undefined, undefined, true);
     mayValidatorSnapshot = fixture.snapshots.mayValidatorSnapshot;
   });
 

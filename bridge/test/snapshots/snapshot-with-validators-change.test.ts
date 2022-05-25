@@ -24,7 +24,7 @@ describe("Snapshots: With successful ETHDKG round completed and validatorPool", 
     let expectedEpoch = 1;
     let expectedHeight = validSnapshot1024.height as number;
     let expectedSafeToProceedConsensus = false;
-    const fixture = await getFixture();
+    const fixture = await getFixture(undefined, undefined, undefined, true);
     const snapshots = fixture.snapshots as Snapshots;
     const validators = await createValidators(fixture, validatorsSnapshots1);
     const stakingTokenIds = await stakeValidators(fixture, validators);

@@ -13,7 +13,7 @@ describe("Snapshots: Access control methods", () => {
   let randomerSigner: Signer;
 
   beforeEach(async function () {
-    fixture = await getFixture(true, false);
+    fixture = await getFixture(true, false, undefined, true);
     const [admin, , , , , randomer] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
     randomerSigner = await getValidatorEthAccount(randomer.address);

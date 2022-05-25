@@ -25,7 +25,6 @@ import {
   LiquidityProviderStaking,
   PublicStaking,
   Snapshots,
-  SnapshotsMock,
   StakingPositionDescriptor,
   ValidatorPool,
   ValidatorPoolMock,
@@ -36,6 +35,9 @@ import {
   signedData,
   validatorsSnapshots,
 } from "./math/assets/4-validators-1000-snapshots";
+
+export const SNAPSHOT_BUFFER_LENGTH = 6;
+
 export const PLACEHOLDER_ADDRESS = "0x0000000000000000000000000000000000000000";
 export { assert, expect } from "./chai-setup";
 export interface SignedBClaims {
@@ -64,7 +66,7 @@ export interface BaseTokensFixture extends BaseFixture {
 export interface Fixture extends BaseTokensFixture {
   validatorStaking: ValidatorStaking;
   validatorPool: ValidatorPool | ValidatorPoolMock;
-  snapshots: Snapshots | SnapshotsMock;
+  snapshots: Snapshots;
   ethdkg: ETHDKG;
   stakingPositionDescriptor: StakingPositionDescriptor;
   namedSigners: SignerWithAddress[];
@@ -352,7 +354,6 @@ export const deployUpgradeableV1WithFactory = async (
   }
   await factory.upgradeProxy(saltBytes, logicAddr, initCallDataBin);
   let address = await getContractAddressFromDeployedProxyEvent(transaction2);
-  console.log(address);
   return _Contract.attach(address);
 };
 
@@ -587,7 +588,6 @@ export const getFixture = async (
 
   // ETHDKG Phases
   await deployUpgradeableWithFactory(factory, "ETHDKGPhases");
-
   // ETHDKG
   let ethdkg;
   if (typeof mockETHDKG !== "undefined" && mockETHDKG) {
@@ -657,7 +657,7 @@ export const getFixture = async (
       await getValidatorEthAccount(validatorsSnapshots[0])
     );
     //take 6 snapshots
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < SNAPSHOT_BUFFER_LENGTH; i++) {
       await mineBlocks(
         (await snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
       );

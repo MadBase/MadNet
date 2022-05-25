@@ -1,6 +1,15 @@
 import { expect } from "chai";
 import { contract } from "hardhat";
-import { Fixture, getFixture } from "../setup";
+import {
+  signedData,
+  validatorsSnapshots,
+} from "../math/assets/4-validators-1000-snapshots";
+import {
+  Fixture,
+  getFixture,
+  getValidatorEthAccount,
+  mineBlocks,
+} from "../setup";
 
 contract("SnapshotRingBuffer", async () => {
   let fixture: Fixture;
@@ -9,44 +18,38 @@ contract("SnapshotRingBuffer", async () => {
       fixture = await getFixture(true, false, undefined, true);
     });
 
-    it.only("verifies epoch value and snapshot migration onto ring buffer", async () => {
+    it("verifies epoch value and snapshot migration onto ring buffer", async () => {
       const epochs = (await fixture.snapshots.getEpoch()).toNumber();
-      console.log(await fixture.snapshots.getSnapshot(1));
-      console.log(epochs);
       for (let i = epochs - 5; i <= epochs; i++) {
-        console.log(i);
         const snap = await fixture.snapshots.getSnapshot(i);
         expect(snap.blockClaims.height).to.equal(i * 1024);
       }
       expect((await fixture.snapshots.getEpoch()).toNumber()).to.equal(6);
     });
 
-    // it("adds 6 new snapshots to the snapshot buffer", async () => {
-    //   if (fixture.snapshotsV2 === undefined) {
-    //     throw new Error("failed to upgrade snapshotsV2");
-    //   }
-    //   const signedSnapshots = signedData;
-    //   const numSnaps = numEpochs + 6;
-    //   fixture.snapshotsV2 = fixture.snapshotsV2.connect(
-    //     await getValidatorEthAccount(validatorsSnapshots[0])
-    //   );
-    //   //take 6 snapshots
-    //   for (let i = numEpochs; i < numSnaps; i++) {
-    //     await mineBlocks(
-    //       (
-    //         await fixture.snapshots.getMinimumIntervalBetweenSnapshots()
-    //       ).toBigInt()
-    //     );
-    //     const contractTx = await fixture.snapshotsV2.snapshot(
-    //       signedSnapshots[i].GroupSignature,
-    //       signedSnapshots[i].BClaims,
-    //       { gasLimit: 30000000 }
-    //     );
-    //     await contractTx.wait();
-    //     numEpochs++;
-    //   }
-    //   const lastSnapshot = await fixture.snapshotsV2.getLatestSnapshot();
-    // });
+    it("adds 6 new snapshots to the snapshot buffer", async () => {
+      let epochs = (await fixture.snapshots.getEpoch()).toNumber();
+      const signedSnapshots = signedData;
+      const numSnaps = epochs + 6;
+      let snapshots = fixture.snapshots.connect(
+        await getValidatorEthAccount(validatorsSnapshots[0])
+      );
+      //take 6 snapshots
+      for (let i = epochs + 1; i <= numSnaps; i++) {
+        await mineBlocks(
+          (await snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
+        );
+        const contractTx = await snapshots.snapshot(
+          signedSnapshots[i - 1].GroupSignature,
+          signedSnapshots[i - 1].BClaims,
+          { gasLimit: 30000000 }
+        );
+        await contractTx.wait();
+      }
+      epochs = (await snapshots.getEpoch()).toNumber();
+      const lastSnapshot = await snapshots.getLatestSnapshot();
+      expect(lastSnapshot.blockClaims.height).to.equal(epochs * 1024);
+    });
 
     it("attempts to get a snapshot that is not in the buffer", async () => {});
   });
