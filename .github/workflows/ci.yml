@@ -1,4 +1,4 @@
-name: kAlicenet CI
+name: Alicenet CI
 
 on:
   workflow_dispatch:
@@ -201,4 +201,4 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/main.sh init 5
-          go test -v -timeout=45m ${{ matrix.test-cmd }}
+          go test -json -v -timeout=15m ${{ matrix.test-cmd }} 2>&1 | tee /tmp/gotest.log | gotestfmt
