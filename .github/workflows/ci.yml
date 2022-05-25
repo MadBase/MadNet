@@ -148,6 +148,12 @@ jobs:
         run: |
           set -euo pipefail
           go test -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus/dman|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
+            - name: Run unit tests
+      - name: Run unit tests (race detection)
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          go test -race -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus/dman|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
 
   golang-blockchain-tests:
     runs-on: ${{ matrix.os }}
