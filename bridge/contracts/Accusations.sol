@@ -258,7 +258,7 @@ contract Accusations is
     /// @param txHash the transaction hash
     /// @param txIdx the transaction index
     /// @return the UTXOID
-    function computeUTXOID(bytes32 txHash, uint32 txIdx) internal pure returns (bytes32) {
+    function computeUTXOID(bytes32 txHash, uint32 txIdx) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(txHash, txIdx));
     }
 }
