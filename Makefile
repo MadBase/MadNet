@@ -42,3 +42,8 @@ clean:
 
 	docker container rm -vf madnet-generate-go madnet-generate-bridge 2> /dev/null
 	docker image rm -f madnet-generate-go madnet-generate-bridge 2> /dev/null
+
+setup:
+	go mod download
+	cat tools.go | grep _ | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	cd bridge && npm install
