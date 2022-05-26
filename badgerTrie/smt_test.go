@@ -472,22 +472,15 @@ func TestSmtFastSync(t *testing.T) {
 	smt := NewSMT(nil, Hasher, prefixFn)
 	smt2 := NewSMT(nil, Hasher, prefixFn)
 	loopStart := 1
-	//keys := GetFreshData(1024, 32)
-	//keys := make([][]byte6 numKeys/2)
 	keys := [][]byte{}
 	for i := loopStart; i < loopStart+depKeys; i++ {
 		iBytes := utils.MarshalUint32(uint32(i))
 		keys = append(keys, utils.ForceSliceToLength(iBytes, 32))
-		//keys[i-1] = utils.ForceSliceToLength(iBytes, 32)
 	}
 	keysNext := GetFreshDataUnsorted(randKeys, 32)
 	keys = append(keys, keysNext...)
 	values := GetFreshDataUnsorted(numKeys, 32)
-	//fmt.Println(len(keys))
-	//fmt.Println(len(values))
 	keysSorted, valuesSorted, err := utils.SortKVs(keys, values)
-	//keysSorted, valuesSorted := keys, values
-	//valuesSorted, keysSorted, err := utils.SortKVs(keys, values)
 	if err != nil {
 		t.Fatal(err)
 	}
