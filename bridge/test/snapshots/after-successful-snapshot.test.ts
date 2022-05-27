@@ -2,16 +2,16 @@ import { BigNumber } from "ethers";
 import { Snapshots } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import {
-  signedData,
-  validatorsSnapshots,
-} from "../math/assets/4-validators-1000-snapshots";
-import {
   Fixture,
   getFixture,
   getValidatorEthAccount,
   mineBlocks,
   SNAPSHOT_BUFFER_LENGTH,
 } from "../setup";
+import {
+  signedData,
+  validatorsSnapshotsG1,
+} from "../sharedConstants/4-validators-snapshots-100-Group1";
 
 describe("Snapshots: With successful snapshot completed", () => {
   let fixture: Fixture;
@@ -24,7 +24,9 @@ describe("Snapshots: With successful snapshot completed", () => {
   });
 
   it("Should succeed doing a valid snapshot for next epoch", async function () {
-    const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
+    const validValidator = await getValidatorEthAccount(
+      validatorsSnapshotsG1[0]
+    );
     expect(await fixture.snapshots.getEpoch()).to.be.equal(
       SNAPSHOT_BUFFER_LENGTH
     );
@@ -43,7 +45,9 @@ describe("Snapshots: With successful snapshot completed", () => {
   });
 
   it("Should not allow committing a snapshot for next epoch before time", async function () {
-    const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
+    const validValidator = await getValidatorEthAccount(
+      validatorsSnapshotsG1[0]
+    );
     expect(await fixture.snapshots.getEpoch()).to.be.equal(
       SNAPSHOT_BUFFER_LENGTH
     );
@@ -61,7 +65,9 @@ describe("Snapshots: With successful snapshot completed", () => {
   });
 
   it("Does not allow snapshot with data from previous snapshot", async function () {
-    const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
+    const validValidator = await getValidatorEthAccount(
+      validatorsSnapshotsG1[0]
+    );
     await mineBlocks(
       (await fixture.snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
@@ -81,7 +87,7 @@ describe("Snapshots: With successful snapshot completed", () => {
       (await fixture.snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
     await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .snapshot(
         signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
         signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
@@ -89,7 +95,9 @@ describe("Snapshots: With successful snapshot completed", () => {
     await fixture.validatorPool.initializeETHDKG();
     const junkData =
       "0x0000000000000000000000000000000000000000000000000000006d6168616d";
-    const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
+    const validValidator = await getValidatorEthAccount(
+      validatorsSnapshotsG1[0]
+    );
     await expect(
       fixture.snapshots.connect(validValidator).snapshot(junkData, junkData)
     ).to.be.revertedWith(`401`);
@@ -113,7 +121,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     );
 
     const snapshotData = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getLatestSnapshot();
 
     const blockClaims = snapshotData.blockClaims;
@@ -144,7 +152,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     );
 
     const blockClaims = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getBlockClaimsFromSnapshot(SNAPSHOT_BUFFER_LENGTH);
 
     await expect(blockClaims.chainId).to.be.equal(expectedChainId);
@@ -174,7 +182,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     );
 
     const blockClaims = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getBlockClaimsFromLatestSnapshot();
 
     await expect(blockClaims.chainId).to.be.equal(expectedChainId);
@@ -190,7 +198,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     const expectedHeight = BigNumber.from(snapshotNumber.toNumber() * 1024);
 
     const height = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getAliceNetHeightFromSnapshot(snapshotNumber);
 
     await expect(height).to.be.equal(expectedHeight);
@@ -200,7 +208,7 @@ describe("Snapshots: With successful snapshot completed", () => {
     const expectedHeight = BigNumber.from(SNAPSHOT_BUFFER_LENGTH * 1024);
 
     const height = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getAliceNetHeightFromLatestSnapshot();
 
     await expect(height).to.be.equal(expectedHeight);
@@ -209,7 +217,7 @@ describe("Snapshots: With successful snapshot completed", () => {
   it("getChainIdFromSnapshot returns correct chain id", async function () {
     const expectedChainId = 1;
     const chainId = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getChainIdFromSnapshot(snapshotNumber);
 
     await expect(chainId).to.be.equal(expectedChainId);
@@ -218,7 +226,7 @@ describe("Snapshots: With successful snapshot completed", () => {
   it("getChainIdFromLatestSnapshot returns correct chain id", async function () {
     const expectedChainId = 1;
     const chainId = await fixture.snapshots
-      .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+      .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
       .getChainIdFromLatestSnapshot();
     await expect(chainId).to.be.equal(expectedChainId);
   });

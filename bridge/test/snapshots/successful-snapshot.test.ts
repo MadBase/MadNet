@@ -2,10 +2,6 @@ import { ethers } from "hardhat";
 import { Snapshots } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import {
-  signedData,
-  validatorsSnapshots as validatorsSnapshots1,
-} from "../math/assets/4-validators-1000-snapshots";
-import {
   Fixture,
   getFixture,
   getValidatorEthAccount,
@@ -13,10 +9,13 @@ import {
   SNAPSHOT_BUFFER_LENGTH,
 } from "../setup";
 import {
-  invalidSnapshot500,
-  invalidSnapshotChainID2,
-  invalidSnapshotIncorrectSig,
-} from "./assets/4-validators-snapshots-1";
+  invalidSnapshot7168ChainID2,
+  invalidSnapshot7668,
+  invalidSnapshotIncorrectSig7168,
+  signedData,
+  validatorsSnapshotsG1,
+} from "../sharedConstants/4-validators-snapshots-100-Group1";
+
 describe("Snapshots: With successful ETHDKG round completed", () => {
   let fixture: Fixture;
   let snapshots: Snapshots;
@@ -33,7 +32,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
       "0x0000000000000000000000000000000000000000000000000000006d6168616d";
     await expect(
       snapshots
-        .connect(await getValidatorEthAccount(validatorsSnapshots1[0]))
+        .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(junkData, junkData)
     ).to.be.revertedWith("1401");
   });
@@ -43,20 +42,23 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
       snapshots
         .connect(
           await getValidatorEthAccount(
-            validatorsSnapshots1[invalidSnapshot500.validatorIndex]
+            validatorsSnapshotsG1[invalidSnapshot7668.validatorIndex]
           )
         )
-        .snapshot(invalidSnapshot500.GroupSignature, invalidSnapshot500.BClaims)
+        .snapshot(
+          invalidSnapshot7668.GroupSignature,
+          invalidSnapshot7668.BClaims
+        )
     ).to.be.revertedWith("406");
   });
 
   it("Reverts when snapshot data contains invalid chain id", async function () {
     await expect(
       snapshots
-        .connect(await getValidatorEthAccount(validatorsSnapshots1[0]))
+        .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
-          invalidSnapshotChainID2.GroupSignature,
-          invalidSnapshotChainID2.BClaims
+          invalidSnapshot7168ChainID2.GroupSignature,
+          invalidSnapshot7168ChainID2.BClaims
         )
     ).to.be.revertedWith("407");
   });
@@ -67,12 +69,14 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
       snapshots
         .connect(
           await getValidatorEthAccount(
-            validatorsSnapshots1[invalidSnapshotIncorrectSig.validatorIndex]
+            validatorsSnapshotsG1[
+              invalidSnapshotIncorrectSig7168.validatorIndex
+            ]
           )
         )
         .snapshot(
           signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          invalidSnapshotIncorrectSig.BClaims
+          invalidSnapshotIncorrectSig7168.BClaims
         )
     ).to.be.revertedWith("405");
   });
@@ -82,12 +86,14 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
       snapshots
         .connect(
           await getValidatorEthAccount(
-            validatorsSnapshots1[invalidSnapshotIncorrectSig.validatorIndex]
+            validatorsSnapshotsG1[
+              invalidSnapshotIncorrectSig7168.validatorIndex
+            ]
           )
         )
         .snapshot(
-          invalidSnapshotIncorrectSig.GroupSignature,
-          invalidSnapshotIncorrectSig.BClaims
+          invalidSnapshotIncorrectSig7168.GroupSignature,
+          invalidSnapshotIncorrectSig7168.BClaims
         )
     ).to.be.revertedWith("404");
   });
@@ -99,7 +105,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
     const expectedSafeToProceedConsensus = true;
     await expect(
       snapshots
-        .connect(await getValidatorEthAccount(validatorsSnapshots1[0]))
+        .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
           signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
           signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
@@ -110,7 +116,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
         expectedChainId,
         expectedEpoch,
         expectedHeight,
-        ethers.utils.getAddress(validatorsSnapshots1[0].address),
+        ethers.utils.getAddress(validatorsSnapshotsG1[0].address),
         expectedSafeToProceedConsensus,
         signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature
       );

@@ -2,7 +2,7 @@ import { BigNumber } from "ethers";
 import { ValidatorRawData } from "../ethdkg/setup";
 import { SignedBClaims, Snapshot } from "../setup";
 
-export const validatorsSnapshots: ValidatorRawData[] = [
+export const validatorsSnapshotsG1: ValidatorRawData[] = [
   {
     privateKey:
       "0xff000000000000000000000000000000000000000000000000000000000000ff",

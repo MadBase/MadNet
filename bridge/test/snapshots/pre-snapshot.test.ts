@@ -7,7 +7,7 @@ import {
   getTokenIdFromTx,
   getValidatorEthAccount,
 } from "../setup";
-import { validatorsSnapshots } from "./assets/4-validators-snapshots-1";
+import { validatorsSnapshotsG1 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 
 describe("Snapshots: Tests Snapshots methods", () => {
   let fixture: Fixture;
@@ -30,7 +30,7 @@ describe("Snapshots: Tests Snapshots methods", () => {
     adminSigner = await getValidatorEthAccount(admin.address);
     randomSigner = await getValidatorEthAccount(randomUser.address);
 
-    for (const validator of validatorsSnapshots) {
+    for (const validator of validatorsSnapshotsG1) {
       validators.push(validator.address);
     }
 
@@ -43,7 +43,7 @@ describe("Snapshots: Tests Snapshots methods", () => {
       stakeAmountATokenWei.mul(validators.length)
     );
 
-    for (const validator of validatorsSnapshots) {
+    for (const validator of validatorsSnapshotsG1) {
       const tx = await fixture.publicStaking
         .connect(adminSigner)
         .mintTo(validator.address, stakeAmountATokenWei, lockTime);
@@ -70,7 +70,9 @@ describe("Snapshots: Tests Snapshots methods", () => {
   it("Does not allow snapshot consensus is not running", async function () {
     const junkData =
       "0x0000000000000000000000000000000000000000000000000000006d6168616d";
-    const validValidator = await getValidatorEthAccount(validatorsSnapshots[0]);
+    const validValidator = await getValidatorEthAccount(
+      validatorsSnapshotsG1[0]
+    );
     await expect(
       fixture.snapshots.connect(validValidator).snapshot(junkData, junkData)
     ).to.be.revertedWith(`401`);

@@ -1,8 +1,16 @@
 import { BigNumber, ContractTransaction, Signer } from "ethers";
 import { ethers } from "hardhat";
+import {
+  AliceNetFactory,
+  AToken,
+  PublicStaking,
+  ValidatorPool,
+  ValidatorPoolMock,
+  ValidatorStaking,
+} from "../../typechain-types";
 import { ValidatorRawData } from "../ethdkg/setup";
 import {
-  factoryCallAnyFixture,
+  factoryCallAny,
   Fixture,
   getTokenIdFromTx,
   getValidatorEthAccount,
@@ -50,8 +58,26 @@ export const commitSnapshots = async (
   }
 };
 
-export const getCurrentState = async (
+export const getCurrentStateWFixture = async (
   fixture: Fixture,
+  _validators: string[]
+): Promise<State> => {
+  return getCurrentState(
+    fixture.factory,
+    fixture.publicStaking,
+    fixture.validatorStaking,
+    fixture.aToken,
+    fixture.validatorPool,
+    _validators
+  );
+};
+
+export const getCurrentState = async (
+  factory: AliceNetFactory,
+  publicStaking: PublicStaking,
+  validatorStaking: ValidatorStaking,
+  aToken: AToken,
+  validatorPool: ValidatorPool | ValidatorPoolMock,
   _validators: string[]
 ): Promise<State> => {
   // System state
@@ -95,26 +121,24 @@ export const getCurrentState = async (
   const [adminSigner] = await ethers.getSigners();
   // Get state for admin
   state.Admin.PublicStaking = (
-    await fixture.publicStaking.balanceOf(adminSigner.address)
+    await publicStaking.balanceOf(adminSigner.address)
   ).toBigInt();
   state.Admin.ValNFT = (
-    await fixture.validatorStaking.balanceOf(adminSigner.address)
+    await validatorStaking.balanceOf(adminSigner.address)
   ).toBigInt();
-  state.Admin.ATK = (
-    await fixture.aToken.balanceOf(adminSigner.address)
-  ).toBigInt();
+  state.Admin.ATK = (await aToken.balanceOf(adminSigner.address)).toBigInt();
   state.Admin.Addr = adminSigner.address;
 
   // Get state for validators
   for (let i = 0; i < _validators.length; i++) {
     const validator: Validator = {
       Idx: i,
-      NFT: (await fixture.publicStaking.balanceOf(_validators[i])).toBigInt(),
-      ATK: (await fixture.aToken.balanceOf(_validators[i])).toBigInt(),
+      NFT: (await publicStaking.balanceOf(_validators[i])).toBigInt(),
+      ATK: (await aToken.balanceOf(_validators[i])).toBigInt(),
       Addr: _validators[i],
-      Reg: await fixture.validatorPool.isValidator(_validators[i]),
-      ExQ: await fixture.validatorPool.isInExitingQueue(_validators[i]),
-      Acc: await fixture.validatorPool.isAccusable(_validators[i]),
+      Reg: await validatorPool.isValidator(_validators[i]),
+      ExQ: await validatorPool.isInExitingQueue(_validators[i]),
+      Acc: await validatorPool.isAccusable(_validators[i]),
     };
     state.validators.push(validator);
   }
@@ -122,31 +146,31 @@ export const getCurrentState = async (
   const contractData = [
     {
       contractState: state.PublicStaking,
-      contractAddress: fixture.publicStaking.address,
+      contractAddress: publicStaking.address,
     },
     {
       contractState: state.ValidatorStaking,
-      contractAddress: fixture.validatorStaking.address,
+      contractAddress: validatorStaking.address,
     },
     {
       contractState: state.ValidatorPool,
-      contractAddress: fixture.validatorPool.address,
+      contractAddress: validatorPool.address,
     },
     {
       contractState: state.Factory,
-      contractAddress: fixture.factory.address,
+      contractAddress: factory.address,
     },
   ];
   // Get state for contracts
   for (let i = 0; i < contractData.length; i++) {
     contractData[i].contractState.PublicStaking = (
-      await fixture.publicStaking.balanceOf(contractData[i].contractAddress)
+      await publicStaking.balanceOf(contractData[i].contractAddress)
     ).toBigInt();
     contractData[i].contractState.ValNFT = (
-      await fixture.validatorStaking.balanceOf(contractData[i].contractAddress)
+      await validatorStaking.balanceOf(contractData[i].contractAddress)
     ).toBigInt();
     contractData[i].contractState.ATK = (
-      await fixture.aToken.balanceOf(contractData[i].contractAddress)
+      await aToken.balanceOf(contractData[i].contractAddress)
     ).toBigInt();
     contractData[i].contractState.ETH = (
       await ethers.provider.getBalance(contractData[i].contractAddress)
@@ -164,16 +188,34 @@ export const showState = async (title: string, state: State): Promise<void> => {
   }
 };
 
-export const createValidators = async (
+export const createValidatorsWFixture = async (
   fixture: Fixture,
   _validatorsSnapshots: ValidatorRawData[]
 ): Promise<string[]> => {
+  return await createValidators(
+    fixture.factory,
+    fixture.aToken,
+    fixture.validatorPool,
+    fixture.publicStaking,
+    fixture.validatorStaking,
+    _validatorsSnapshots
+  );
+};
+
+export const createValidators = async (
+  factory: AliceNetFactory,
+  aToken: AToken,
+  validatorPool: ValidatorPool | ValidatorPoolMock,
+  publicStaking: PublicStaking,
+  validatorStaking: ValidatorStaking,
+  _validatorsSnapshots: ValidatorRawData[]
+): Promise<string[]> => {
   const validators: string[] = [];
-  const stakeAmountATokenWei = await fixture.validatorPool.getStakeAmount();
+  const stakeAmountATokenWei = await validatorPool.getStakeAmount();
   const [adminSigner] = await ethers.getSigners();
   // Approve ValidatorPool to withdraw ATK tokens of validators
-  await fixture.aToken.approve(
-    fixture.validatorPool.address,
+  await aToken.approve(
+    validatorPool.address,
     stakeAmountATokenWei.mul(_validatorsSnapshots.length)
   );
   for (let i = 0; i < _validatorsSnapshots.length; i++) {
@@ -181,43 +223,83 @@ export const createValidators = async (
     await getValidatorEthAccount(validator);
     validators.push(validator.address);
     // Send ATK tokens to each validator
-    await fixture.aToken.transfer(validator.address, stakeAmountATokenWei);
+    await aToken.transfer(validator.address, stakeAmountATokenWei);
   }
-  await fixture.aToken
+  await aToken
     .connect(adminSigner)
     .approve(
-      fixture.publicStaking.address,
+      publicStaking.address,
       stakeAmountATokenWei.mul(_validatorsSnapshots.length)
     );
   await showState(
     "After creating:",
-    await getCurrentState(fixture, validators)
+    await getCurrentState(
+      factory,
+      publicStaking,
+      validatorStaking,
+      aToken,
+      validatorPool,
+      validators
+    )
   );
   return validators;
 };
 
-export const stakeValidators = async (
+export const stakeValidatorsWFixture = async (
   fixture: Fixture,
+  validators: string[]
+): Promise<BigNumber[]> => {
+  await showState(
+    "After staking:",
+    await getCurrentStateWFixture(fixture, validators)
+  );
+  return await stakeValidators(
+    fixture.factory,
+    fixture.aToken,
+    fixture.validatorPool as ValidatorPool,
+    fixture.publicStaking,
+    fixture.validatorStaking,
+    validators
+  );
+};
+
+export const stakeValidators = async (
+  factory: AliceNetFactory,
+  aToken: AToken,
+  validatorPool: ValidatorPool | ValidatorPoolMock,
+  publicStaking: PublicStaking,
+  validatorStaking: ValidatorStaking,
+
   validators: string[]
 ): Promise<BigNumber[]> => {
   const stakingTokenIds: BigNumber[] = [];
   const [adminSigner] = await ethers.getSigners();
-  const stakeAmountATokenWei = await fixture.validatorPool.getStakeAmount();
+  const stakeAmountATokenWei = await validatorPool.getStakeAmount();
   const lockTime = 1;
   for (let i = 0; i < validators.length; i++) {
     // Stake all ATK tokens
-    const tx = await fixture.publicStaking
+    const tx = await publicStaking
       .connect(adminSigner)
-      .mintTo(fixture.factory.address, stakeAmountATokenWei, lockTime);
+      .mintTo(factory.address, stakeAmountATokenWei, lockTime);
     // Get the proof of staking (NFT's tokenID)
     const tokenID = await getTokenIdFromTx(tx);
     stakingTokenIds.push(tokenID);
-    await factoryCallAnyFixture(fixture, "publicStaking", "approve", [
-      fixture.validatorPool.address,
+    factoryCallAny(factory, publicStaking, "approve", [
+      validatorPool.address,
       tokenID,
     ]);
   }
-  await showState("After staking:", await getCurrentState(fixture, validators));
+  await showState(
+    "After staking:",
+    await getCurrentState(
+      factory,
+      publicStaking,
+      validatorStaking,
+      aToken,
+      validatorPool,
+      validators
+    )
+  );
   return stakingTokenIds;
 };
 

@@ -11,8 +11,7 @@ import {
 import { isHexString } from "ethers/lib/utils";
 import { ethers, network } from "hardhat";
 import { Artifact } from "hardhat/types";
-import SnapshotsV1Artifact from "../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
-import { Snapshots as SnapshotsV1 } from "../legacy/V1/typechain-types";
+import SnapshotsV1Artifact from "../../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
 import {
   AliceNetFactory,
   AToken,
@@ -33,8 +32,9 @@ import {
 import { completeETHDKGRound, ValidatorRawData } from "./ethdkg/setup";
 import {
   signedData,
-  validatorsSnapshots,
-} from "./math/assets/4-validators-1000-snapshots";
+  validatorsSnapshotsG1,
+} from "./sharedConstants/4-validators-snapshots-100-Group1";
+import { createValidators, stakeValidators } from "./validatorPool/setup";
 
 export const SNAPSHOT_BUFFER_LENGTH = 6;
 
@@ -605,7 +605,7 @@ export const getFixture = async (
       BigNumber.from(6),
     ])) as ETHDKG;
   }
-  let snapshots;
+  let snapshots: any;
   if (typeof mockSnapshots !== "undefined" && mockSnapshots) {
     // Snapshots Mock
     snapshots = (await deployUpgradeableWithFactory(
@@ -617,13 +617,13 @@ export const getFixture = async (
     )) as Snapshots;
   } else {
     // Snapshots
-    snapshots = (await deployUpgradeableV1WithFactory(
+    snapshots = await deployUpgradeableV1WithFactory(
       factory,
       SnapshotsV1Artifact,
       "Snapshots",
       [10, 40],
       [1, 1024]
-    )) as SnapshotsV1;
+    );
   }
 
   const aTokenMinter = (await deployUpgradeableWithFactory(
@@ -645,7 +645,31 @@ export const getFixture = async (
     await mineBlocks(phaseLength);
   }
   if (sync === true) {
-    await completeETHDKGRound(validatorsSnapshots, {
+    if (mockETHDKG !== true) {
+      const validators = await createValidators(
+        factory,
+        aToken,
+        validatorPool,
+        publicStaking,
+        validatorStaking,
+        validatorsSnapshotsG1
+      );
+      const stakingTokenIds = await stakeValidators(
+        factory,
+        aToken,
+        validatorPool,
+        publicStaking,
+        validatorStaking,
+        validators
+      );
+      await factoryCallAny(factory, validatorPool, "registerValidators", [
+        validators,
+        stakingTokenIds,
+      ]);
+      await factoryCallAny(factory, validatorPool, "initializeETHDKG");
+    }
+
+    await completeETHDKGRound(validatorsSnapshotsG1, {
       ethdkg: ethdkg,
       validatorPool: validatorPool,
     });
@@ -654,7 +678,7 @@ export const getFixture = async (
     );
     const signedSnapshots = signedData;
     snapshots = snapshots.connect(
-      await getValidatorEthAccount(validatorsSnapshots[0])
+      await getValidatorEthAccount(validatorsSnapshotsG1[0])
     );
     //take 6 snapshots
     for (let i = 0; i < SNAPSHOT_BUFFER_LENGTH; i++) {

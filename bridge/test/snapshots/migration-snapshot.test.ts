@@ -1,10 +1,6 @@
 import { ethers } from "hardhat";
 import { completeETHDKGRound } from "../ethdkg/setup";
 import {
-  signedData,
-  validatorsSnapshots,
-} from "../math/assets/4-validators-1000-snapshots";
-import {
   expect,
   factoryCallAny,
   factoryCallAnyFixture,
@@ -13,7 +9,14 @@ import {
   getValidatorEthAccount,
   mineBlocks,
 } from "../setup";
-import { createValidators, stakeValidators } from "../validatorPool/setup";
+import {
+  signedData,
+  validatorsSnapshotsG1,
+} from "../sharedConstants/4-validators-snapshots-100-Group1";
+import {
+  createValidatorsWFixture,
+  stakeValidatorsWFixture,
+} from "../validatorPool/setup";
 import {
   invalidSnapshot500,
   validSnapshot1024,
@@ -67,8 +70,11 @@ xdescribe("Snapshots: Migrate state", () => {
   });
 
   it("Should be able to do snapshots after migration", async function () {
-    const validators = await createValidators(fixture, validatorsSnapshots);
-    const stakingTokenIds = await stakeValidators(fixture, validators);
+    const validators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshotsG1
+    );
+    const stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -76,7 +82,7 @@ xdescribe("Snapshots: Migrate state", () => {
       [validators, stakingTokenIds]
     );
     await factoryCallAnyFixture(fixture, "validatorPool", "initializeETHDKG");
-    await completeETHDKGRound(validatorsSnapshots, {
+    await completeETHDKGRound(validatorsSnapshotsG1, {
       ethdkg: fixture.ethdkg,
       validatorPool: fixture.validatorPool,
     });
@@ -110,7 +116,7 @@ xdescribe("Snapshots: Migrate state", () => {
     );
     await expect(
       fixture.snapshots
-        .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
+        .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(signedData[503].GroupSignature, signedData[503].BClaims)
     )
       .to.emit(fixture.snapshots, `SnapshotTaken`)
@@ -118,7 +124,7 @@ xdescribe("Snapshots: Migrate state", () => {
         expectedChainId,
         expectedEpoch,
         expectedHeight,
-        ethers.utils.getAddress(validatorsSnapshots[0].address),
+        ethers.utils.getAddress(validatorsSnapshotsG1[0].address),
         expectedSafeToProceedConsensus,
         signedData[503].GroupSignature
       );

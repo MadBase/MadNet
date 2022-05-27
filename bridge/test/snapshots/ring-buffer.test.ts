@@ -1,15 +1,15 @@
 import { expect } from "chai";
 import { contract } from "hardhat";
 import {
-  signedData,
-  validatorsSnapshots,
-} from "../math/assets/4-validators-1000-snapshots";
-import {
   Fixture,
   getFixture,
   getValidatorEthAccount,
   mineBlocks,
 } from "../setup";
+import {
+  signedData,
+  validatorsSnapshotsG1,
+} from "../sharedConstants/4-validators-snapshots-100-Group1";
 
 contract("SnapshotRingBuffer", async () => {
   let fixture: Fixture;
@@ -32,7 +32,7 @@ contract("SnapshotRingBuffer", async () => {
       const signedSnapshots = signedData;
       const numSnaps = epochs + 6;
       let snapshots = fixture.snapshots.connect(
-        await getValidatorEthAccount(validatorsSnapshots[0])
+        await getValidatorEthAccount(validatorsSnapshotsG1[0])
       );
       //take 6 snapshots
       for (let i = epochs + 1; i <= numSnaps; i++) {
