@@ -669,15 +669,17 @@ export const getFixture = async (
       await contractTx.wait();
     }
   }
-  //upgrade the snapshot contract
-  snapshots = (await deployLogicAndUpgradeWithFactory(
-    factory,
-    "Snapshots",
-    snapshots.address,
-    undefined,
-    [],
-    [1, 1024]
-  )) as Snapshots;
+  if (mockSnapshots !== true) {
+    //upgrade the snapshot contract
+    snapshots = (await deployLogicAndUpgradeWithFactory(
+      factory,
+      "Snapshots",
+      snapshots.address,
+      undefined,
+      [],
+      [1, 1024]
+    )) as Snapshots;
+  }
 
   return {
     aToken,
