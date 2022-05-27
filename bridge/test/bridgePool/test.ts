@@ -31,7 +31,6 @@ let immutableAuthErrorCodesContract: ImmutableAuthErrorCodes;
 let bridgePoolErrorCodesContract: BridgePoolErrorCodes;
 let ethsReceived = BigNumber.from(0);
 
-const ethIn = BigNumber.from(0);
 const bTokenFeeInETH = 10;
 const totalErc20Amount = BigNumber.from(20000).toBigInt();
 const erc20Amount = BigNumber.from(100).toBigInt();

@@ -32,7 +32,7 @@ export interface state {
 }
 
 export async function getState(fixture: Fixture, bridgePool: BridgePool) {
-  let [admin, user] = await ethers.getSigners();
+  const [admin, user] = await ethers.getSigners();
   const state: state = {
     Balances: {
       aToken: {

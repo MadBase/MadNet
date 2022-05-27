@@ -1,7 +1,5 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Contract } from "ethers";
 import { ethers } from "hardhat";
-import { AliceNetFactory } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import {
   Fixture,
@@ -12,14 +10,11 @@ import {
 let fixture: Fixture;
 describe("BridgePool Contract Factory", () => {
   let firstOwner: SignerWithAddress;
-  let delegate: SignerWithAddress;
-  let bridgePoolFactory: AliceNetFactory;
-  let bridgePool: Contract;
   let fixture: Fixture;
 
   beforeEach(async () => {
     fixture = await getFixture(false, false, false);
-    [firstOwner, delegate] = await ethers.getSigners();
+    [firstOwner] = await ethers.getSigners();
   });
   describe("Testing Access control", () => {
     it("should not deploy new BridgePool with BridgePoolFactory not being delegator", async () => {
