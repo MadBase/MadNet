@@ -73,9 +73,8 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
     });
   });
   describe("AccuseInvalidTransactionConsumption:", async () => {
+    const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
     it("returns signer account with non existant utxo", async function () {
-      const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
-
       await addValidators(fixture.validatorPool, [signerAccount0]);
       const {
         pClaims,
@@ -101,8 +100,6 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
     });
 
     it("reverts with InvalidAccusation (ConsumptionOfValidDeposit)", async function () {
-      const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
-
       await addValidators(fixture.validatorPool, [signerAccount0]);
 
       const {
@@ -152,9 +149,8 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
     });
 
     it("reverts when chain id is not valid", async function () {
-      const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
-
-      await addValidators(fixture.validatorPool, [signerAccount0]);
+      const address2 = "0x03e0AcB2Bf2B41D7E102Cd44937f6c5c6F1d5353";
+      await addValidators(fixture.validatorPool, [signerAccount0, address2]);
       const {
         pClaims,
         pClaimsSig,
@@ -173,15 +169,12 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
           txInPreImage,
           proofs
         )
-      ).to.be.revertedWith(
-        "Accusations: the signer of these proposal is not a valid validator!"
-      );
+      ).to.be.revertedWith("Accusations: ChainId should be the same");
     });
 
     it("reverts when height is not valid", async function () {
-      const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
-
-      await addValidators(fixture.validatorPool, [signerAccount0]);
+      const address2 = "0x03e0AcB2Bf2B41D7E102Cd44937f6c5c6F1d5353";
+      await addValidators(fixture.validatorPool, [signerAccount0, address2]);
 
       const {
         pClaims,
@@ -201,9 +194,7 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
           txInPreImage,
           proofs
         )
-      ).to.be.revertedWith(
-        "Accusations: the signer of these proposal is not a valid validator!"
-      );
+      ).to.be.revertedWith("Accusations: Height delta should be 1");
     });
 
     it("reverts when sig group is not valid", async function () {
@@ -229,12 +220,10 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
           txInPreImage,
           proofs
         )
-      ).to.be.revertedWith(
-        "Accusations: the signer of these proposal is not a valid validator!"
-      );
+      ).to.be.revertedWith("elliptic curve pairing failed");
     });
 
-    it("reverts when sig group is valid but incorrect", async function () {
+    it("reverts when sig group is signed with a different key", async function () {
       const signerAccount0 = "0x38e959391dD8598aE80d5d6D114a7822A09d313A";
 
       await addValidators(fixture.validatorPool, [signerAccount0]);
@@ -259,7 +248,7 @@ describe("StakingPositionDescriptor: Tests StakingPositionDescriptor methods", a
           txInPreImage,
           proofs
         )
-      ).to.be.revertedWith("elliptic curve pairing failed");
+      ).to.be.revertedWith("Accusations: Signature verification failed");
     });
 
     it("reverts when BClaims is invalid without transactions", async function () {
