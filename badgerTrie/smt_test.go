@@ -955,7 +955,7 @@ func TestParseBatchNoPanic(t *testing.T) {
 			} else {
 				data = GetFreshData(1, i)[0]
 			}
-			smt.parseBatch(data)//nolint:errcheck			
+			smt.parseBatch(data) //nolint:errcheck
 		}
 	}
 }
@@ -1409,15 +1409,7 @@ func TestBigDelete(t *testing.T) {
 }
 
 func TestSnapShotDrop(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	dir := t.TempDir()
 	opts := badger.DefaultOptions(dir)
 	db, err := badger.Open(opts)
 	if err != nil {
@@ -1425,7 +1417,7 @@ func TestSnapShotDrop(t *testing.T) {
 	}
 	defer db.Close()
 	smt := NewSMT(nil, Hasher, prefixFn)
-	numKeys := 30000
+	numKeys := 3000
 	keys := GetFreshData(numKeys, 32)
 	values := GetFreshData(numKeys, 32)
 	err = db.Update(func(txn *badger.Txn) error {

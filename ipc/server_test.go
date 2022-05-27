@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
@@ -73,9 +73,8 @@ func newTestDialer(socketFile string) (func() []Msg, func(b []byte) error, func(
 func TestA(t *testing.T) {
 	config.Configuration.Firewalld.Enabled = true
 
-	socketFile := testutils.SocketFileName()
-	defer os.Remove(socketFile)
-
+	dir := t.TempDir()
+	socketFile := path.Join(dir, "socket")
 	s := NewServer(socketFile)
 	l, _ := test.NewNullLogger()
 	s.logger = l
