@@ -254,9 +254,12 @@ export const deployUpgradeableWithFactory = async (
   constructorArgs: any[] = []
 ): Promise<Contract> => {
   const _Contract = await ethers.getContractFactory(contractName);
-  let deployCode = _Contract.getDeployTransaction(...constructorArgs)
-    .data as BytesLike;
-  const contractTx = await factory.deployTemplate(deployCode);
+  let deployCode: BytesLike;
+
+  const contractTx = await factory.deployTemplate(
+    (deployCode = _Contract.getDeployTransaction(...constructorArgs)
+      .data as BytesLike)
+  );
 
   let receipt = await ethers.provider.getTransactionReceipt(contractTx.hash);
   if (receipt.gasUsed.gt(10_000_000)) {
