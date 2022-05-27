@@ -1,3 +1,5 @@
+//go:build integration
+
 package monitor_test
 
 import (
@@ -8,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/MadBase/MadNet/blockchain/dkg/dtest"
 
 	"github.com/MadBase/MadNet/blockchain/dkg/dkgtasks"
 
@@ -147,13 +151,15 @@ func TestMonitorPersist(t *testing.T) {
 	assert.Nil(t, err)
 	t.Logf("Raw: %v", string(raw))
 
-	mon.PersistState()
+	err = mon.PersistState()
+	assert.Nil(t, err)
 
 	//
 	newMon, err := monitor.NewMonitor(database, database, mocks.NewMockAdminHandler(), &mockDepositHandler{}, eth, 1*time.Second, time.Minute, 1)
 	assert.Nil(t, err)
 
-	newMon.LoadState()
+	err = newMon.LoadState()
+	assert.Nil(t, err)
 
 	newRaw, err := json.Marshal(mon)
 	assert.Nil(t, err)
@@ -165,7 +171,10 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	// setup
 	adminHandler := mocks.NewMockAdminHandler()
 	depositHandler := &mockDepositHandler{}
-	eth := mocks.NewMockBaseEthereum()
+
+	ecdsaPrivateKeys, _ := dtest.InitializePrivateKeysAndAccounts(5)
+	eth := dtest.ConnectSimulatorEndpoint(t, ecdsaPrivateKeys, 333*time.Millisecond)
+	defer eth.Close()
 	logger := logging.GetLogger("test")
 
 	addr0 := common.HexToAddress("0x546F99F244b7B58B855330AE0E2BC1b30b41302F")
@@ -177,21 +186,16 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.Nil(t, err)
 	populateMonitor(mon.State, addr0, EPOCH)
 
+	acct := eth.GetKnownAccounts()[0]
+	state := objects.NewDkgState(acct)
 	mockTsk := &mockTask{
-		DkgTask: dkgtasks.NewExecutionData(nil, 1, 40),
+		DkgTask: dkgtasks.NewExecutionData(state, 1, 40),
 	}
 	// Schedule some tasks
-	_, err = mon.State.Schedule.Schedule(1, 2, mockTsk)
-	assert.Nil(t, err)
-
-	_, err = mon.State.Schedule.Schedule(3, 4, mockTsk)
-	assert.Nil(t, err)
-
-	_, err = mon.State.Schedule.Schedule(5, 6, mockTsk)
-	assert.Nil(t, err)
-
-	_, err = mon.State.Schedule.Schedule(7, 8, mockTsk)
-	assert.Nil(t, err)
+	mon.State.Schedule.Schedule(1, 2, mockTsk)
+	mon.State.Schedule.Schedule(3, 4, mockTsk)
+	mon.State.Schedule.Schedule(5, 6, mockTsk)
+	mon.State.Schedule.Schedule(7, 8, mockTsk)
 
 	// Marshal
 	mon.TypeRegistry.RegisterInstanceType(mockTsk)
@@ -247,7 +251,8 @@ func TestBidirectionalMarshaling(t *testing.T) {
 	assert.Equal(t, taskStruct.State, taskStruct2.State)
 
 	wg := &sync.WaitGroup{}
-	tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil, nil)
+	err = tasks.StartTask(logger.WithField("Task", "Mocked"), wg, eth, task, nil, nil)
+	assert.Nil(t, err)
 	wg.Wait()
 
 	assert.True(t, taskStruct.DoneCalled)

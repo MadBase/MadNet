@@ -26,7 +26,7 @@ func MakeMockStorageGetter() *MockStorageGetter {
 	return msg
 }
 
-func makeStorage(msg dynamics.StorageGetter) *wrapper.Storage {
+func MakeStorage(msg dynamics.StorageGetter) *wrapper.Storage {
 	storage := wrapper.NewStorage(msg)
 	return storage
 }
@@ -37,7 +37,7 @@ type MockStorageGetter struct {
 	valueStoreFee     *big.Int
 	atomicSwapFee     *big.Int
 	minTxFee          *big.Int
-	maxTxVectorLength int
+	// maxTxVectorLength int
 }
 
 func (msg *MockStorageGetter) GetMaxBytes() uint32 {

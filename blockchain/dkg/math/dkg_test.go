@@ -15,10 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// pseudo-constants
-var initialMessage []byte = []byte("Hello")
-
-func TestCalculateThreshold(t *testing.T) {
+func TestMath_CalculateThreshold(t *testing.T) {
 	threshold := math.ThresholdForUserCount(4)
 	assert.Equal(t, 2, threshold)
 	threshold = math.ThresholdForUserCount(5)
@@ -33,7 +30,7 @@ func TestCalculateThreshold(t *testing.T) {
 	assert.Equal(t, 6, threshold)
 }
 
-func TestInverseArrayForUserCount(t *testing.T) {
+func TestMath_InverseArrayForUserCount(t *testing.T) {
 	n := 3
 	_, err := math.InverseArrayForUserCount(n)
 	if err == nil {
@@ -61,7 +58,7 @@ func TestInverseArrayForUserCount(t *testing.T) {
 	}
 }
 
-func TestGenerateKeys(t *testing.T) {
+func TestMath_GenerateKeys(t *testing.T) {
 	private, public, err := math.GenerateKeys()
 	assert.Nil(t, err, "error generating keys")
 
@@ -72,7 +69,7 @@ func TestGenerateKeys(t *testing.T) {
 	assert.NotNil(t, public[1], "public key missing element")
 }
 
-func TestGenerateShares(t *testing.T) {
+func TestMath_GenerateShares(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 	threshold := math.ThresholdForUserCount(n)
@@ -106,7 +103,7 @@ func TestGenerateShares(t *testing.T) {
 	t.Logf("encryptedShares:%x privateCoefficients:%x commitments:%x", encryptedShares, privateCoefficients, commitments)
 }
 
-func TestGenerateSharesBad(t *testing.T) {
+func TestMath_GenerateSharesBad(t *testing.T) {
 	_, _, _, err := math.GenerateShares(nil, objects.ParticipantList{})
 	if err == nil {
 		t.Fatal("Should have raised error (0)")
@@ -125,7 +122,7 @@ func TestGenerateSharesBad(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesGood1(t *testing.T) {
+func TestMath_VerifyDistributedSharesGood1(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 	// Test with deterministic private coefficients
@@ -150,7 +147,7 @@ func TestVerifyDistributedSharesGood1(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesGood2(t *testing.T) {
+func TestMath_VerifyDistributedSharesGood2(t *testing.T) {
 	// Number participants in key generation
 	n := 5
 	// Test with random private coefficients
@@ -175,7 +172,7 @@ func TestVerifyDistributedSharesGood2(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesGood3(t *testing.T) {
+func TestMath_VerifyDistributedSharesGood3(t *testing.T) {
 	// Number participants in key generation
 	n := 7
 	// Test with deterministic private coefficients
@@ -214,7 +211,7 @@ func TestVerifyDistributedSharesGood3(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesGood4(t *testing.T) {
+func TestMath_VerifyDistributedSharesGood4(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 	// Test with deterministic private coefficients
@@ -254,7 +251,7 @@ func TestVerifyDistributedSharesGood4(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesBad1(t *testing.T) {
+func TestMath_VerifyDistributedSharesBad1(t *testing.T) {
 	// Test for raised error for nil arguments
 	_, _, err := math.VerifyDistributedShares(nil, nil)
 	if err == nil {
@@ -267,7 +264,7 @@ func TestVerifyDistributedSharesBad1(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesBad2(t *testing.T) {
+func TestMath_VerifyDistributedSharesBad2(t *testing.T) {
 	// Test for error upon invalid number of participants
 	dkgState := &objects.DkgState{}
 	dkgState.Index = 1
@@ -279,7 +276,7 @@ func TestVerifyDistributedSharesBad2(t *testing.T) {
 	}
 }
 
-func TestVerifyDistributedSharesBad3(t *testing.T) {
+func TestMath_VerifyDistributedSharesBad3(t *testing.T) {
 	// Test for error with invalid commitments and encrypted shares
 	n := 4
 	threshold := math.ThresholdForUserCount(n)
@@ -368,7 +365,7 @@ func TestVerifyDistributedSharesBad3(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGenerateKeyShare(t *testing.T) {
+func TestMath_GenerateKeyShare(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 
@@ -413,14 +410,14 @@ func TestGenerateKeyShare(t *testing.T) {
 	t.Logf("keyShare1:%x keyShare1Proof:%x keyShare2:%x", keyShare1, keyShare1Proof, keyShare2)
 }
 
-func TestGenerateKeyShareBad(t *testing.T) {
+func TestMath_GenerateKeyShareBad(t *testing.T) {
 	_, _, _, err := math.GenerateKeyShare(nil)
 	if err == nil {
 		t.Fatal("Should have raised error")
 	}
 }
 
-func TestGenerateMasterPublicKey(t *testing.T) {
+func TestMath_GenerateMasterPublicKey(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 
@@ -446,19 +443,17 @@ func TestGenerateMasterPublicKey(t *testing.T) {
 	privateKeys[participants[0].Address] = private
 
 	// Generate encrypted shares on behalf of participants
-	encryptedShares := [][]*big.Int{}
 	keyShare1s := [][2]*big.Int{}
 	keyShare2s := [][4]*big.Int{}
 	for _, participant := range participants {
 		privateKey := privateKeys[participant.Address]
 
-		participantEncryptedShares, participantPrivateCoefficients, _, err := math.GenerateShares(privateKey, participants)
+		_, participantPrivateCoefficients, _, err := math.GenerateShares(privateKey, participants)
 		assert.Nil(t, err)
 
 		keyShare1, _, keyShare2, err := math.GenerateKeyShare(participantPrivateCoefficients[0])
 		assert.Nil(t, err)
 
-		encryptedShares = append(encryptedShares, participantEncryptedShares)
 		keyShare1s = append(keyShare1s, keyShare1)
 		keyShare2s = append(keyShare2s, keyShare2)
 	}
@@ -473,7 +468,7 @@ func TestGenerateMasterPublicKey(t *testing.T) {
 	assert.NotNil(t, masterPublicKey[3], "missing element of master public key")
 }
 
-func TestGenerateMasterPublicKeyBad(t *testing.T) {
+func TestMath_GenerateMasterPublicKeyBad(t *testing.T) {
 	keyShare1s := [][2]*big.Int{[2]*big.Int{nil, nil}}
 	keyShare2s := [][4]*big.Int{}
 	_, err := math.GenerateMasterPublicKey(keyShare1s, keyShare2s)
@@ -495,7 +490,7 @@ func TestGenerateMasterPublicKeyBad(t *testing.T) {
 	}
 }
 
-func TestGenerateGroupKeys(t *testing.T) {
+func TestMath_GenerateGroupKeys(t *testing.T) {
 	// Number participants in key generation
 	n := 4
 
@@ -551,7 +546,7 @@ func TestGenerateGroupKeys(t *testing.T) {
 	//t.Logf("groupPrivate:%x groupPublic:%x groupSignature:%x", groupPrivate, groupPublic, groupSignature)
 }
 
-func TestGenerateGroupKeysBad1(t *testing.T) {
+func TestMath_GenerateGroupKeysBad1(t *testing.T) {
 	// Initial Setup
 	n := 4
 	deterministicShares := true
@@ -589,7 +584,7 @@ func TestGenerateGroupKeysBad1(t *testing.T) {
 	}
 }
 
-func TestGenerateGroupKeysBad2(t *testing.T) {
+func TestMath_GenerateGroupKeysBad2(t *testing.T) {
 	// Initial Setup
 	n := 4
 	deterministicShares := true
@@ -618,7 +613,7 @@ func TestGenerateGroupKeysBad2(t *testing.T) {
 	}
 }
 
-func TestCategorizeGroupSigners(t *testing.T) {
+func TestMath_CategorizeGroupSigners(t *testing.T) {
 	n := 10
 	_, publishedPublicKeys, participants, commitmentArray := setupGroupSigners(t, n)
 
@@ -629,7 +624,7 @@ func TestCategorizeGroupSigners(t *testing.T) {
 	assert.Equal(t, 0, len(missing), "no participants should be missing")
 }
 
-func TestCategorizeGroupSigners1Negative(t *testing.T) {
+func TestMath_CategorizeGroupSigners1Negative(t *testing.T) {
 	n := 30
 
 	logger := logging.GetLogger("dkg")
@@ -646,7 +641,7 @@ func TestCategorizeGroupSigners1Negative(t *testing.T) {
 	assert.Equal(t, 0, len(missing), "0 participants are missing")
 }
 
-func TestCategorizeGroupSigners2Negative(t *testing.T) {
+func TestMath_CategorizeGroupSigners2Negative(t *testing.T) {
 	n := 10
 	threshold := math.ThresholdForUserCount(n)
 
@@ -670,7 +665,7 @@ func TestCategorizeGroupSigners2Negative(t *testing.T) {
 	assert.Equal(t, 0, len(missing))
 }
 
-func TestCategorizeGroupSignersBad(t *testing.T) {
+func TestMath_CategorizeGroupSignersBad(t *testing.T) {
 	n := 4
 	_, publishedPublicKeys, participants, commitmentArray := setupGroupSigners(t, n)
 	threshold := math.ThresholdForUserCount(n)
@@ -723,7 +718,7 @@ func TestCategorizeGroupSignersBad(t *testing.T) {
 	}
 }
 
-func TestCategorizeGroupSignersBad2(t *testing.T) {
+func TestMath_CategorizeGroupSignersBad2(t *testing.T) {
 	n := 4
 	_, publishedPublicKeys, participants, commitmentArray := setupGroupSigners(t, n)
 	publishedPublicKeysBad := [][4]*big.Int{}
@@ -748,7 +743,9 @@ func generateTestAddress(t *testing.T) (common.Address, *big.Int, [2]*big.Int) {
 
 	// Generating a valid ethereum address
 	key, _ := crypto.GenerateKey()
-	transactor := bind.NewKeyedTransactor(key)
+	chainId := big.NewInt(1337)
+	transactor, err := bind.NewKeyedTransactorWithChainID(key, chainId)
+	assert.Nil(t, err, "failed to create transactor")
 
 	// Generate a public key
 	privateKey, publicKey, err := math.GenerateKeys()

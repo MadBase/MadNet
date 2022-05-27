@@ -1,3 +1,5 @@
+//go:build integration
+
 package dkgtasks_test
 
 import (
@@ -85,7 +87,8 @@ func validator(t *testing.T, idx int, eth interfaces.Ethereum, validatorAcct acc
 
 	events := objects.NewEventMap()
 
-	monitor.SetupEventMap(events, nil, adminHandler, nil)
+	err := monitor.SetupEventMap(events, nil, adminHandler, nil)
+	assert.NoError(t, err)
 
 	var done bool
 
@@ -141,6 +144,9 @@ func advanceTo(t *testing.T, eth interfaces.Ethereum, target uint64) {
 		Params:  make([]byte, 0),
 	}
 
+	if target < currentBlock {
+		return
+	}
 	blocksToMine := target - currentBlock
 	var blocksToMineString = "0x" + strconv.FormatUint(blocksToMine, 16)
 
