@@ -4,40 +4,76 @@ import { ethers } from "hardhat";
 import { AliceNetFactory } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import {
-  deployFactory,
-  deployStaticWithFactory,
   Fixture,
+  getContractAddressFromDeployedProxyEvent,
   getFixture,
 } from "../setup";
-import {} from "./setup";
 
 let fixture: Fixture;
 describe("BridgePool Contract Factory", () => {
   let firstOwner: SignerWithAddress;
+  let delegate: SignerWithAddress;
   let bridgePoolFactory: AliceNetFactory;
   let bridgePool: Contract;
   let fixture: Fixture;
 
   beforeEach(async () => {
     fixture = await getFixture(false, false, false);
-    [firstOwner] = await ethers.getSigners();
-    bridgePoolFactory = (await deployFactory(
-      "BridgePoolFactory",
-      firstOwner
-    )) as AliceNetFactory;
-    console.log("BridgePoolFactory deployed to:", bridgePoolFactory.address);
+    [firstOwner, delegate] = await ethers.getSigners();
   });
+  describe("Testing Access control", () => {
+    it("should not deploy new BridgePool with BridgePoolFactory not being delegator", async () => {
+      await expect(
+        fixture.bridgePoolFactory.deployNewPool(
+          fixture.aToken.address,
+          fixture.bToken.address
+        )
+      ).to.be.revertedWith("900");
+    });
 
-  it("should deploy BridgePool contract", async () => {
-    bridgePool = await deployStaticWithFactory(
-      bridgePoolFactory,
-      "BridgePool",
-      undefined,
-      [fixture.aToken.address, fixture.bToken.address],
-      [fixture.aToken.address, fixture.bToken.address]
-    );
-    await expect(
-      bridgePool.deposit(1, firstOwner.getAddress(), 1, 1)
-    ).to.be.revertedWith("ERC20: insufficient allowance");
+    it("should not deploy new BridgePool with BridgePoolFactory trying to access factory logic directly", async () => {
+      await expect(
+        fixture.bridgePoolFactory.deployViaFactoryLogic(
+          fixture.aToken.address,
+          fixture.bToken.address
+        )
+      ).to.be.revertedWith("2018");
+    });
+
+    it("should deploy new BridgePool with BridgePoolFactory being delegator", async () => {
+      await fixture.factory.setDelegator(fixture.bridgePoolFactory.address);
+      const deployNewPoolTransaction =
+        await fixture.bridgePoolFactory.deployNewPool(
+          fixture.aToken.address,
+          fixture.bToken.address
+        );
+      const bridgePoolAddress = await getContractAddressFromDeployedProxyEvent(
+        deployNewPoolTransaction
+      );
+      const bridgePool = (await ethers.getContractFactory("BridgePool")).attach(
+        bridgePoolAddress
+      );
+      await expect(
+        bridgePool.deposit(1, firstOwner.address, 1, 1)
+      ).to.be.revertedWith("ERC20: insufficient allowance");
+    });
+
+    it("should not deploy two BridgePools with same ERC20 contract", async () => {
+      await fixture.factory.setDelegator(fixture.bridgePoolFactory.address);
+      const deployNewPoolTransaction =
+        await fixture.bridgePoolFactory.deployNewPool(
+          fixture.aToken.address,
+          fixture.bToken.address
+        );
+      const bridgePoolAddress = await getContractAddressFromDeployedProxyEvent(
+        deployNewPoolTransaction
+      );
+      await expect(
+        fixture.bridgePoolFactory.deployNewPool(
+          fixture.aToken.address,
+          fixture.bToken.address
+        )
+      ).to.be.revertedWith("901");
+    });
   });
 });

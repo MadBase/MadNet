@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT-open-group
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.11;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "contracts/utils/ImmutableAuth.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -15,13 +15,7 @@ import "contracts/utils/ERC20SafeTransfer.sol";
 
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
-contract BridgePool is
-    Initializable,
-    ImmutableFactory,
-    ImmutableBridgePool,
-    ImmutableSnapshots,
-    ERC20SafeTransfer
-{
+contract BridgePool is Initializable, ImmutableSnapshots, ERC20SafeTransfer {
     address internal immutable _erc20TokenContract;
     address internal immutable _bTokenContract;
     using MerkleProofParserLibrary for bytes;
@@ -40,7 +34,7 @@ contract BridgePool is
         uint256 nonce,
         address ercContract,
         address owner,
-        uint256 number, // If fungible, this is the amount. If non-fungible, this is the id
+        uint256 number,
         uint256 networkId
     );
 

@@ -16,7 +16,7 @@ import {
   AToken,
   ATokenBurner,
   ATokenMinter,
-  BridgePool,
+  BridgePoolFactory,
   BToken,
   ETHDKG,
   Foundation,
@@ -67,7 +67,7 @@ export interface Fixture extends BaseTokensFixture {
   ethdkg: ETHDKG;
   stakingPositionDescriptor: StakingPositionDescriptor;
   namedSigners: SignerWithAddress[];
-  bridgePool: BridgePool;
+  bridgePoolFactory: BridgePoolFactory;
 }
 
 /**
@@ -154,7 +154,7 @@ async function getContractAddressFromDeployedStaticEvent(
   return await getContractAddressFromEventLog(tx, eventSignature, eventName);
 }
 
-async function getContractAddressFromDeployedProxyEvent(
+export async function getContractAddressFromDeployedProxyEvent(
   tx: ContractTransaction
 ): Promise<string> {
   const eventSignature = "event DeployedProxy(address contractAddr)";
@@ -255,12 +255,9 @@ export const deployUpgradeableWithFactory = async (
   constructorArgs: any[] = []
 ): Promise<Contract> => {
   const _Contract = await ethers.getContractFactory(contractName);
-  let deployCode: BytesLike;
-
-  const contractTx = await factory.deployTemplate(
-    (deployCode = _Contract.getDeployTransaction(...constructorArgs)
-      .data as BytesLike)
-  );
+  let deployCode = _Contract.getDeployTransaction(...constructorArgs)
+    .data as BytesLike;
+  const contractTx = await factory.deployTemplate(deployCode);
 
   let receipt = await ethers.provider.getTransactionReceipt(contractTx.hash);
   if (receipt.gasUsed.gt(10_000_000)) {
@@ -553,13 +550,11 @@ export const getFixture = async (
   )) as ATokenBurner;
 
   // BridgePool
-  const bridgePool = (await deployUpgradeableWithFactory(
+  const bridgePoolFactory = (await deployUpgradeableWithFactory(
     factory,
-    "BridgePool",
-    "BridgePool",
-    [aToken.address, bToken.address],
-    [aToken.address, bToken.address]
-  )) as BridgePool;
+    "BridgePoolFactory",
+    "BridgePoolFactory"
+  )) as BridgePoolFactory;
 
   //TODO: uncomment upon merging of PR-126
   // DepositNotifier
@@ -588,7 +583,7 @@ export const getFixture = async (
     validatorPool,
     snapshots,
     ethdkg,
-    bridgePool,
+    bridgePoolFactory,
     factory,
     namedSigners,
     aTokenMinter,

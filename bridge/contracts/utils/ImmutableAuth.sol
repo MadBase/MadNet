@@ -160,6 +160,33 @@ abstract contract ImmutableBridgePool is ImmutableFactory {
     }
 }
 
+abstract contract ImmutableBridgePoolFactory is ImmutableFactory {
+    address private immutable _bridgePoolFactory;
+
+    modifier onlyBridgePoolFactory() {
+        require(
+            msg.sender == _bridgePoolFactory,
+            string(abi.encodePacked(ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_BRIDGEPOOLFACTORY))
+        );
+        _;
+    }
+
+    constructor() {
+        _bridgePoolFactory = getMetamorphicContractAddress(
+            0x427269646765506f6f6c466163746f7279000000000000000000000000000000,
+            _factoryAddress()
+        );
+    }
+
+    function _bridgePoolFactoryAddress() internal view returns (address) {
+        return _bridgePoolFactory;
+    }
+
+    function _saltForBridgePoolFactory() internal pure returns (bytes32) {
+        return 0x427269646765506f6f6c466163746f7279000000000000000000000000000000;
+    }
+}
+
 abstract contract ImmutableFoundation is ImmutableFactory {
     address private immutable _foundation;
 

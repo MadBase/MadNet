@@ -21,4 +21,5 @@ library ImmutableAuthErrorCodes {
     bytes32 public constant IMMUTEABLEAUTH_ONLY_ETHDKGPHASES = "2015"; // "onlyETHDKGPhases"
     bytes32 public constant IMMUTEABLEAUTH_ONLY_ETHDKG = "2016"; // "onlyETHDKG"
     bytes32 public constant IMMUTEABLEAUTH_ONLY_BRIDGEPOOL = "2017"; //onlyBridgePool
+    bytes32 public constant IMMUTEABLEAUTH_ONLY_BRIDGEPOOLFACTORY = "2018"; //onlyBridgePoolFactory
 }
