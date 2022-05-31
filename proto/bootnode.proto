@@ -2,14 +2,10 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "/;proto";
-
 service BootNode {
   rpc KnownNodes(BootNodeRequest) returns (BootNodeResponse) {}
 }
 
 message BootNodeRequest {}
 
-message BootNodeResponse {
-  repeated string Peers = 1;
-}
+message BootNodeResponse { repeated string Peers = 1; }

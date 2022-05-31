@@ -14,14 +14,9 @@ WORKDIR /app
 ADD --chown=$BUILDER_UID go.mod go.sum /app/
 
 # other binaries used for code generation are installed from go source
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc &&\
-    go install github.com/go-bindata/go-bindata/v3/... &&\
-    go install github.com/elazarl/go-bindata-assetfs/... &&\
-    go install github.com/MadBase/go-capnproto2/v2/capnpc-go &&\
-    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway &&\
-    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 &&\
+RUN go install github.com/MadBase/go-capnproto2/v2/capnpc-go &&\
     go install github.com/derision-test/go-mockgen/cmd/go-mockgen &&\
-    go install golang.org/x/tools/cmd/goimports
+    go install golang.org/x/tools/cmd/goimports &&\
+    go install github.com/bufbuild/buf/cmd/buf@v1.5.0
 
 CMD go generate -x ./... 

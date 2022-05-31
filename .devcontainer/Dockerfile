@@ -7,13 +7,10 @@ RUN if [ "${NODE_VERSION}" != "none" ]; then su vscode -c ". /usr/local/share/nv
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends capnproto protobuf-compiler
 
-RUN su vscode -c "go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && \
-    go install github.com/MadBase/go-capnproto2/v2/capnpc-go@latest && \
-    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest && \
-    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest && \
+RUN su vscode -c "go install github.com/MadBase/go-capnproto2/v2/capnpc-go@v2.18.0-custom-schema.1 && \
     go install github.com/derision-test/go-mockgen/cmd/go-mockgen@v1.1.4 && \
     go install golang.org/x/tools/cmd/goimports@latest && \
     go install github.com/ethereum/go-ethereum/cmd/abigen@v1.10.16 && \
-    go install github.com/vburenin/ifacemaker@v1.1.0 && \
-    go install github.com/ethereum/go-ethereum/cmd/ethkey@v1.10.8"
+    go install github.com/vburenin/ifacemaker@v1.2.0 && \
+    go install github.com/ethereum/go-ethereum/cmd/ethkey@v1.10.16 && \
+    go install github.com/bufbuild/buf/cmd/buf@v1.5.0"
