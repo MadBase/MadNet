@@ -94,7 +94,7 @@ describe("Snapshots: With successful ETHDKG round completed and validatorPool", 
       (await fixture.snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
     expectedChainId = 1;
-    expectedEpoch = 2;
+    expectedEpoch = (validSnapshot8192.height as number) / 1024;
     expectedHeight = validSnapshot8192.height as number;
     expectedSafeToProceedConsensus = true;
     await expect(

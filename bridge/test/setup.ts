@@ -645,7 +645,7 @@ export const getFixture = async (
     await mineBlocks(phaseLength);
   }
   if (sync === true) {
-    if (mockETHDKG !== true) {
+    if (mockETHDKG !== true && mockValidatorPool !== true) {
       const validators = await createValidators(
         factory,
         aToken,

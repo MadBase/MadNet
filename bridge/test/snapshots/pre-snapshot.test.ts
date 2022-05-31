@@ -6,6 +6,7 @@ import {
   getFixture,
   getTokenIdFromTx,
   getValidatorEthAccount,
+  mineBlocks,
 } from "../setup";
 import { validatorsSnapshotsG1 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 
@@ -29,7 +30,6 @@ describe("Snapshots: Tests Snapshots methods", () => {
     const [admin, , , , , randomUser] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
     randomSigner = await getValidatorEthAccount(randomUser.address);
-
     for (const validator of validatorsSnapshotsG1) {
       validators.push(validator.address);
     }
@@ -72,6 +72,9 @@ describe("Snapshots: Tests Snapshots methods", () => {
       "0x0000000000000000000000000000000000000000000000000000006d6168616d";
     const validValidator = await getValidatorEthAccount(
       validatorsSnapshotsG1[0]
+    );
+    await mineBlocks(
+      (await fixture.snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
     await expect(
       fixture.snapshots.connect(validValidator).snapshot(junkData, junkData)
