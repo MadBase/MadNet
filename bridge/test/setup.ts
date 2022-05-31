@@ -31,7 +31,7 @@ import {
 } from "../typechain-types";
 import { completeETHDKGRound, ValidatorRawData } from "./ethdkg/setup";
 import {
-  signedData,
+  signedData1,
   validatorsSnapshotsG1,
 } from "./sharedConstants/4-validators-snapshots-100-Group1";
 import { createValidators, stakeValidators } from "./validatorPool/setup";
@@ -676,7 +676,7 @@ export const getFixture = async (
     await mineBlocks(
       (await snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
-    const signedSnapshots = signedData;
+    const signedSnapshots = signedData1;
     snapshots = snapshots.connect(
       await getValidatorEthAccount(validatorsSnapshotsG1[0])
     );
@@ -692,17 +692,18 @@ export const getFixture = async (
       );
       await contractTx.wait();
     }
-  }
-  if (mockSnapshots !== true) {
-    //upgrade the snapshot contract
-    snapshots = (await deployLogicAndUpgradeWithFactory(
-      factory,
-      "Snapshots",
-      snapshots.address,
-      undefined,
-      [],
-      [1, 1024]
-    )) as Snapshots;
+
+    if (mockSnapshots !== true) {
+      //upgrade the snapshot contract
+      snapshots = (await deployLogicAndUpgradeWithFactory(
+        factory,
+        "Snapshots",
+        snapshots.address,
+        undefined,
+        [],
+        [1, 1024]
+      )) as Snapshots;
+    }
   }
 
   return {

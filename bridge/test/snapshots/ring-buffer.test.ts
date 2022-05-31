@@ -7,12 +7,13 @@ import {
   mineBlocks,
 } from "../setup";
 import {
-  signedData,
+  signedData1,
   validatorsSnapshotsG1,
 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 
 contract("SnapshotRingBuffer", async () => {
   let fixture: Fixture;
+
   describe("Snapshot upgrade integration", async () => {
     beforeEach(async () => {
       fixture = await getFixture(true, false, undefined, true);
@@ -29,12 +30,12 @@ contract("SnapshotRingBuffer", async () => {
 
     it("adds 6 new snapshots to the snapshot buffer", async () => {
       let epochs = (await fixture.snapshots.getEpoch()).toNumber();
-      const signedSnapshots = signedData;
+      const signedSnapshots = signedData1;
       const numSnaps = epochs + 6;
-      let snapshots = fixture.snapshots.connect(
+      const snapshots = fixture.snapshots.connect(
         await getValidatorEthAccount(validatorsSnapshotsG1[0])
       );
-      //take 6 snapshots
+      // take 6 snapshots
       for (let i = epochs + 1; i <= numSnaps; i++) {
         await mineBlocks(
           (await snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
@@ -50,7 +51,5 @@ contract("SnapshotRingBuffer", async () => {
       const lastSnapshot = await snapshots.getLatestSnapshot();
       expect(lastSnapshot.blockClaims.height).to.equal(epochs * 1024);
     });
-
-    it("attempts to get a snapshot that is not in the buffer", async () => {});
   });
 });

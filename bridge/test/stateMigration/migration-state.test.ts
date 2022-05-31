@@ -6,7 +6,7 @@ import {
 } from "../ethdkg/setup";
 import { expect, Fixture, getFixture, mineBlocks } from "../setup";
 
-describe("State Migration: Migrate state", () => {
+xdescribe("State Migration: Migrate state", () => {
   let fixture: Fixture;
 
   beforeEach(async function () {

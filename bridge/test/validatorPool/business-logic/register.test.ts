@@ -13,10 +13,10 @@ import { validatorsSnapshots } from "../../snapshots/assets/4-validators-snapsho
 import {
   burnStakeTo,
   commitSnapshots,
-  createValidators,
-  getCurrentState,
+  createValidatorsWFixture,
+  getCurrentStateWFixture,
   showState,
-  stakeValidators,
+  stakeValidatorsWFixture,
 } from "../setup";
 
 describe("ValidatorPool: Registration logic", async () => {
@@ -32,8 +32,8 @@ describe("ValidatorPool: Registration logic", async () => {
     fixture = await getFixture(false, true, true);
     const [admin, , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     stakeAmount = (await fixture.validatorPool.getStakeAmount()).toBigInt();
   });
 
@@ -131,12 +131,15 @@ describe("ValidatorPool: Registration logic", async () => {
     const _validatorsSnapshots = validatorsSnapshots.slice();
     // Repeat the first validator
     _validatorsSnapshots[1] = _validatorsSnapshots[0];
-    const newValidators = await createValidators(fixture, _validatorsSnapshots);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      _validatorsSnapshots
+    );
     // Approve first validator for twice the amount
     await fixture.aToken
       .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
       .approve(fixture.publicStaking.address, stakeAmount * BigInt(2));
-    await stakeValidators(fixture, newValidators);
+    await stakeValidatorsWFixture(fixture, newValidators);
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         newValidators,
@@ -159,8 +162,11 @@ describe("ValidatorPool: Registration logic", async () => {
       "unregisterValidators",
       [validators]
     );
-    const newValidators = await createValidators(fixture, validatorsSnapshots);
-    const newTokensIds = await stakeValidators(fixture, newValidators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const newTokensIds = await stakeValidatorsWFixture(fixture, newValidators);
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         newValidators,
@@ -170,7 +176,7 @@ describe("ValidatorPool: Registration logic", async () => {
   });
 
   it("Should successfully register validators if all conditions are met", async function () {
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     // Expect that NFTs are transferred from each validator from ValidatorPool to ValidatorStaking
     for (let index = 0; index < validators.length; index++) {
       expectedState.Factory.PublicStaking--;
@@ -189,7 +195,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "registerValidators",
       [validators, stakingTokenIds]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("after registering", currentState);
     await showState("Expected state after registering", expectedState);
     await showState("Current state after registering", currentState);
@@ -204,7 +210,7 @@ describe("ValidatorPool: Registration logic", async () => {
     const aTokenAmount = ethers.utils.parseEther("2");
     await burnStakeTo(fixture, etherAmount, aTokenAmount, adminSigner);
 
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     // Expect that NFTs are transferred from each validator from ValidatorPool to ValidatorStaking
     for (let index = 0; index < validators.length; index++) {
       expectedState.Factory.PublicStaking--;
@@ -224,7 +230,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "registerValidators",
       [validators, stakingTokenIds]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("after registering", currentState);
     await showState("Expected state after registering", expectedState);
     await showState("Current state after registering", currentState);
@@ -239,7 +245,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "registerValidators",
       [validators, stakingTokenIds]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("after registering", currentState);
     await fixture.validatorPool
       .connect(await getValidatorEthAccount(validatorsSnapshots[0]))
@@ -256,7 +262,7 @@ describe("ValidatorPool: Registration logic", async () => {
       "registerValidators",
       [validators, stakingTokenIds]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("after registering", currentState);
     // Original Validators has all the validators not only the maximum to register
     // Position 5 is not a register validator
@@ -301,7 +307,7 @@ describe("ValidatorPool: Registration logic", async () => {
     }
     await showState(
       "After claiming:",
-      await getCurrentState(fixture, validators)
+      await getCurrentStateWFixture(fixture, validators)
     );
     // After claiming, position is locked for a period of 172800 AliceNet epochs
     // To perform this test with no revert, POSITION_LOCK_PERIOD can be set to 3

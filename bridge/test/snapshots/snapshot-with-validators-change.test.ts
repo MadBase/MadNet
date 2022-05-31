@@ -16,7 +16,7 @@ import {
 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 import {
   validatorsSnapshotsG2,
-  validSnapshot8192 as validSnapShot8192G2,
+  validSnapshot8192G2 as validSnapShot8192G2,
 } from "../sharedConstants/4-validators-snapshots-100-Group2";
 import {
   createValidatorsWFixture,
@@ -31,8 +31,8 @@ describe("Snapshots: With successful ETHDKG round completed and validatorPool", 
     let expectedSafeToProceedConsensus = false;
     const fixture = await getFixture(undefined, undefined, undefined, true);
     const snapshots = fixture.snapshots as Snapshots;
-    let validators: Array<string> = [];
-    for (let validator of validatorsSnapshotsG1) {
+    const validators: Array<string> = [];
+    for (const validator of validatorsSnapshotsG1) {
       validators.push(validator.address);
     }
     await factoryCallAnyFixture(

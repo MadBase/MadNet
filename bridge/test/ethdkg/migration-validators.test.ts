@@ -17,7 +17,10 @@ import {
   validSnapshot1024,
   validSnapshot2048,
 } from "../snapshots/assets/4-validators-snapshots-1";
-import { createValidators, stakeValidators } from "../validatorPool/setup";
+import {
+  createValidatorsWFixture,
+  stakeValidatorsWFixture,
+} from "../validatorPool/setup";
 import { completeETHDKGRound } from "./setup";
 
 describe("Ethdkg: Migrate state", () => {
@@ -114,8 +117,11 @@ describe("Ethdkg: Migrate state", () => {
   });
 
   it("Should not be able to run ethdkg after migration without scheduling maintenance", async function () {
-    const validators = await createValidators(fixture, validatorsSnapshots);
-    const stakingTokenIds = await stakeValidators(fixture, validators);
+    const validators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -150,8 +156,11 @@ describe("Ethdkg: Migrate state", () => {
   });
 
   it("Should not be able to run more than 1 migration", async function () {
-    const validators = await createValidators(fixture, validatorsSnapshots);
-    const stakingTokenIds = await stakeValidators(fixture, validators);
+    const validators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -195,8 +204,11 @@ describe("Ethdkg: Migrate state", () => {
   });
 
   it("Change validators after migration with scheduling maintenance + snapshots", async function () {
-    const validators = await createValidators(fixture, validatorsSnapshots2);
-    const stakingTokenIds = await stakeValidators(fixture, validators);
+    const validators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots2
+    );
+    const stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     validatorsAddress = [];
     validatorsShares = [];
     for (let i = 0; i < validatorsSnapshots.length; i++) {
@@ -272,8 +284,14 @@ describe("Ethdkg: Migrate state", () => {
     );
 
     // registering the new validators
-    const newValidators = await createValidators(fixture, validatorsSnapshots);
-    const newStakingTokenIds = await stakeValidators(fixture, newValidators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const newStakingTokenIds = await stakeValidatorsWFixture(
+      fixture,
+      newValidators
+    );
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -317,8 +335,11 @@ describe("Ethdkg: Migrate state", () => {
   });
 
   it("Run ethdkg with same validators after migration with scheduling maintenance + snapshots", async function () {
-    const validators = await createValidators(fixture, validatorsSnapshots);
-    const stakingTokenIds = await stakeValidators(fixture, validators);
+    const validators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",

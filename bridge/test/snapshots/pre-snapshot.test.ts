@@ -9,11 +9,15 @@ import {
   mineBlocks,
 } from "../setup";
 import { validatorsSnapshotsG1 } from "../sharedConstants/4-validators-snapshots-100-Group1";
+import {
+  validatorsSnapshotsG2,
+  validSnapshot7168G2,
+} from "../sharedConstants/4-validators-snapshots-100-Group2";
 
 describe("Snapshots: Tests Snapshots methods", () => {
   let fixture: Fixture;
   let adminSigner: Signer;
-  let randomSigner: Signer;
+  // let randomSigner: Signer;
   const stakeAmount = 20000;
   const stakeAmountATokenWei = ethers.utils.parseUnits(
     stakeAmount.toString(),
@@ -27,9 +31,9 @@ describe("Snapshots: Tests Snapshots methods", () => {
     validators = [];
     stakingTokenIds = [];
     fixture = await getFixture(true, false, undefined, true);
-    const [admin, , , , , randomUser] = fixture.namedSigners;
+    const [admin, , , , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
-    randomSigner = await getValidatorEthAccount(randomUser.address);
+    // randomSigner = await getValidatorEthAccount(randomUser.address);
     for (const validator of validatorsSnapshotsG1) {
       validators.push(validator.address);
     }
@@ -60,10 +64,13 @@ describe("Snapshots: Tests Snapshots methods", () => {
   });
 
   it("Does not allow snapshot if sender is not validator", async function () {
-    const junkData =
-      "0x0000000000000000000000000000000000000000000000000000006d6168616d";
     await expect(
-      fixture.snapshots.connect(randomSigner).snapshot(junkData, junkData)
+      fixture.snapshots
+        .connect(await getValidatorEthAccount(validatorsSnapshotsG2[0]))
+        .snapshot(
+          validSnapshot7168G2.GroupSignature,
+          validSnapshot7168G2.BClaims
+        )
     ).to.be.revertedWith("400");
   });
 

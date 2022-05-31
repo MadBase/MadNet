@@ -284,7 +284,7 @@ export const stakeValidators = async (
     // Get the proof of staking (NFT's tokenID)
     const tokenID = await getTokenIdFromTx(tx);
     stakingTokenIds.push(tokenID);
-    factoryCallAny(factory, publicStaking, "approve", [
+    await factoryCallAny(factory, publicStaking, "approve", [
       validatorPool.address,
       tokenID,
     ]);

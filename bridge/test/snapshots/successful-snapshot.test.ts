@@ -12,8 +12,9 @@ import {
   invalidSnapshot7168ChainID2,
   invalidSnapshot7668,
   invalidSnapshotIncorrectSig7168,
-  signedData,
+  signedData1,
   validatorsSnapshotsG1,
+  validSnapshot7168,
 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 
 describe("Snapshots: With successful ETHDKG round completed", () => {
@@ -26,14 +27,12 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
     );
     snapshots = fixture.snapshots;
   });
-
-  it("Reverts when validator not elected to do snapshot", async function () {
-    const junkData =
-      "0x0000000000000000000000000000000000000000000000000000006d6168616d";
+  // this doesnt make sense
+  xit("Reverts when validator not elected to do snapshot", async function () {
     await expect(
       snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
-        .snapshot(junkData, junkData)
+        .snapshot(validSnapshot7168.GroupSignature, validSnapshot7168.BClaims)
     ).to.be.revertedWith("1401");
   });
 
@@ -75,7 +74,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
           )
         )
         .snapshot(
-          signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
+          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
           invalidSnapshotIncorrectSig7168.BClaims
         )
     ).to.be.revertedWith("405");
@@ -107,8 +106,8 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
       snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
-          signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
+          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
         )
     )
       .to.emit(snapshots, `SnapshotTaken`)
@@ -118,7 +117,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
         expectedHeight,
         ethers.utils.getAddress(validatorsSnapshotsG1[0].address),
         expectedSafeToProceedConsensus,
-        signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature
+        signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature
       );
   });
 

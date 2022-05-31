@@ -10,7 +10,7 @@ import {
   mineBlocks,
 } from "../setup";
 import {
-  signedData,
+  signedData1,
   validatorsSnapshotsG1,
 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 import {
@@ -93,14 +93,14 @@ xdescribe("Snapshots: Migrate state", () => {
       "migrateSnapshots",
       [
         [
-          signedData[500].GroupSignature,
-          signedData[501].GroupSignature,
-          signedData[502].GroupSignature,
+          signedData1[500].GroupSignature,
+          signedData1[501].GroupSignature,
+          signedData1[502].GroupSignature,
         ],
         [
-          signedData[500].BClaims,
-          signedData[501].BClaims,
-          signedData[502].BClaims,
+          signedData1[500].BClaims,
+          signedData1[501].BClaims,
+          signedData1[502].BClaims,
         ],
       ]
     );
@@ -117,7 +117,7 @@ xdescribe("Snapshots: Migrate state", () => {
     await expect(
       fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
-        .snapshot(signedData[503].GroupSignature, signedData[503].BClaims)
+        .snapshot(signedData1[503].GroupSignature, signedData1[503].BClaims)
     )
       .to.emit(fixture.snapshots, `SnapshotTaken`)
       .withArgs(
@@ -126,7 +126,7 @@ xdescribe("Snapshots: Migrate state", () => {
         expectedHeight,
         ethers.utils.getAddress(validatorsSnapshotsG1[0].address),
         expectedSafeToProceedConsensus,
-        signedData[503].GroupSignature
+        signedData1[503].GroupSignature
       );
   });
 

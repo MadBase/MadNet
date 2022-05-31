@@ -314,7 +314,7 @@ export const invalidSnapshotIncorrectSig7168: Snapshot = {
   validatorIndex: 2,
 };
 
-export const signedData: SignedBClaims[] = [
+export const signedData1: SignedBClaims[] = [
   {
     GroupSignature:
       "0x22a2b9dd34d41ffc4dd40c94855453d6d504aa5569462d33cfb28b91936d28662f8e5f144f5aec9464b1ed0d58e60ca1dc4e10e5b381741cdaabd2f8bf7ea96a2ad73b3fbdc4f92ef04c396aac8072fb3070c7b04944a0f4982889107c3f32400251c0529d62c41b0e67199407938bde9c7a2126e1e9842d6cd7070c850fee081072c4420d35d38edc4913ef3894db8810b468bdefe4a71b0afe559c480b819826ad89a31feece4654da3d107dc1d81709c8ef6b0c9f1c4c47474dfa739e3c3e",

@@ -16,7 +16,11 @@ import {
   validSnapshot1024,
 } from "../../snapshots/assets/4-validators-snapshots-1";
 import { validatorsSnapshots as validatorsSnapshots2 } from "../../snapshots/assets/4-validators-snapshots-2";
-import { commitSnapshots, createValidators, stakeValidators } from "../setup";
+import {
+  commitSnapshots,
+  createValidatorsWFixture,
+  stakeValidatorsWFixture,
+} from "../setup";
 
 describe("ValidatorPool: Consensus dependent logic ", async () => {
   let fixture: Fixture;
@@ -28,8 +32,8 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
     fixture = await getFixture(false, true, false);
     const [admin, , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
   });
 
   it("Initialize ETHDKG", async function () {
@@ -164,8 +168,14 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
       [validators]
     );
 
-    const newValidators = await createValidators(fixture, validatorsSnapshots2);
-    const newStakingTokenIds = await stakeValidators(fixture, validators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots2
+    );
+    const newStakingTokenIds = await stakeValidatorsWFixture(
+      fixture,
+      validators
+    );
 
     // set consensus running
     await factoryCallAnyFixture(
@@ -238,8 +248,8 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
 
   it("Register validators, run ethdkg, schedule maintenance, do a snapshot, replace some validators, and rerun ethdkg", async function () {
     const fixture = await getFixture();
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
@@ -277,8 +287,14 @@ describe("ValidatorPool: Consensus dependent logic ", async () => {
       "validatorPool",
       "unregisterAllValidators"
     );
-    const newValidators = await createValidators(fixture, validatorsSnapshots2);
-    const newStakingTokenIds = await stakeValidators(fixture, newValidators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots2
+    );
+    const newStakingTokenIds = await stakeValidatorsWFixture(
+      fixture,
+      newValidators
+    );
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",

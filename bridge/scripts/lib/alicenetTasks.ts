@@ -1,5 +1,5 @@
 import toml from "@iarna/toml";
-import axios, { AxiosRequestConfig } from "axios";
+import axios from "axios";
 import { spawn } from "child_process";
 import { BigNumber, ContractTransaction } from "ethers";
 import fs from "fs";
@@ -843,12 +843,12 @@ function getValidatorAccount(path: string): string {
 
 task("getGasCost", "gets the current gas cost")
   .addFlag("ludicrous", "over inflate certain blocks")
-  .setAction(async (taskArgs, hre) => {
+  .setAction(async (_, hre: HardhatRuntimeEnvironment) => {
     let lastBlock = 0;
     while (1) {
       const gasPrice = await hre.ethers.provider.getGasPrice();
       await delay(7000);
-      const blocknum = await hre.ethers.provider.blockNumber;
+      const blocknum = hre.ethers.provider.blockNumber;
       // console.log(`gas price @ blocknum ${blocknum.toString()}: ${gasPrice.toString()}`);
       if (blocknum > lastBlock) {
         console.log(
@@ -925,15 +925,15 @@ task(
     "path to the base configuration file",
     BASE_CONFIG_PATH
   )
-  .setAction(async (taskArgs, hre) => {
-    //get the testBaseConfig file
+  .setAction(async (taskArgs) => {
+    // get the testBaseConfig file
     let data = fs.readFileSync(taskArgs.baseConfigPath);
     const testBaseConfig: any = toml.parse(data.toString());
-    //get a validator file
+    // get a validator file
     data = fs.readFileSync(
       VALIDATOR_CONFIG_DIR + "validator" + taskArgs.validatorId + ".toml"
     );
-    let validator1Config: any = toml.parse(data.toString());
+    const validator1Config: any = toml.parse(data.toString());
     validator1Config.ethereum.endpoint = testBaseConfig.ethereum.endpoint;
     validator1Config.ethereum.registryAddress =
       testBaseConfig.ethereum.registryAddress;
@@ -967,8 +967,8 @@ task("create-local-test-genesis-node", "start and syncs a node with testnet")
     "path to the nodes config file",
     "./scripts/base-files/testBaseConfig.toml"
   )
-  .setAction(async (taskArgs, hre) => {
-    let valNode = spawn(
+  .setAction(async (taskArgs) => {
+    const valNode = spawn(
       "./madnet",
       ["--config", taskArgs.configPath, "validator"],
       {
@@ -989,10 +989,10 @@ task("create-local-test-genesis-node", "start and syncs a node with testnet")
     let pauseNode = 0;
     while (!synced) {
       try {
-        let requestConfig: AxiosRequestConfig = {
+        const requestConfig = {
           timeout: 2000,
         };
-        let response = await axios.post(
+        const response = await axios.post(
           "http://0.0.0.0:8884/" + "get-block-number",
           {},
           requestConfig
@@ -1004,7 +1004,7 @@ task("create-local-test-genesis-node", "start and syncs a node with testnet")
         }
       } catch (err: any) {
         if (err) {
-          await new Promise((r) => setTimeout(r, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
     }
@@ -1014,8 +1014,8 @@ task("create-local-test-genesis-node", "start and syncs a node with testnet")
 
 task("fork-external-chain", "")
   .addOptionalParam("rpcUrl")
-  .setAction(async (taskArgs) => {
-    let hardhatNode = spawn("npm", ["run", "fork-testnet"]);
+  .setAction(async () => {
+    const hardhatNode = spawn("npm", ["run", "fork-testnet"]);
     hardhatNode.stdout.on("data", (data) => {
       console.log(data.toString());
     });
@@ -1026,7 +1026,9 @@ task("fork-external-chain", "")
       console.log(`child process exited with code ${code}`);
     });
 
-    while (1) {}
+    while (1) {
+      continue;
+    }
   });
 
 task(
@@ -1038,8 +1040,8 @@ task(
     "rpc url to fork the chain from, default value is test-net ropsten endpoint",
     "https://testnet.eth.mnexplore.com/"
   )
-  .setAction(async (taskArgs, hre) => {
-    let valNode = spawn(
+  .setAction(async () => {
+    const valNode = spawn(
       "./madnet",
       [
         "--config",
@@ -1075,7 +1077,7 @@ task("enable-hardhat-impersonate")
 task("mine-num-blocks")
   .addParam("numBlocks", "number of blocks to mine")
   .setAction(async (taskArgs, hre) => {
-    let numBlocks = parseInt(taskArgs.numBlocks, 10);
+    const numBlocks = parseInt(taskArgs.numBlocks, 10);
     console.log();
     await hre.network.provider.send("hardhat_mine", [
       "0x" + numBlocks.toString(16),
@@ -1095,7 +1097,7 @@ task("pause-consensus-at-height")
     "0x137425E39a2A981ed83Fe490dedE1aB139840B87"
   )
   .setAction(async (taskArgs, hre) => {
-    //get the signer for the owner of the factory
+    // get the signer for the owner of the factory
     const signer = await hre.ethers.getSigner(taskArgs.signer);
     const factory = await hre.ethers.getContractAt(
       ALICENET_FACTORY,
@@ -1115,7 +1117,7 @@ task("pause-consensus-at-height")
       0,
       pauseConsensusAt
     );
-    //wait for the tx to be mined
+    // wait for the tx to be mined
     await txResponse.wait();
   });
 
@@ -1131,7 +1133,7 @@ task("unregister-all-validators", "unregisters all the validators")
     "0x137425E39a2A981ed83Fe490dedE1aB139840B87"
   )
   .setAction(async (taskArgs, hre) => {
-    //get the signer for the owner of the factory
+    // get the signer for the owner of the factory
     const signer = await hre.ethers.getSigner(taskArgs.signer);
     const factory = await hre.ethers.getContractAt(
       ALICENET_FACTORY,
@@ -1148,20 +1150,20 @@ task("unregister-all-validators", "unregisters all the validators")
     const unregisterValidators = valPool.interface.encodeFunctionData(
       "unregisterAllValidators"
     );
-    //unregister all the validators
+    // unregister all the validators
     const txResponse = await factory.callAny(
       valPoolAddress,
       0,
       unregisterValidators
     );
-    //wait for the tx to be mined
+    // wait for the tx to be mined
     await txResponse.wait();
   });
 
-async function unregisterAllValidators(
-  hre: HardhatRuntimeEnvironment,
-  ValPoolAddr: string
-) {
-  let valPool = await hre.ethers.getContractAt("ValidatorPool", ValPoolAddr);
-  await valPool.unregisterAllValidators();
-}
+// async function unregisterAllValidators(
+//   hre: HardhatRuntimeEnvironment,
+//   ValPoolAddr: string
+// ) {
+//   const valPool = await hre.ethers.getContractAt("ValidatorPool", ValPoolAddr);
+//   await valPool.unregisterAllValidators();
+// }

@@ -122,7 +122,6 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
             bClaims_
         );
         //require the new claim to have
-        // console.log("epoch: %s, height: %s", epoch, blockClaims.height);
         require(
             epoch * _epochLength == blockClaims.height,
             string(abi.encodePacked(SnapshotsErrorCodes.SNAPSHOT_INCORRECT_BLOCK_HEIGHT))

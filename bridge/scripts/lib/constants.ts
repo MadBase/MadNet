@@ -4,9 +4,11 @@ export const DEPLOYMENT_LIST_FPATH = "/deploymentList";
 export const DEPLOYMENT_ARGS_TEMPLATE_FPATH = "/deploymentArgsTemplate";
 export const DEFAULT_CONFIG_OUTPUT_DIR = "../scripts/base-files";
 export const BASE_CONFIG_PATH = "../scripts/base-files/baseConfig";
-export const TEST_BASE_CONFIG_PATH = "../scripts/base-files/testBaseConfig.toml";
-export const VALIDATOR1_COBFIG_PATH = "../scripts/generated/config/validator1.toml";
-export const VALIDATOR_CONFIG_DIR = "../scripts/generated/config/"
+export const TEST_BASE_CONFIG_PATH =
+  "../scripts/base-files/testBaseConfig.toml";
+export const VALIDATOR1_COBFIG_PATH =
+  "../scripts/generated/config/validator1.toml";
+export const VALIDATOR_CONFIG_DIR = "../scripts/generated/config/";
 export const CONTRACT_ADDR = "contractAddr";
 export const DEPLOY_ALL_CONTRACTS = "deployAllContracts";
 export const DEPLOY_CREATE = "deployCreate";

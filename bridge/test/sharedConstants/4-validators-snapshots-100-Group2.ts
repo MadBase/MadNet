@@ -224,7 +224,7 @@ export const validatorsSnapshotsG2: ValidatorRawData[] = [
   },
 ];
 
-export const validSnapshot1024: Snapshot = {
+export const validSnapshot1024G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c1a41bc19f29ded1e404cd8935fa2025cd502da23ded45910f787f018b9acd5d80a7804fdbcd495c37174bcf3a1f2609589cac744e849b77a8ee494715770c1fc",
   BClaims:
@@ -233,7 +233,7 @@ export const validSnapshot1024: Snapshot = {
   validatorIndex: 0,
 };
 
-export const validSnapshot2048: Snapshot = {
+export const validSnapshot2048G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c0af69993982d0fb6dc4dc9ce5c2c6dc75ff8e710cb040a335d23c22bf71407912bb7508e0916d31caf2245705beafeb5f6b327c9bcd7d25a3309a9f60624d889",
   BClaims:
@@ -242,7 +242,7 @@ export const validSnapshot2048: Snapshot = {
   validatorIndex: 0,
 };
 
-export const invalidSnapshot500: Snapshot = {
+export const invalidSnapshot500G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c0065d0dc2380ae0d0a2ef863b2d382683eaa45e7e619cb70c9cfb64f1a432da9148b88a305bf92b77d8ad894f802b1fe67cfdd558bd5d2613fe547ffcbba39f4",
   BClaims:
@@ -251,7 +251,7 @@ export const invalidSnapshot500: Snapshot = {
   validatorIndex: 0,
 };
 
-export const invalidSnapshot1024ChainID2: Snapshot = {
+export const invalidSnapshot1024ChainID2G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c2f972da800cdab97826f8abdd6e27a5d05673449209f3c9199f18777eec850a12496815d34b34dd30b7191a61e3d1c3c993c2042ec9d5a9af0ab24f0e67b7cb3",
   BClaims:
@@ -260,7 +260,7 @@ export const invalidSnapshot1024ChainID2: Snapshot = {
   validatorIndex: 2,
 };
 
-export const invalidSnapshotIncorrectSig1024: Snapshot = {
+export const invalidSnapshotIncorrectSig1024G2: Snapshot = {
   GroupSignature:
     "0x2747bb6ac329b91f417389b39cc0bd986fdf78ed88278872dc38fe4d92d5e9252b29c977a8d700dac744b16e572121966d0901c3a3ed22254ca790a6227f6474121ca6798b2c25ad3e166e18e111f2a090f9b80d75baec22f57ab9cdd29382b205e4f82e4aa3a6cc5d66f5ea5165f650650cb65da09695c84a498b5e48fdace00b78800920f0896fd04b091131651d21fd95b9c501cdebb54be35e96e0898187257caf14489b792fb9c1f3069062c1b92fe8f19918e69e3b6c2b9a6d584e0f7e",
   BClaims:
@@ -269,7 +269,7 @@ export const invalidSnapshotIncorrectSig1024: Snapshot = {
   validatorIndex: 2,
 };
 
-export const validSnapshot7168: Snapshot = {
+export const validSnapshot7168G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c232273525c3feab054b83c1fc1683dff0758113a1b69abede5ef6d4e2a852b861e5317638e7660990079abfb95be374c940b60d556947b1bdfc9d523d62cd1a2",
   BClaims:
@@ -278,7 +278,7 @@ export const validSnapshot7168: Snapshot = {
   validatorIndex: 0,
 };
 
-export const validSnapshot8192: Snapshot = {
+export const validSnapshot8192G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c0e7d70c6d77f87deb10b6fb6d87b09e3c3ae126050ce1924034aff0369795ede028ed137b3905a4da01fb7e6e101572aeb0e0b0955c1a9df256e14811f4661f1",
   BClaims:
@@ -287,7 +287,7 @@ export const validSnapshot8192: Snapshot = {
   validatorIndex: 0,
 };
 
-export const invalidSnapshot7668: Snapshot = {
+export const invalidSnapshot7668G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c0065d0dc2380ae0d0a2ef863b2d382683eaa45e7e619cb70c9cfb64f1a432da9148b88a305bf92b77d8ad894f802b1fe67cfdd558bd5d2613fe547ffcbba39f4",
   BClaims:
@@ -296,7 +296,7 @@ export const invalidSnapshot7668: Snapshot = {
   validatorIndex: 0,
 };
 
-export const invalidSnapshot7168ChainID2: Snapshot = {
+export const invalidSnapshot7168ChainID2G2: Snapshot = {
   GroupSignature:
     "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c2f142d7d050e0824ec6aecf68bc21a59a580f077028a34bfb495b35b25e86a1823b10292b95002c5dd9def83babf82b335bce95440c07c797d361837c6c3fc6e",
   BClaims:
@@ -305,7 +305,7 @@ export const invalidSnapshot7168ChainID2: Snapshot = {
   validatorIndex: 2,
 };
 
-export const invalidSnapshotIncorrectSig7168: Snapshot = {
+export const invalidSnapshotIncorrectSig7168G2: Snapshot = {
   GroupSignature:
     "0x2747bb6ac329b91f417389b39cc0bd986fdf78ed88278872dc38fe4d92d5e9252b29c977a8d700dac744b16e572121966d0901c3a3ed22254ca790a6227f6474121ca6798b2c25ad3e166e18e111f2a090f9b80d75baec22f57ab9cdd29382b205e4f82e4aa3a6cc5d66f5ea5165f650650cb65da09695c84a498b5e48fdace0062dd7939f356be8a2d4981b507291ab0f7b7b715f18e45f1be0679c0897e0cb10bfbe01746da2eb2b57617f8deb92dc01a4e36bd4103ff6a2478372f91fe9ec",
   BClaims:
@@ -313,7 +313,7 @@ export const invalidSnapshotIncorrectSig7168: Snapshot = {
   height: BigNumber.from(7168),
   validatorIndex: 2,
 };
-export const signedData: SignedBClaims[] = [
+export const signedData2: SignedBClaims[] = [
   {
     GroupSignature:
       "0x0b705012836d7c9e6fcfcb3abbbbc117ff19805ad2caae5bf1348a597572398407101b1b26d7e58cd15b9504df9befea4553d094c10bd2ca16fa17f5d59cfc72249c1071b69b7e64b65044243273c762a9ac296668b8df57ed2a907ebaa0db54171e203d214399ed1f2e6b07d7e8aa8763d93aea029276c7d678849ccc0c868c1a41bc19f29ded1e404cd8935fa2025cd502da23ded45910f787f018b9acd5d80a7804fdbcd495c37174bcf3a1f2609589cac744e849b77a8ee494715770c1fc",

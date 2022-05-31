@@ -1,6 +1,5 @@
 import { BigNumber } from "ethers";
 import { contract } from "hardhat";
-import { Snapshots } from "../../typechain-types";
 import { expect } from "../chai-setup";
 import {
   Fixture,
@@ -10,13 +9,12 @@ import {
   SNAPSHOT_BUFFER_LENGTH,
 } from "../setup";
 import {
-  signedData,
+  signedData1,
   validatorsSnapshotsG1,
 } from "../sharedConstants/4-validators-snapshots-100-Group1";
 contract("Snapshots", async () => {
   describe("Snapshots: With successful snapshot completed", () => {
     let fixture: Fixture;
-    let snapshots: Snapshots;
     let snapshotNumber: BigNumber;
 
     beforeEach(async function () {
@@ -39,8 +37,8 @@ contract("Snapshots", async () => {
       await fixture.snapshots
         .connect(validValidator)
         .snapshot(
-          signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
+          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
         );
       expect((await fixture.snapshots.getEpoch()).toNumber()).to.be.equal(
         SNAPSHOT_BUFFER_LENGTH + 1
@@ -58,8 +56,8 @@ contract("Snapshots", async () => {
         fixture.snapshots
           .connect(validValidator)
           .snapshot(
-            signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-            signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
+            signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
+            signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
           )
       ).to.be.revertedWith("402");
       expect((await fixture.snapshots.getEpoch()).toNumber()).to.be.equal(
@@ -80,8 +78,8 @@ contract("Snapshots", async () => {
         fixture.snapshots
           .connect(validValidator)
           .snapshot(
-            signedData[SNAPSHOT_BUFFER_LENGTH - 1].GroupSignature,
-            signedData[SNAPSHOT_BUFFER_LENGTH - 1].BClaims
+            signedData1[SNAPSHOT_BUFFER_LENGTH - 1].GroupSignature,
+            signedData1[SNAPSHOT_BUFFER_LENGTH - 1].BClaims
           )
       ).to.be.revertedWith("406");
     });
@@ -96,8 +94,8 @@ contract("Snapshots", async () => {
       await fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
-          signedData[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
+          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
         );
       await fixture.validatorPool.initializeETHDKG();
       const junkData =

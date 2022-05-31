@@ -1,4 +1,6 @@
 module.exports = {
+  skipFiles: ["libraries", "interfaces", "utils"],
+  measureFunctionCoverage: false,
   configureYulOptimizer: true,
   solcOptimizerDetails: {
     peephole: true,

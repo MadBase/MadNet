@@ -12,9 +12,9 @@ import {
 import { validatorsSnapshots } from "../../snapshots/assets/4-validators-snapshots-1";
 import {
   burnStakeTo,
-  createValidators,
-  getCurrentState,
-  stakeValidators,
+  createValidatorsWFixture,
+  getCurrentStateWFixture,
+  stakeValidatorsWFixture,
 } from "../setup";
 
 describe("ValidatorPool: Unregistration logic", async () => {
@@ -27,8 +27,8 @@ describe("ValidatorPool: Unregistration logic", async () => {
   beforeEach(async function () {
     fixture = await getFixture(false, true, true);
     stakeAmount = (await fixture.validatorPool.getStakeAmount()).toBigInt();
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     const [admin, , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
   });
@@ -107,8 +107,14 @@ describe("ValidatorPool: Unregistration logic", async () => {
       "unregisterValidators",
       [validators]
     );
-    const newValidators = await createValidators(fixture, validatorsSnapshots);
-    const newPublicStakingIds = await stakeValidators(fixture, newValidators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const newPublicStakingIds = await stakeValidatorsWFixture(
+      fixture,
+      newValidators
+    );
     await expect(
       factoryCallAnyFixture(fixture, "validatorPool", "registerValidators", [
         validators,
@@ -118,7 +124,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
   });
 
   it("Should successfully unregister validators if all conditions are met", async function () {
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     // Expect that NFT are transferred from ValidatorPool to Factory
     for (let index = 0; index < validators.length; index++) {
       expectedState.ValidatorPool.PublicStaking++;
@@ -139,7 +145,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
       "unregisterValidators",
       [validators]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     expect(currentState).to.be.deep.equal(expectedState);
   });
 
@@ -150,7 +156,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
     const aTokenAmount = ethers.utils.parseEther("2");
     await burnStakeTo(fixture, etherAmount, aTokenAmount, adminSigner);
 
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     expectedState.PublicStaking.ETH = BigInt(0);
     // Expect that NFT are transferred from ValidatorPool to Factory
     for (let index = 0; index < validators.length; index++) {
@@ -172,7 +178,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
       "unregisterValidators",
       [validators]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     expect(currentState).to.be.deep.equal(expectedState);
   });
 
@@ -194,7 +200,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
     await fixture.validatorStaking
       .connect(adminSigner)
       .depositToken(42, atokens);
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
 
     await factoryCallAnyFixture(
       fixture,
@@ -217,7 +223,7 @@ describe("ValidatorPool: Unregistration logic", async () => {
     expectedState.ValidatorPool.ValNFT -= BigInt(validators.length);
     expectedState.ValidatorPool.PublicStaking += BigInt(validators.length);
 
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
 
     expect(currentState).to.be.deep.equal(expectedState);
   });

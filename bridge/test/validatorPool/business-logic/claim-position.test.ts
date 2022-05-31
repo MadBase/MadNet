@@ -12,10 +12,10 @@ import { validatorsSnapshots } from "../../snapshots/assets/4-validators-snapsho
 import {
   burnStakeTo,
   commitSnapshots,
-  createValidators,
-  getCurrentState,
+  createValidatorsWFixture,
+  getCurrentStateWFixture,
   showState,
-  stakeValidators,
+  stakeValidatorsWFixture,
 } from "../setup";
 
 describe("ValidatorPool: Claiming logic", async () => {
@@ -29,14 +29,14 @@ describe("ValidatorPool: Claiming logic", async () => {
     fixture = await getFixture(false, true, true);
     const [admin, , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
     stakeAmount = (await fixture.validatorPool.getStakeAmount()).toBigInt();
   });
 
   it("Should successfully claim exiting NFT positions of all validators", async function () {
     // As this is a complete cycle, expect the initial state to be exactly the same as the final state
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     for (let index = 0; index < expectedState.validators.length; index++) {
       expectedState.Factory.PublicStaking--;
       expectedState.validators[index].NFT++;
@@ -60,7 +60,7 @@ describe("ValidatorPool: Claiming logic", async () => {
         .connect(await getValidatorEthAccount(validatorsSnapshot))
         .claimExitingNFTPosition();
     }
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     expect(currentState).to.be.deep.equal(expectedState);
   });
 
@@ -71,7 +71,7 @@ describe("ValidatorPool: Claiming logic", async () => {
     const aTokenAmount = ethers.utils.parseEther("2");
     await burnStakeTo(fixture, etherAmount, aTokenAmount, adminSigner);
     // As this is a complete cycle, expect the initial state to be exactly the same as the final state
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     for (let index = 0; index < expectedState.validators.length; index++) {
       expectedState.Factory.PublicStaking--;
       expectedState.validators[index].NFT++;
@@ -96,14 +96,14 @@ describe("ValidatorPool: Claiming logic", async () => {
         .connect(await getValidatorEthAccount(validatorsSnapshot))
         .claimExitingNFTPosition();
     }
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     expect(currentState).to.be.deep.equal(expectedState);
   });
 
   it("After claiming, register the user again with a new PublicStaking position", async function () {
     // As this is a complete cycle, expect the initial state to be exactly the same as the final
     // state
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     for (let index = 0; index < expectedState.validators.length; index++) {
       expectedState.Factory.PublicStaking--;
       expectedState.validators[index].NFT++;
@@ -136,18 +136,24 @@ describe("ValidatorPool: Claiming logic", async () => {
     }
     await showState(
       "After claiming:",
-      await getCurrentState(fixture, validators)
+      await getCurrentStateWFixture(fixture, validators)
     );
     // Re-initialize validators
-    const newValidators = await createValidators(fixture, validatorsSnapshots);
-    const newPublicStakingIDs = await stakeValidators(fixture, newValidators);
+    const newValidators = await createValidatorsWFixture(
+      fixture,
+      validatorsSnapshots
+    );
+    const newPublicStakingIDs = await stakeValidatorsWFixture(
+      fixture,
+      newValidators
+    );
     await factoryCallAnyFixture(
       fixture,
       "validatorPool",
       "registerValidators",
       [validators, newPublicStakingIDs]
     );
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     // Expect that validators funds are transferred again to ValidatorStaking
     expectedState.ValidatorStaking.ATK +=
       BigInt(stakeAmount) * BigInt(validators.length);

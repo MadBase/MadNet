@@ -11,10 +11,10 @@ import {
 import { validatorsSnapshots } from "../../snapshots/assets/4-validators-snapshots-1";
 import {
   burnStakeTo,
-  createValidators,
-  getCurrentState,
+  createValidatorsWFixture,
+  getCurrentStateWFixture,
   showState,
-  stakeValidators,
+  stakeValidatorsWFixture,
 } from "../setup";
 
 describe("ValidatorPool: Collecting logic", async function () {
@@ -27,8 +27,8 @@ describe("ValidatorPool: Collecting logic", async function () {
     fixture = await getFixture(false, true, true);
     const [admin, , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
-    validators = await createValidators(fixture, validatorsSnapshots);
-    stakingTokenIds = await stakeValidators(fixture, validators);
+    validators = await createValidatorsWFixture(fixture, validatorsSnapshots);
+    stakingTokenIds = await stakeValidatorsWFixture(fixture, validators);
   });
 
   it("Should successfully collect profit of validators", async function () {
@@ -39,7 +39,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       [validators, stakingTokenIds]
     );
     const eths = ethers.utils.parseEther("4.0").toBigInt();
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     await fixture.validatorStaking.connect(adminSigner).depositEth(42, {
       value: eths,
     });
@@ -57,7 +57,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       .collectProfits();
     // Expect that a fraction of the earnings (1/4 validators) to be transfer from ValidatorStaking to collecting validator
     expectedState.ValidatorStaking.ETH -= eths / BigInt(4);
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("Expected state after collect profit", expectedState);
     await showState("Current state after collect profit", currentState);
     expect(currentState).to.be.deep.equal(expectedState);
@@ -77,7 +77,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       [validators, stakingTokenIds]
     );
     const eths = ethers.utils.parseEther("4.0").toBigInt();
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     await fixture.validatorStaking.connect(adminSigner).depositEth(42, {
       value: eths,
     });
@@ -95,7 +95,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       .collectProfits();
     // Expect that a fraction of the earnings (1/4 validators) to be transfer from ValidatorStaking to collecting validator
     expectedState.ValidatorStaking.ETH -= eths / BigInt(4);
-    const currentState = await getCurrentState(fixture, validators);
+    const currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("Expected state after collect profit", expectedState);
     await showState("Current state after collect profit", currentState);
     expect(currentState).to.be.deep.equal(expectedState);
@@ -108,7 +108,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       "registerValidators",
       [validators, stakingTokenIds]
     );
-    const expectedState = await getCurrentState(fixture, validators);
+    const expectedState = await getCurrentStateWFixture(fixture, validators);
     const maxNumValidators = validatorsSnapshots.length;
     const eths = ethers.utils.parseEther(`4`).toBigInt();
     const atokens = ethers.utils.parseEther(`4`).toBigInt();
@@ -126,7 +126,7 @@ describe("ValidatorPool: Collecting logic", async function () {
     expectedState.ValidatorStaking.ATK += atokens;
     expectedState.Admin.ATK -= atokens;
     // Complete ETHDKG Round
-    let currentState = await getCurrentState(fixture, validators);
+    let currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("Expected state after deposit", expectedState);
     await showState("Current state after deposit", currentState);
     expect(currentState).to.be.deep.equal(expectedState);
@@ -147,7 +147,7 @@ describe("ValidatorPool: Collecting logic", async function () {
       expectedState.validators[index].Reg = true;
       expectedState.validators[index].Acc = true;
     }
-    currentState = await getCurrentState(fixture, validators);
+    currentState = await getCurrentStateWFixture(fixture, validators);
     await showState("Expected state after collect profit", expectedState);
     await showState("Current state after collect profit", currentState);
     expect(currentState).to.be.deep.equal(expectedState);
