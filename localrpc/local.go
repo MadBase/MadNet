@@ -14,6 +14,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -92,7 +94,7 @@ func NewStateServerHandler(logger *logrus.Logger, addr string, service interface
 	// create the http server for the mux
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: http.Handler(grpcHandlerFunc(grpcServer, mux)),
+		Handler: h2c.NewHandler(grpcHandlerFunc(grpcServer, mux), &http2.Server{}),
 	}
 
 	// setup the listener
