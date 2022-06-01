@@ -17,7 +17,8 @@ cp ../scripts/base-files/deploymentArgsTemplate ../scripts/generated/deploymentA
 
 
 
-npx hardhat --network "$NETWORK" --show-stack-traces deployContracts --input-folder ../scripts/generated
+npx hardhat --network "$NETWORK" --show-stack-traces deployContracts --input-folder ../scripts/generated &&
+
 addr="$(grep -Pzo "\[$NETWORK\]\ndefaultFactoryAddress = \".*\"\n" ../scripts/generated/factoryState | grep -a "defaultFactoryAddress = .*" | awk '{print $NF}')"
 
 export FACTORY_ADDRESS=$addr
@@ -59,6 +60,7 @@ cd $CURRENT_WD
 cd $BRIDGE_DIR
 npx hardhat --network $NETWORK setMinEthereumBlocksPerSnapshot --factory-address $FACTORY_ADDRESS --block-num 10
 npx hardhat setHardhatIntervalMining --network $NETWORK
+npx hardhat --network $NETWORK --show-stack-traces multiCallUpgradeProxy --contract-name Snapshots --factory-address $FACTORY_ADDRESS --integrate 1337 1024
 cd $CURRENT_WD
 
 if [[ -n "${AUTO_START_VALIDATORS}" ]]; then

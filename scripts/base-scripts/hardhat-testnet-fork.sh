@@ -11,7 +11,7 @@ cd $BRIDGE_DIR
 
 testnetBlocknum=$(npx hardhat get-latest-blockheight)
 
-npx hardhat node --fork https://eth-ropsten.alchemyapi.io/v2/4ynIWs9XdY4lQdv0xthFfqvV4qmumPTB --fork-block-number $testnetBlocknum --show-stack-traces &
+npx hardhat node --fork https://eth-ropsten.alchemyapi.io/v2/alchemykey --fork-block-number $testnetBlocknum --show-stack-traces &
 sleep 10
 #turn on impersonating
 npx hardhat enable-hardhat-impersonate --account 0x137425E39a2A981ed83Fe490dedE1aB139840B87 --network dev

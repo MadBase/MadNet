@@ -8,6 +8,7 @@ import {
 import fs from "fs";
 import { task } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import SnapshotsV1Artifact from "../../../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
 import {
   ALICENET_FACTORY,
   CONTRACT_ADDR,
@@ -65,7 +66,6 @@ import {
   updateProxyList,
   updateTemplateList,
 } from "./deployment/factoryStateUtil";
-
 task(
   "getNetwork",
   "gets the current network being used from provider"
@@ -301,9 +301,14 @@ task(
     };
     const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
     const factory = factoryBase.attach(taskArgs.factoryAddress);
-    const logicFactory = await hre.ethers.getContractFactory(
-      taskArgs.contractName
-    );
+    let logicFactory;
+    if (taskArgs.contractName === "Snapshots") {
+      logicFactory = await hre.ethers.getContractFactoryFromArtifact(
+        SnapshotsV1Artifact
+      );
+    } else {
+      logicFactory = await hre.ethers.getContractFactory(taskArgs.contractName);
+    }
     const initArgs =
       taskArgs.initCallData === undefined
         ? []
@@ -952,15 +957,103 @@ task(
     "factoryAddress",
     "address of factory contract to deploy the contract with"
   )
-  .addOptionalParam(
-    "initCallData",
-    "input initCallData args in a string list, eg: --initCallData 'arg1, arg2'"
-  )
+  .addFlag("integrate", "flag to call integrate function")
   .addOptionalParam(
     "salt",
     "unique salt for specifying proxy defaults to salt specified in logic contract"
   )
   .addOptionalVariadicPositionalParam("constructorArgs")
+  .setAction(async (taskArgs, hre) => {
+    console.log(taskArgs.constructorArgs);
+    const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
+    const factory = factoryBase.attach(taskArgs.factoryAddress);
+    const logicFactory: ContractFactory = await hre.ethers.getContractFactory(
+      taskArgs.contractName
+    );
+
+    const fullname = (await getFullyQualifiedName(
+      taskArgs.contractName,
+      hre
+    )) as string;
+    const initCallData =
+      taskArgs.integrate !== undefined
+        ? logicFactory.interface.encodeFunctionData("integrate")
+        : "0x";
+
+    const deployTx = logicFactory.getDeployTransaction(
+      ...taskArgs.constructorArgs
+    );
+
+    const deployCreate = factoryBase.interface.encodeFunctionData(
+      DEPLOY_CREATE,
+      [deployTx.data]
+    );
+    const salt: string =
+      taskArgs.salt === undefined
+        ? await getBytes32Salt(taskArgs.contractName, hre)
+        : hre.ethers.utils.formatBytes32String(taskArgs.salt);
+
+    hre.network.provider;
+    console.log(factory.address);
+    const txCount = await hre.ethers.provider.getTransactionCount(
+      factory.address
+    );
+    console.log(1);
+    const implAddress = hre.ethers.utils.getContractAddress({
+      from: factory.address,
+      nonce: txCount,
+    });
+    const upgradeProxy = factoryBase.interface.encodeFunctionData(
+      UPGRADE_PROXY,
+      [salt, implAddress, initCallData]
+    );
+    const PROXY_FACTORY = await hre.ethers.getContractFactory(PROXY);
+    const proxyAddress = getMetamorphicAddress(
+      taskArgs.factoryAddress,
+      salt,
+      hre
+    );
+    const proxyContract = await PROXY_FACTORY.attach(proxyAddress);
+    const oldImpl = await proxyContract.getImplementationAddress();
+    const txResponse = await factory.multiCall([deployCreate, upgradeProxy]);
+    const receipt = await txResponse.wait();
+    await showState(
+      `Updating logic for the ${taskArgs.contractName} proxy at ${proxyAddress} from ${oldImpl} to ${implAddress}, gasCost: ${receipt.gasUsed}`
+    );
+    const proxyData: ProxyData = {
+      factoryAddress: taskArgs.factoryAddress,
+      logicName: taskArgs.contractName,
+      logicAddress: taskArgs.logicAddress,
+      salt,
+      proxyAddress: proxyAddress,
+      gas: receipt.gasUsed.toNumber(),
+      receipt,
+      initCallData,
+    };
+    return proxyData;
+  });
+
+async function checkUserDirPath(path: string) {
+  if (path !== undefined) {
+    if (!fs.existsSync(path)) {
+      console.log(
+        "Creating Folder at" + path + " since it didn't exist before!"
+      );
+      fs.mkdirSync(path);
+    }
+    if (fs.statSync(path).isFile()) {
+      throw new Error("outputFolder path should be to a directory not a file");
+    }
+  }
+}
+task(
+  "upgradeSnapshots",
+  "multicall deploy new snapshot and upgrade snapshot proxy proxy"
+)
+  .addParam(
+    "factoryAddress",
+    "address of factory contract to deploy the contract with"
+  )
   .setAction(async (taskArgs, hre) => {
     const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
     const factory = factoryBase.attach(taskArgs.factoryAddress);
@@ -1026,20 +1119,6 @@ task(
     };
     return proxyData;
   });
-
-async function checkUserDirPath(path: string) {
-  if (path !== undefined) {
-    if (!fs.existsSync(path)) {
-      console.log(
-        "Creating Folder at" + path + " since it didn't exist before!"
-      );
-      fs.mkdirSync(path);
-    }
-    if (fs.statSync(path).isFile()) {
-      throw new Error("outputFolder path should be to a directory not a file");
-    }
-  }
-}
 
 async function getAccounts(hre: HardhatRuntimeEnvironment) {
   const signers = await hre.ethers.getSigners();

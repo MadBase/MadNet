@@ -21,9 +21,20 @@ contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
     function integrate() public onlyFactory {
         require(getEpoch() == 0, "already integrated");
         uint32 epoch = _epoch;
-        //assuming at the time of update, epoch is greater than or equal to 6
-        for (uint32 i = epoch - 5; i <= epoch; i++) {
-            _setSnapshot(_snapshots[i]);
+        if (epoch > 0) {
+            if (epoch < 6) {
+                for (uint32 i = 1; i <= epoch; i++) {
+                    _setSnapshot(_snapshots[i]);
+                }
+            } else {
+                for (
+                    uint32 i = epoch - uint32(snapshotsBuffer()._array.length - 1);
+                    i <= epoch;
+                    i++
+                ) {
+                    _setSnapshot(_snapshots[i]);
+                }
+            }
         }
     }
 

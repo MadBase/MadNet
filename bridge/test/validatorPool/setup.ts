@@ -62,7 +62,7 @@ export const getCurrentStateWFixture = async (
   fixture: Fixture,
   _validators: string[]
 ): Promise<State> => {
-  return getCurrentState(
+  return await getCurrentState(
     fixture.factory,
     fixture.publicStaking,
     fixture.validatorStaking,
