@@ -51,7 +51,7 @@ contract("SnapshotRingBuffer", async () => {
           await fixture.snapshots.getMinimumIntervalBetweenSnapshots()
         ).toBigInt()
       );
-      //upgraded contract has no prior snapshots
+      // upgraded contract has no prior snapshots
     });
 
     it("Reverts when snapshot data contains invalid height", async function () {

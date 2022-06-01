@@ -964,17 +964,12 @@ task(
   )
   .addOptionalVariadicPositionalParam("constructorArgs")
   .setAction(async (taskArgs, hre) => {
-    console.log(taskArgs.constructorArgs);
     const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
     const factory = factoryBase.attach(taskArgs.factoryAddress);
     const logicFactory: ContractFactory = await hre.ethers.getContractFactory(
       taskArgs.contractName
     );
 
-    const fullname = (await getFullyQualifiedName(
-      taskArgs.contractName,
-      hre
-    )) as string;
     const initCallData =
       taskArgs.integrate !== undefined
         ? logicFactory.interface.encodeFunctionData("integrate")
@@ -993,12 +988,9 @@ task(
         ? await getBytes32Salt(taskArgs.contractName, hre)
         : hre.ethers.utils.formatBytes32String(taskArgs.salt);
 
-    hre.network.provider;
-    console.log(factory.address);
     const txCount = await hre.ethers.provider.getTransactionCount(
       factory.address
     );
-    console.log(1);
     const implAddress = hre.ethers.utils.getContractAddress({
       from: factory.address,
       nonce: txCount,
@@ -1025,7 +1017,7 @@ task(
       logicName: taskArgs.contractName,
       logicAddress: taskArgs.logicAddress,
       salt,
-      proxyAddress: proxyAddress,
+      proxyAddress,
       gas: receipt.gasUsed.toNumber(),
       receipt,
       initCallData,
@@ -1046,79 +1038,6 @@ async function checkUserDirPath(path: string) {
     }
   }
 }
-task(
-  "upgradeSnapshots",
-  "multicall deploy new snapshot and upgrade snapshot proxy proxy"
-)
-  .addParam(
-    "factoryAddress",
-    "address of factory contract to deploy the contract with"
-  )
-  .setAction(async (taskArgs, hre) => {
-    const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
-    const factory = factoryBase.attach(taskArgs.factoryAddress);
-    const logicFactory: ContractFactory = await hre.ethers.getContractFactory(
-      taskArgs.contractName
-    );
-    const initArgs =
-      taskArgs.initCallData === undefined
-        ? []
-        : taskArgs.initCallData.replace(/\s+/g, "").split(",");
-    const fullname = (await getFullyQualifiedName(
-      taskArgs.contractName,
-      hre
-    )) as string;
-    const isInitable = await isInitializable(fullname, hre.artifacts);
-    const initCallData = isInitable
-      ? logicFactory.interface.encodeFunctionData(INITIALIZER, initArgs)
-      : "0x";
-    const deployTx = logicFactory.getDeployTransaction(
-      ...taskArgs.constructorArgs
-    );
-    const deployCreate = factoryBase.interface.encodeFunctionData(
-      DEPLOY_CREATE,
-      [deployTx.data]
-    );
-    const salt: string =
-      taskArgs.salt === undefined
-        ? await getBytes32Salt(taskArgs.contractName, hre)
-        : hre.ethers.utils.formatBytes32String(taskArgs.salt);
-    const txCount = await hre.ethers.provider.getTransactionCount(
-      factory.address
-    );
-    const implAddress = hre.ethers.utils.getContractAddress({
-      from: factory.address,
-      nonce: txCount,
-    });
-    const upgradeProxy = factoryBase.interface.encodeFunctionData(
-      DEPLOY_CREATE,
-      [salt, implAddress, initCallData]
-    );
-    const PROXY_FACTORY = await hre.ethers.getContractFactory(PROXY);
-    const proxyAddress = getMetamorphicAddress(
-      taskArgs.factoryAddress,
-      salt,
-      hre
-    );
-    const proxyContract = await PROXY_FACTORY.attach(proxyAddress);
-    const oldImpl = await proxyContract.getImplementationAddress();
-    const txResponse = await factory.multiCall([deployCreate, upgradeProxy]);
-    const receipt = await txResponse.wait();
-    await showState(
-      `Updating logic for the ${taskArgs.contractName} proxy at ${proxyAddress} from ${oldImpl} to ${implAddress}, gasCost: ${receipt.gasUsed}`
-    );
-    const proxyData: ProxyData = {
-      factoryAddress: taskArgs.factoryAddress,
-      logicName: taskArgs.contractName,
-      logicAddress: taskArgs.logicAddress,
-      salt,
-      proxyAddress: getEventVar(receipt, DEPLOYED_PROXY, CONTRACT_ADDR),
-      gas: receipt.gasUsed.toNumber(),
-      receipt,
-      initCallData,
-    };
-    return proxyData;
-  });
 
 async function getAccounts(hre: HardhatRuntimeEnvironment) {
   const signers = await hre.ethers.getSigners();
