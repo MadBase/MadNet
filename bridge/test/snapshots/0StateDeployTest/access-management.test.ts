@@ -1,29 +1,21 @@
 import { Signer } from "ethers";
 import { contract } from "hardhat";
-import { expect } from "../chai-setup";
+import { expect } from "../../chai-setup";
 import {
   factoryCallAnyFixture,
   Fixture,
   getFixture,
   getValidatorEthAccount,
-} from "../setup";
+} from "../../setup";
 
-contract("Snapshots", async () => {
+contract("Snapshots 0state", async () => {
   describe("Snapshots: Access control methods", () => {
     let fixture: Fixture;
     let adminSigner: Signer;
     let randomerSigner: Signer;
 
     beforeEach(async function () {
-      fixture = await getFixture(
-        true,
-        false,
-        undefined,
-        true,
-        true,
-        undefined,
-        true
-      );
+      fixture = await getFixture(true, false);
       const [admin, , , , , randomer] = fixture.namedSigners;
       adminSigner = await getValidatorEthAccount(admin.address);
       randomerSigner = await getValidatorEthAccount(randomer.address);
@@ -31,7 +23,6 @@ contract("Snapshots", async () => {
 
     it("GetEpochLength returns 1024", async function () {
       const expectedEpochLength = 1024;
-
       const epochLength = await fixture.snapshots.getEpochLength();
       await expect(epochLength).to.be.equal(expectedEpochLength);
     });

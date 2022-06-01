@@ -23,13 +23,21 @@ contract("SnapshotRingBuffer", async () => {
   let snapshots: Snapshots;
   describe("Snapshot without migration", async () => {
     beforeEach(async () => {
-      fixture = await getFixture(true, false, undefined, false);
+      fixture = await getFixture(
+        true,
+        false,
+        undefined,
+        false,
+        undefined,
+        true,
+        false
+      );
       fixture.snapshots = (await deployLogicAndUpgradeWithFactory(
         fixture.factory,
         "Snapshots",
         fixture.snapshots.address,
         undefined,
-        [],
+        [0, 0],
         [1, 1024]
       )) as Snapshots;
       snapshots = fixture.snapshots;
@@ -135,7 +143,15 @@ contract("SnapshotRingBuffer", async () => {
 
   describe("Snapshot upgrade integration", async () => {
     beforeEach(async () => {
-      fixture = await getFixture(true, false, undefined, true);
+      fixture = await getFixture(
+        true,
+        false,
+        undefined,
+        true,
+        true,
+        undefined,
+        true
+      );
     });
 
     it("verifies epoch value and snapshot migration onto ring buffer", async () => {

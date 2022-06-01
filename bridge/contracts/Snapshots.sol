@@ -18,7 +18,25 @@ import "hardhat/console.sol";
 contract Snapshots is Initializable, SnapshotsStorage, ISnapshots {
     constructor(uint256 chainID_, uint256 epochLength_) SnapshotsStorage(chainID_, epochLength_) {}
 
-    function integrate() public onlyFactory {
+    //use only the initialize function when deploying this contract on a new chain
+
+    function initialize(uint32 desperationDelay_, uint32 desperationFactor_) public onlyFactory {
+        if (desperationDelay_ == 0 && desperationFactor_ == 0) {
+            integrate();
+        } else {
+            init0State(desperationDelay_, desperationFactor_);
+        }
+    }
+
+    function init0State(uint32 desperationDelay_, uint32 desperationFactor_) internal initializer {
+        // considering that in optimum conditions 1 Sidechain block is at every 3 seconds and 1 block at
+        // ethereum is approx at 13 seconds
+        _minimumIntervalBetweenSnapshots = uint32(_epochLength / 4);
+        _snapshotDesperationDelay = desperationDelay_;
+        _snapshotDesperationFactor = desperationFactor_;
+    }
+
+    function integrate() internal onlyFactory {
         require(getEpoch() == 0, "already integrated");
         uint32 epoch = _epoch;
         if (epoch > 0) {

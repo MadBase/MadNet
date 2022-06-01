@@ -12,6 +12,7 @@ import { isHexString } from "ethers/lib/utils";
 import { ethers, network } from "hardhat";
 import { Artifact } from "hardhat/types";
 import SnapshotsV1Artifact from "../../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
+import { INITIALIZER } from "../scripts/lib/constants";
 import {
   AliceNetFactory,
   AToken,
@@ -387,7 +388,10 @@ export const deployLogicAndUpgradeWithFactory = async (
   let initCallDataBin = "0x";
   if (initCallData !== undefined) {
     try {
-      initCallDataBin = _Contract.interface.encodeFunctionData("integrate");
+      initCallDataBin = _Contract.interface.encodeFunctionData(
+        INITIALIZER,
+        initCallData
+      );
     } catch (error) {
       console.warn(
         `Error deploying contract ${contractName} couldn't get initialize arguments: ${error}`
@@ -519,12 +523,24 @@ export const getBaseTokensFixture = async (): Promise<BaseTokensFixture> => {
   await posFixtureSetup(fixture.factory, fixture.aToken, fixture.legacyToken);
   return fixture;
 };
-
+/**
+ *
+ * @param mockValidatorPool deploys a mock validator pool
+ * @param mockSnapshots deploys the mock snapshots contract
+ * @param mockETHDKG deploys mock ethdkg
+ * @param runEthDKG runs ethdkg and performs 6 snapshots
+ * @param upgradeSnapshots deploys current snapshot contract and upgrades snapshots proxy
+ * @param snapshotsV1 deploys snapshot V1 initialy
+ * @returns
+ */
 export const getFixture = async (
   mockValidatorPool?: boolean,
   mockSnapshots?: boolean,
   mockETHDKG?: boolean,
-  sync?: boolean
+  runEthDKG?: boolean,
+  upgradeSnapshots?: boolean,
+  snapshotsV1?: boolean,
+  doSnapshots?: boolean
 ): Promise<Fixture> => {
   await preFixtureSetup();
   const namedSigners = await ethers.getSigners();
@@ -615,7 +631,7 @@ export const getFixture = async (
       [10, 40],
       [1, 1]
     )) as Snapshots;
-  } else {
+  } else if (upgradeSnapshots || snapshotsV1) {
     // Snapshots
     snapshots = await deployUpgradeableV1WithFactory(
       factory,
@@ -624,6 +640,14 @@ export const getFixture = async (
       [10, 40],
       [1, 1024]
     );
+  } else {
+    snapshots = (await deployUpgradeableWithFactory(
+      factory,
+      "Snapshots",
+      "Snapshots",
+      [10, 40],
+      [1, 1024]
+    )) as Snapshots;
   }
 
   const aTokenMinter = (await deployUpgradeableWithFactory(
@@ -644,7 +668,8 @@ export const getFixture = async (
   if (phaseLength >= blockNumber) {
     await mineBlocks(phaseLength);
   }
-  if (sync === true) {
+  const signedSnapshots = signedData1;
+  if (runEthDKG) {
     if (mockETHDKG !== true && mockValidatorPool !== true) {
       const validators = await createValidators(
         factory,
@@ -676,10 +701,12 @@ export const getFixture = async (
     await mineBlocks(
       (await snapshots.getMinimumIntervalBetweenSnapshots()).toBigInt()
     );
-    const signedSnapshots = signedData1;
+
     snapshots = snapshots.connect(
       await getValidatorEthAccount(validatorsSnapshotsG1[0])
     );
+  }
+  if (doSnapshots) {
     //take 6 snapshots
     for (let i = 0; i < SNAPSHOT_BUFFER_LENGTH; i++) {
       await mineBlocks(
@@ -692,18 +719,17 @@ export const getFixture = async (
       );
       await contractTx.wait();
     }
-
-    if (mockSnapshots !== true) {
-      //upgrade the snapshot contract
-      snapshots = (await deployLogicAndUpgradeWithFactory(
-        factory,
-        "Snapshots",
-        snapshots.address,
-        undefined,
-        [],
-        [1, 1024]
-      )) as Snapshots;
-    }
+  }
+  if (upgradeSnapshots === true) {
+    //upgrade the snapshot contract
+    snapshots = (await deployLogicAndUpgradeWithFactory(
+      factory,
+      "Snapshots",
+      snapshots.address,
+      undefined,
+      [0, 0],
+      [1, 1024]
+    )) as Snapshots;
   }
 
   return {

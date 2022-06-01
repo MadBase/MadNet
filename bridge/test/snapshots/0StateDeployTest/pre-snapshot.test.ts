@@ -1,20 +1,20 @@
 import { Signer } from "ethers";
 import { ethers } from "hardhat";
-import { expect } from "../chai-setup";
+import { expect } from "../../chai-setup";
 import {
   Fixture,
   getFixture,
   getTokenIdFromTx,
   getValidatorEthAccount,
   mineBlocks,
-} from "../setup";
-import { validatorsSnapshotsG1 } from "../sharedConstants/4-validators-snapshots-100-Group1";
+} from "../../setup";
+import { validatorsSnapshotsG1 } from "../../sharedConstants/4-validators-snapshots-100-Group1";
 import {
   validatorsSnapshotsG2,
   validSnapshot7168G2,
-} from "../sharedConstants/4-validators-snapshots-100-Group2";
+} from "../../sharedConstants/4-validators-snapshots-100-Group2";
 
-describe("Snapshots: Tests Snapshots methods", () => {
+describe("Snapshots 0state: Tests Snapshots methods", () => {
   let fixture: Fixture;
   let adminSigner: Signer;
   // let randomSigner: Signer;
@@ -30,15 +30,7 @@ describe("Snapshots: Tests Snapshots methods", () => {
   beforeEach(async function () {
     validators = [];
     stakingTokenIds = [];
-    fixture = await getFixture(
-      true,
-      false,
-      undefined,
-      true,
-      true,
-      undefined,
-      true
-    );
+    fixture = await getFixture(true, false, undefined, true);
     const [admin, , , , ,] = fixture.namedSigners;
     adminSigner = await getValidatorEthAccount(admin.address);
     // randomSigner = await getValidatorEthAccount(randomUser.address);

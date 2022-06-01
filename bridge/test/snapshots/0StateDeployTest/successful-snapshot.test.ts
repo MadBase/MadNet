@@ -1,32 +1,35 @@
 import { ethers } from "hardhat";
-import { Snapshots } from "../../typechain-types";
-import { expect } from "../chai-setup";
+import { Snapshots } from "../../../typechain-types";
+import { expect } from "../../chai-setup";
 import {
   Fixture,
   getFixture,
   getValidatorEthAccount,
   mineBlocks,
   SNAPSHOT_BUFFER_LENGTH,
-} from "../setup";
+} from "../../setup";
 import {
+  invalidSnapshot500,
   invalidSnapshot7168ChainID2,
   invalidSnapshot7668,
   invalidSnapshotIncorrectSig7168,
   signedData1,
   validatorsSnapshotsG1,
-  validSnapshot7168,
-} from "../sharedConstants/4-validators-snapshots-100-Group1";
+  validSnapshot1024,
+} from "../../sharedConstants/4-validators-snapshots-100-Group1";
 
-describe("Snapshots: With successful ETHDKG round completed", () => {
+describe("Snapshots 0state: With successful ETHDKG round completed", () => {
   let fixture: Fixture;
   let snapshots: Snapshots;
+  const initialEpoch = 6;
+  const nextEpoch = 7;
   beforeEach(async function () {
     fixture = await getFixture(
       true,
       false,
       undefined,
       true,
-      true,
+      undefined,
       undefined,
       true
     );
@@ -40,7 +43,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
     await expect(
       snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
-        .snapshot(validSnapshot7168.GroupSignature, validSnapshot7168.BClaims)
+        .snapshot(validSnapshot1024.GroupSignature, validSnapshot1024.BClaims)
     ).to.be.revertedWith("1401");
   });
 
@@ -52,10 +55,7 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
             validatorsSnapshotsG1[invalidSnapshot7668.validatorIndex]
           )
         )
-        .snapshot(
-          invalidSnapshot7668.GroupSignature,
-          invalidSnapshot7668.BClaims
-        )
+        .snapshot(invalidSnapshot500.GroupSignature, invalidSnapshot500.BClaims)
     ).to.be.revertedWith("406");
   });
 
@@ -107,15 +107,15 @@ describe("Snapshots: With successful ETHDKG round completed", () => {
 
   it("Successfully performs snapshot", async function () {
     const expectedChainId = 1;
-    const expectedEpoch = SNAPSHOT_BUFFER_LENGTH + 1;
+    const expectedEpoch = nextEpoch;
     const expectedHeight = expectedEpoch * 1024;
     const expectedSafeToProceedConsensus = true;
     await expect(
       snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
-          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[initialEpoch].GroupSignature,
+          signedData1[initialEpoch].BClaims
         )
     )
       .to.emit(snapshots, `SnapshotTaken`)

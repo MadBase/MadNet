@@ -8,7 +8,6 @@ import {
 import fs from "fs";
 import { task } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import SnapshotsV1Artifact from "../../../legacy/V1/artifacts/contracts/Snapshots.sol/Snapshots.json";
 import {
   ALICENET_FACTORY,
   CONTRACT_ADDR,
@@ -301,14 +300,9 @@ task(
     };
     const factoryBase = await hre.ethers.getContractFactory(ALICENET_FACTORY);
     const factory = factoryBase.attach(taskArgs.factoryAddress);
-    let logicFactory;
-    if (taskArgs.contractName === "Snapshots") {
-      logicFactory = await hre.ethers.getContractFactoryFromArtifact(
-        SnapshotsV1Artifact
-      );
-    } else {
-      logicFactory = await hre.ethers.getContractFactory(taskArgs.contractName);
-    }
+    const logicFactory = await hre.ethers.getContractFactory(
+      taskArgs.contractName
+    );
     const initArgs =
       taskArgs.initCallData === undefined
         ? []

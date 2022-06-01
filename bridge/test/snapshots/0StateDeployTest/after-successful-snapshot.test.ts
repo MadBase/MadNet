@@ -1,29 +1,29 @@
 import { BigNumber } from "ethers";
 import { contract } from "hardhat";
-import { expect } from "../chai-setup";
+import { expect } from "../../chai-setup";
 import {
   Fixture,
   getFixture,
   getValidatorEthAccount,
   mineBlocks,
-  SNAPSHOT_BUFFER_LENGTH,
-} from "../setup";
+} from "../../setup";
 import {
   signedData1,
   validatorsSnapshotsG1,
-} from "../sharedConstants/4-validators-snapshots-100-Group1";
-contract("Snapshots", async () => {
+} from "../../sharedConstants/4-validators-snapshots-100-Group1";
+contract("Snapshots 0state", async () => {
   describe("Snapshots: With successful snapshot completed", () => {
     let fixture: Fixture;
     let snapshotNumber: BigNumber;
-
+    const initialEpoch = 6;
+    const nextEpochVal = 7;
     beforeEach(async function () {
       fixture = await getFixture(
         true,
         false,
         undefined,
         true,
-        true,
+        undefined,
         undefined,
         true
       );
@@ -34,9 +34,7 @@ contract("Snapshots", async () => {
       const validValidator = await getValidatorEthAccount(
         validatorsSnapshotsG1[0]
       );
-      expect(await fixture.snapshots.getEpoch()).to.be.equal(
-        SNAPSHOT_BUFFER_LENGTH
-      );
+      expect(await fixture.snapshots.getEpoch()).to.be.equal(initialEpoch);
       await mineBlocks(
         (
           await fixture.snapshots.getMinimumIntervalBetweenSnapshots()
@@ -45,11 +43,11 @@ contract("Snapshots", async () => {
       await fixture.snapshots
         .connect(validValidator)
         .snapshot(
-          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[initialEpoch].GroupSignature,
+          signedData1[initialEpoch].BClaims
         );
       expect((await fixture.snapshots.getEpoch()).toNumber()).to.be.equal(
-        SNAPSHOT_BUFFER_LENGTH + 1
+        nextEpochVal
       );
     });
 
@@ -57,19 +55,17 @@ contract("Snapshots", async () => {
       const validValidator = await getValidatorEthAccount(
         validatorsSnapshotsG1[0]
       );
-      expect(await fixture.snapshots.getEpoch()).to.be.equal(
-        SNAPSHOT_BUFFER_LENGTH
-      );
+      expect(await fixture.snapshots.getEpoch()).to.be.equal(initialEpoch);
       await expect(
         fixture.snapshots
           .connect(validValidator)
           .snapshot(
-            signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-            signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
+            signedData1[initialEpoch].GroupSignature,
+            signedData1[initialEpoch].BClaims
           )
       ).to.be.revertedWith("402");
       expect((await fixture.snapshots.getEpoch()).toNumber()).to.be.equal(
-        SNAPSHOT_BUFFER_LENGTH
+        initialEpoch
       );
     });
 
@@ -86,8 +82,8 @@ contract("Snapshots", async () => {
         fixture.snapshots
           .connect(validValidator)
           .snapshot(
-            signedData1[SNAPSHOT_BUFFER_LENGTH - 1].GroupSignature,
-            signedData1[SNAPSHOT_BUFFER_LENGTH - 1].BClaims
+            signedData1[initialEpoch - 1].GroupSignature,
+            signedData1[initialEpoch - 1].BClaims
           )
       ).to.be.revertedWith("406");
     });
@@ -102,8 +98,8 @@ contract("Snapshots", async () => {
       await fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .snapshot(
-          signedData1[SNAPSHOT_BUFFER_LENGTH].GroupSignature,
-          signedData1[SNAPSHOT_BUFFER_LENGTH].BClaims
+          signedData1[initialEpoch].GroupSignature,
+          signedData1[initialEpoch].BClaims
         );
       await fixture.validatorPool.initializeETHDKG();
       const junkData =
@@ -118,7 +114,7 @@ contract("Snapshots", async () => {
 
     it("getLatestSnapshot returns correct snapshot data", async function () {
       const expectedChainId = BigNumber.from(1);
-      const expectedHeight = BigNumber.from(SNAPSHOT_BUFFER_LENGTH * 1024);
+      const expectedHeight = BigNumber.from(initialEpoch * 1024);
       const expectedTxCount = BigNumber.from(0);
       const expectedPrevBlock = BigNumber.from(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -148,8 +144,9 @@ contract("Snapshots", async () => {
     });
 
     it("getBlockClaimsFromSnapshot returns correct data", async function () {
+      const epoch = initialEpoch - 1;
       const expectedChainId = BigNumber.from(1);
-      const expectedHeight = BigNumber.from(SNAPSHOT_BUFFER_LENGTH * 1024);
+      const expectedHeight = BigNumber.from(epoch * 1024);
       const expectedTxCount = BigNumber.from(0);
       const expectedPrevBlock = BigNumber.from(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -166,7 +163,7 @@ contract("Snapshots", async () => {
 
       const blockClaims = await fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
-        .getBlockClaimsFromSnapshot(SNAPSHOT_BUFFER_LENGTH);
+        .getBlockClaimsFromSnapshot(epoch);
 
       await expect(blockClaims.chainId).to.be.equal(expectedChainId);
       await expect(blockClaims.height).to.be.equal(expectedHeight);
@@ -179,7 +176,7 @@ contract("Snapshots", async () => {
 
     it("getBlockClaimsFromLatestSnapshot returns correct data", async function () {
       const expectedChainId = BigNumber.from(1);
-      const expectedHeight = BigNumber.from(SNAPSHOT_BUFFER_LENGTH * 1024);
+      const expectedHeight = BigNumber.from(initialEpoch * 1024);
       const expectedTxCount = BigNumber.from(0);
       const expectedPrevBlock = BigNumber.from(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -208,18 +205,17 @@ contract("Snapshots", async () => {
     });
 
     it("getAliceNetHeightFromSnapshot returns correct data", async function () {
-      const expectedHeight = BigNumber.from(snapshotNumber.toNumber() * 1024);
-
+      const epoch = initialEpoch - 1;
+      const expectedHeight = BigNumber.from(epoch * 1024);
       const height = await fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
-        .getAliceNetHeightFromSnapshot(snapshotNumber);
+        .getAliceNetHeightFromSnapshot(epoch);
 
-      await expect(height).to.be.equal(expectedHeight);
+      expect(height).to.be.equal(expectedHeight);
     });
 
     it("getAliceNetHeightFromLatestSnapshot returns correct data", async function () {
-      const expectedHeight = BigNumber.from(SNAPSHOT_BUFFER_LENGTH * 1024);
-
+      const expectedHeight = BigNumber.from(initialEpoch * 1024);
       const height = await fixture.snapshots
         .connect(await getValidatorEthAccount(validatorsSnapshotsG1[0]))
         .getAliceNetHeightFromLatestSnapshot();

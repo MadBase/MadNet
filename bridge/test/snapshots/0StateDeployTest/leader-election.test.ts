@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { Snapshots } from "../../typechain-types/Snapshots";
-import { getFixture } from "../setup";
+import { Snapshots } from "../../../typechain-types/Snapshots";
+import { getFixture } from "../../setup";
 
 const numValidators = 10;
 const desperationFactor = 40;
@@ -8,19 +8,11 @@ const desperationFactor = 40;
 // this blocksignature happens to coincide with a starting index of 7 in the case of 10 validators
 const blockSignature = `0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563`;
 
-describe("Snapshots: MayValidatorSnapshot", () => {
+describe("Snapshots 0state: MayValidatorSnapshot", () => {
   let mayValidatorSnapshot: Snapshots["mayValidatorSnapshot"];
 
   before(async () => {
-    const fixture = await getFixture(
-      undefined,
-      undefined,
-      undefined,
-      true,
-      true,
-      undefined,
-      true
-    );
+    const fixture = await getFixture();
     mayValidatorSnapshot = fixture.snapshots.mayValidatorSnapshot;
   });
 
