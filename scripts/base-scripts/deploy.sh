@@ -60,7 +60,7 @@ cd $CURRENT_WD
 cd $BRIDGE_DIR
 npx hardhat --network $NETWORK setMinEthereumBlocksPerSnapshot --factory-address $FACTORY_ADDRESS --block-num 10
 npx hardhat setHardhatIntervalMining --network $NETWORK
-npx hardhat --network $NETWORK --show-stack-traces multiCallUpgradeProxy --contract-name Snapshots --factory-address $FACTORY_ADDRESS --integrate 1337 1024
+# npx hardhat --network $NETWORK --show-stack-traces multiCallUpgradeProxy --contract-name Snapshots --factory-address $FACTORY_ADDRESS --integrate 1337 1024
 cd $CURRENT_WD
 
 if [[ -n "${AUTO_START_VALIDATORS}" ]]; then

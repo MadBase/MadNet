@@ -12,7 +12,6 @@ import "solidity-coverage";
 import "./scripts/generateImmutableAuth";
 import "./scripts/lib/alicenetFactoryTasks";
 import "./scripts/lib/alicenetTasks";
-import { INITIALIZER } from "./scripts/lib/constants";
 import "./scripts/lib/gogogen";
 require("dotenv").config();
 
@@ -27,11 +26,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   for (const account of accounts) {
     console.log(account.address);
   }
-});
-task("encode", "Prints the list of accounts", async (taskArgs, hre) => {
-  const snapshotFactory = await hre.ethers.getContractFactory("Snapshots");
-  let calldata = snapshotFactory.interface.encodeFunctionData(INITIALIZER, []);
-  console.log(calldata);
 });
 
 const config: HardhatUserConfig = {
