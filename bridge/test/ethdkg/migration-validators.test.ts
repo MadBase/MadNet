@@ -202,8 +202,8 @@ describe("Ethdkg: Migrate state", () => {
       )
     ).to.be.revertedWith("151");
   });
-
-  it("Change validators after migration with scheduling maintenance + snapshots", async function () {
+  //TODO verify we do not need this
+  xit("Change validators after migration with scheduling maintenance + snapshots", async function () {
     const validators = await createValidatorsWFixture(
       fixture,
       validatorsSnapshots2
@@ -333,8 +333,8 @@ describe("Ethdkg: Migrate state", () => {
         signedData[2].GroupSignature
       );
   });
-
-  it("Run ethdkg with same validators after migration with scheduling maintenance + snapshots", async function () {
+  //TODO verify we do not need this
+  xit("Run ethdkg with same validators after migration with scheduling maintenance + snapshots", async function () {
     const validators = await createValidatorsWFixture(
       fixture,
       validatorsSnapshots
