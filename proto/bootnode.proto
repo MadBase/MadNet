@@ -8,4 +8,6 @@ service BootNode {
 
 message BootNodeRequest {}
 
-message BootNodeResponse { repeated string Peers = 1; }
+message BootNodeResponse {
+  repeated string Peers = 1;
+}

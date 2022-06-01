@@ -8,9 +8,11 @@ import "proto/cobjs.proto";
 message GetDataRequest {
   uint32 CurveSpec = 1;
   string Account = 2; // must be 20 bytes or 40 hex chars
-  string Index = 3;   // must be 32 bytes or 64 hex chars
+  string Index = 3; // must be 32 bytes or 64 hex chars
 }
-message GetDataResponse { string Rawdata = 1; }
+message GetDataResponse {
+  string Rawdata = 1;
+}
 
 message GetValueRequest {
   uint32 CurveSpec = 1;
@@ -28,7 +30,9 @@ message GetValueResponse {
 message MinedTransactionRequest {
   string TxHash = 1; // 32 bytes
 }
-message MinedTransactionResponse { Tx Tx = 1; }
+message MinedTransactionResponse {
+  Tx Tx = 1;
+}
 
 message TransactionStatusRequest {
   string TxHash = 1; // 32 bytes
@@ -42,17 +46,23 @@ message TransactionStatusResponse {
 message BlockHeaderRequest {
   uint32 Height = 1; // must not be zero
 }
-message BlockHeaderResponse { BlockHeader BlockHeader = 1; }
+message BlockHeaderResponse {
+  BlockHeader BlockHeader = 1;
+}
 
 message UTXORequest {
   repeated string UTXOIDs = 1; // []string of hashes
 }
-message UTXOResponse { repeated TXOut UTXOs = 1; }
+message UTXOResponse {
+  repeated TXOut UTXOs = 1;
+}
 
 message PendingTransactionRequest {
   string TxHash = 1; // 32 bytes
 }
-message PendingTransactionResponse { Tx Tx = 1; }
+message PendingTransactionResponse {
+  Tx Tx = 1;
+}
 
 message BlockNumberRequest {}
 message BlockNumberResponse {
@@ -64,7 +74,9 @@ message ChainIDResponse {
   uint32 ChainID = 1; // must not be zero
 }
 
-message TransactionData { Tx Tx = 1; }
+message TransactionData {
+  Tx Tx = 1;
+}
 message TransactionDetails {
   string TxHash = 1; // 32 bytes
 }
@@ -76,8 +88,8 @@ message EpochNumberResponse {
 
 message IterateNameSpaceRequest {
   uint32 CurveSpec = 1;
-  string Account = 2;    // 20 bytes
-  uint32 Number = 3;     // not more than 256
+  string Account = 2; // 20 bytes
+  uint32 Number = 3; // not more than 256
   string StartIndex = 4; // 32 bytes
 }
 message IterateNameSpaceResponse {
@@ -103,9 +115,9 @@ message ValidatorSetResponse {
 }
 
 message RoundStateForValidatorRequest {
-  string VAddr = 1;  // ignore for now
+  string VAddr = 1; // ignore for now
   uint32 Height = 2; // ignore for now
-  uint32 Round = 3;  // ignore for now
+  uint32 Round = 3; // ignore for now
 }
 message RoundStateForValidatorResponse {
   bytes RoundState = 1; // ignore for now
