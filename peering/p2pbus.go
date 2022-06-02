@@ -604,7 +604,6 @@ func (p2p *P2PClient) Status(ctx context.Context, in *pb.StatusRequest, opts ...
 		if !middleware.CanBlock(opts...) {
 			return nil, middleware.ErrWouldBlock
 		} else {
-
 			p2p.reqChan <- req
 		}
 	}
