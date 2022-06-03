@@ -31,22 +31,7 @@ func TestSmtEmptyTrie(t *testing.T) {
 }
 
 func testDb(t *testing.T, fn func(txn *badger.Txn) error) {
-	// Open the DB.
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := environment.SetupBadgerDatabase(t)
 	err = db.Update(fn)
 	if err != nil {
 		t.Fatal(err)
@@ -522,12 +507,9 @@ func TestSmtFastSync(t *testing.T) {
 				t.Fatal(err)
 			}
 			batch = utils.CopySlice(tmp)
-			tmpB, err := smt.parseBatch(tmp)
+			_, err = smt.parseBatch(tmp)
 			if err != nil {
 				t.Fatal(err)
-			}
-			for i := 0; i < len(tmpB); i++ {
-				fmt.Printf("%v-%v: %x\n", 0, i, tmpB[i])
 			}
 			return nil
 		})
@@ -560,12 +542,9 @@ func TestSmtFastSync(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					tmpB, err := smt.parseBatch(tmp)
+					_, err = smt.parseBatch(tmp)
 					if err != nil {
 						t.Fatal(err)
-					}
-					for j := 0; j < len(tmpB); j++ {
-						fmt.Printf("%v-%v: %x\n", subBatch[i].layer, j, tmpB[j])
 					}
 					batch = utils.CopySlice(tmp)
 					return nil
