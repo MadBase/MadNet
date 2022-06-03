@@ -262,7 +262,7 @@ func TestWrapDoNotContinue(t *testing.T) {
 	genErr := objects.ErrCanNotContinue
 	specErr := errors.New("neutrinos")
 
-	niceErr := errors.Wrapf(genErr, "Caused by %v", specErr)
+	niceErr := errors.WithMessagef(genErr, "Caused by %v", specErr)
 	assert.True(t, errors.Is(niceErr, genErr))
 
 	t.Logf("NiceErr: %v", niceErr)
