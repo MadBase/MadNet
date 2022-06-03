@@ -1,4 +1,4 @@
-logging = "main=info,ethereum=info,consensus=debug"
+logging = "main=info,ethereum=info,consensus=debug,dman=debug,app=debug,peerMan=debug,muxHandler=debug,p2pmux=debug"
 
 [loglevel]
 blockchain = "debug"
@@ -6,7 +6,7 @@ consensus = "debug"
 admin = "debug"
 
 [chain]
-id = 67
+id = 21
 stateDB = "./scripts/generated/stateDBs/integration/"
 stateDBInMemory = false
 transactionDB = ""
@@ -14,39 +14,40 @@ transactionDBInMemory = true
 monitorDB = "scripts/generated/monitorDBs/integration/"
 monitorDBInMemory = false
 
+
 [bootnode]
-listeningAddress = ""
+listeningAddress = "0.0.0.0:4242"
 cacheSize = 20
 
 [transport]
 upnp = false
 originLimit = 50
-privateKey = "B9C9335223ABDCFD81FFAE3A7BB1B1D6"
-bootNodeAddresses = "0000002a|029570051a8573e865af31a066eb100e7744bcbd05d814e899a763500163675be9@127.0.0.1:4242"
+privateKey = "0E6A7E40AC1C69C936DD03EAB9669651"
+bootNodeAddresses = 
 p2pListeningAddress = "0.0.0.0:4343"
-discoveryListeningAddress = "0.0.0.0:4445"
+discoveryListeningAddress = "0.0.0.0:4444"
 localStateListeningAddress = "0.0.0.0:8885"
 peerLimitMax = 24
-peerLimitMin = 3
+peerLimitMin = 1
 
 [monitor]
-batchSize = 1_000
+batchSize = 10_000
 interval = "7s"
 timeout = "1h"
 
 [ethereum]
-defaultAccount = "0x8dc55490Eb47b6aCaF47bcCB3b4c71440fe0CeC3"
-endpoint = "http://localhost:8545"
+defaultAccount = "0x546f99f244b7b58b855330ae0e2bc1b30b41302f"
+endpoint = "https://eth.alice.net/"
 endpointPeers = 0
 keystore = "scripts/generated/keystores/keys"
 timeout = "1h"
 passcodes = "scripts/generated/keystores/passcodes.txt"
 testEther = "f000000000000000000"
-finalityDelay = 6
+finalityDelay = 1
 retryCount = 10
 retryDelay = "5s"
-startingBlock = 1
-registryAddress = "0x9ae1e758e7b4d200b499EE2C7Ca01426cAb7c218"
+startingBlock = 14542880
+registryAddress = "0xA85Fcfba7234AD28148ebDEe054165AeF6974a65"
 txFeePercentageToIncrease = 50
 txMaxFeeThresholdInGwei = 1000000
 txCheckFrequency = "5s"

@@ -961,11 +961,11 @@ task("get-latest-blockheight", "gets the latest external chain height")
     return blocknum;
   });
 
-task("create-local-test-genesis-node", "start and syncs a node with testnet")
+task("create-local-seed-node", "start and syncs a node with testnet")
   .addOptionalParam(
     "configPath",
     "path to the nodes config file",
-    "./scripts/base-files/testBaseConfig.toml"
+    "./scripts/base-files/seedValidatorConfig.toml"
   )
   .setAction(async (taskArgs) => {
     const valNode = spawn(
