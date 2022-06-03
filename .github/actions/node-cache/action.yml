@@ -16,3 +16,10 @@ runs:
     shell: bash
     working-directory: ./bridge
     run: npm ci && npm run clean && npm run compile
+
+    - name: V1Artifacts Cache
+    id: V1ArtifactsCache
+    uses: actions/cache@v3.0.2
+    with:
+      path: '**/legacy'
+      key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
