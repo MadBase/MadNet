@@ -17,3 +17,12 @@ runs:
     working-directory: ./bridge
     run: npm ci && npm run clean && npm run compile
 
+  - name: V1Artifacts Cache
+    id: v1-artifacts-cache
+    uses: actions/cache@v3.0.2
+    with:
+      path: '**/legacy/V1'
+      key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
+  - if: steps.v1-artifacts-cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: make generate-bridge
