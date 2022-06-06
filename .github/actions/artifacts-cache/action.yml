@@ -5,7 +5,7 @@ runs:
   steps:
   - uses: actions/cache@v3
     name: "V1Artifacts Cache"
-    id: artifacts-cache.outputs
+    id: artifacts-cache
     with:
       path: '**/legacy/V1'
       key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
