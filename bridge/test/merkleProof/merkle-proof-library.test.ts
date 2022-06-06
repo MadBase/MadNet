@@ -4,6 +4,21 @@ import { deployLibrary } from "./setup";
 
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
+const VALID_AUDIT_PATH =
+  "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe31596974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb1150925fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
+const VALID_MERKLE_ROOT =
+  "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
+const VALID_PROOF_VALUE =
+  "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+const VALID_HEIGHT_FOR_VALID_PROOF = 0x4;
+const VALID_HEIGHT_RANGE_MAX = 0x100; // 256
+const VALID_HEIGHT_RANGE_MIN = 0x00;
+const INVALID_HEIGHT_ABOVE_RANGE_MAX = 0x101; // 257
+const VALID_BITSET = "0xb0";
+const VALID_KEY =
+  "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
+const VALID_KEYHASH =
+  "0xa53ec428ed37200bcb4944a99107b738c1a58ef76287b130583095c58b0f45e4";
 
 describe("Testing Merkle Proof Library", async () => {
   let MerkleProofLibrary: MockMerkleProofLibrary;
@@ -18,13 +33,12 @@ describe("Testing Merkle Proof Library", async () => {
         "0xe602c66f5176c6d2a33d6eb3addf38c937e0e32457e58148883578cb4655b826";
       const root =
         "0x529312e0c69f0cc47d27630461d884d9537ebfa51d57c1ecf7f38f77c801373f";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
+      const key = VALID_KEY;
       const bitset = "0x80";
       const height = 0x1;
       const included = false;
-      const proofKey = ZERO_BYTES32;
-      const proofValue = ZERO_BYTES32;
+      const proofKeyZero = ZERO_BYTES32;
+      const proofValueZero = ZERO_BYTES32;
 
       await expect(
         MerkleProofLibrary.verifyNonInclusion(
@@ -32,8 +46,8 @@ describe("Testing Merkle Proof Library", async () => {
             included: included,
             keyHeight: height,
             key: key,
-            proofKey: proofKey,
-            proofValue: proofValue,
+            proofKey: proofKeyZero,
+            proofValue: proofValueZero,
             bitmap: bitset,
             auditPath: auditPath,
           },
@@ -43,21 +57,15 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("does not revert with non inclusion leaf node MerkleProof", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
       const key =
         "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c996"; // utxoID
-      const bitset = "0xB0";
-      const height = 4;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = false;
-      const proofKey =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995";
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+      const proofKey = VALID_KEY;
+      const proofValue = VALID_PROOF_VALUE;
 
       await expect(
         MerkleProofLibrary.verifyNonInclusion(
@@ -76,20 +84,14 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with non inclusion proof value 0 and proof key different from 0", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = false;
-      const proofKey =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
-      const proofValue = ZERO_BYTES32;
+      const proofKey = VALID_PROOF_VALUE;
+      const proofValueZero = ZERO_BYTES32;
 
       await expect(
         MerkleProofLibrary.verifyNonInclusion(
@@ -98,7 +100,7 @@ describe("Testing Merkle Proof Library", async () => {
             keyHeight: height,
             key: key,
             proofKey: proofKey,
-            proofValue: proofValue,
+            proofValue: proofValueZero,
             bitmap: bitset,
             auditPath: auditPath,
           },
@@ -110,16 +112,11 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with valid proof with key not in the key path", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = true;
       // Proof key is inside the trie but is not in the path of our Key
       const proofKey =
@@ -146,16 +143,11 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with invalid proof key", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = true;
       // Proof key is inside the trie but is not in the path of our Key
       const proofKey =
@@ -182,20 +174,14 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with non inclusion of an included key merkle proof", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = true;
-      const proofKey = ZERO_BYTES32;
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+      const proofKeyZero = ZERO_BYTES32;
+      const proofValue = VALID_PROOF_VALUE;
 
       await expect(
         MerkleProofLibrary.verifyNonInclusion(
@@ -203,7 +189,7 @@ describe("Testing Merkle Proof Library", async () => {
             included: included,
             keyHeight: height,
             key: key,
-            proofKey: proofKey,
+            proofKey: proofKeyZero,
             proofValue: proofValue,
             bitmap: bitset,
             auditPath: auditPath,
@@ -218,20 +204,14 @@ describe("Testing Merkle Proof Library", async () => {
 
   describe("verifyInclusion:", async () => {
     it("Does not revert if proof is included", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = true;
-      const proofKey = ZERO_BYTES32;
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+      const proofKeyZero = ZERO_BYTES32;
+      const proofValue = VALID_PROOF_VALUE;
 
       await expect(
         MerkleProofLibrary.verifyInclusion(
@@ -239,7 +219,7 @@ describe("Testing Merkle Proof Library", async () => {
             included: included,
             keyHeight: height,
             key: key,
-            proofKey: proofKey,
+            proofKey: proofKeyZero,
             proofValue: proofValue,
             bitmap: bitset,
             auditPath: auditPath,
@@ -250,20 +230,15 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with invalid inclusion Merkle Proof", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
       const key =
         "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c996"; // utxoID
-      const bitset = "0xB0";
-      const height = 4;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = false;
-      const proofKey = ZERO_BYTES32;
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+      const proofKeyZero = ZERO_BYTES32;
+      const proofValue = VALID_PROOF_VALUE;
 
       await expect(
         MerkleProofLibrary.verifyInclusion(
@@ -271,7 +246,7 @@ describe("Testing Merkle Proof Library", async () => {
             included: included,
             keyHeight: height,
             key: key,
-            proofKey: proofKey,
+            proofKey: proofKeyZero,
             proofValue: proofValue,
             bitmap: bitset,
             auditPath: auditPath,
@@ -284,19 +259,14 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts with inclusion without proof value", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xB0";
-      const height = 4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
       const included = false;
-      const proofKey = ZERO_BYTES32;
-      const proofValue = ZERO_BYTES32;
+      const proofKeyZero = ZERO_BYTES32;
+      const proofValueZero = ZERO_BYTES32;
 
       await expect(
         MerkleProofLibrary.verifyInclusion(
@@ -304,8 +274,8 @@ describe("Testing Merkle Proof Library", async () => {
             included: included,
             keyHeight: height,
             key: key,
-            proofKey: proofKey,
-            proofValue: proofValue,
+            proofKey: proofKeyZero,
+            proofValue: proofValueZero,
             bitmap: bitset,
             auditPath: auditPath,
           },
@@ -318,11 +288,10 @@ describe("Testing Merkle Proof Library", async () => {
   });
   describe("checkProof:", async () => {
     it("returns correct leaf hash when data is valid", async () => {
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995";
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
+      const key = VALID_KEY;
+      const proofValue = VALID_PROOF_VALUE;
       const height = 0x4;
+
       const expectedKeyHash =
         "0xa53ec428ed37200bcb4944a99107b738c1a58ef76287b130583095c58b0f45e4";
 
@@ -335,11 +304,9 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("reverts when height is out of range", async () => {
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995";
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
-      const height = 257;
+      const key = VALID_KEY;
+      const proofValue = VALID_PROOF_VALUE;
+      const height = INVALID_HEIGHT_ABOVE_RANGE_MAX;
 
       await expect(
         MerkleProofLibrary.computeLeafHash(key, proofValue, height)
@@ -349,11 +316,9 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("succeeds when height is zero and returns correct leaf hash", async () => {
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995";
-      const proofValue =
-        "0x0391f56ce9575815216c9c0fcffa1d50767adb008c1491b7da2dbc323b8c1fb5";
-      const height = 0x00;
+      const key = VALID_KEY;
+      const proofValue = VALID_PROOF_VALUE;
+      const height = VALID_HEIGHT_RANGE_MIN;
 
       const expectedKeyHash =
         "0x435d8718a62e73fac8e2b7f99d89161dc10e713284ab59edd6f22c9858ab1617";
@@ -369,18 +334,12 @@ describe("Testing Merkle Proof Library", async () => {
 
   describe("checkProof:", async () => {
     it("returns true when key is valid inside MerkleTree", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const keyHash =
-        "0xa53ec428ed37200bcb4944a99107b738c1a58ef76287b130583095c58b0f45e4";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const keyHash = VALID_KEYHASH;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
 
       const valid = await MerkleProofLibrary.checkProof(
         auditPath,
@@ -394,18 +353,12 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("returns false when height is greater than 256", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
-      const keyHash =
-        "0xa53ec428ed37200bcb4944a99107b738c1a58ef76287b130583095c58b0f45e4";
-      const key =
-        "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c995"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x101; // 257
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
+      const keyHash = VALID_KEYHASH;
+      const key = VALID_KEY;
+      const bitset = VALID_BITSET;
+      const height = INVALID_HEIGHT_ABOVE_RANGE_MAX;
 
       await expect(
         MerkleProofLibrary.checkProof(
@@ -430,7 +383,7 @@ describe("Testing Merkle Proof Library", async () => {
       const key =
         "0x6e286c26d8715685894787919c58c9aeee7dff73f88bf476dab1d282d535e5f2"; // utxoID
       const bitset = "0x00";
-      const height = 0;
+      const height = VALID_HEIGHT_RANGE_MIN;
 
       const valid = await MerkleProofLibrary.checkProof(
         auditPath,
@@ -459,7 +412,7 @@ describe("Testing Merkle Proof Library", async () => {
         "0x5179fc581e28dfb3f4f7202cc76cf896b86c982c2a70e7b607009ce1a9e86395";
       const bitset =
         "0xe00000000000000000000000000000000000000000000000000000000000002300";
-      const height = 0x100; // 256
+      const height = VALID_HEIGHT_RANGE_MAX;
 
       const valid = await MerkleProofLibrary.checkProof(
         auditPath,
@@ -473,18 +426,14 @@ describe("Testing Merkle Proof Library", async () => {
     });
 
     it("returns false when key is not valid inside MerkleTree", async () => {
-      const auditPath =
-        "0x066c7a6ef776fbae26f10eabcc5f0eb72b0f527c4cad8c4037940a28c2fe3159" +
-        "6974f1d60877fdff3125a5c1adb630afe3aa899820a0531cea8ee6a85eb11509" +
-        "25fc463686d6201f9c3973a9ebeabe4375d5a76d935bbec6cbb9d18bffe67216";
-      const root =
-        "0x51f16d008cec2409af8104a0bca9facec585e02c12d2fa5221707672410dc692";
+      const auditPath = VALID_AUDIT_PATH;
+      const root = VALID_MERKLE_ROOT;
       const keyHash =
         "0xd2056ce8d2aca5dfebd7a2ee14e01d4beda84ba1c5968cd7f0717de28d89988c";
       const key =
         "0x80ab269d23d84721a53f9f3accb024a1947bcf5e4910a152f38d55d7d644c996"; // utxoID
-      const bitset = "0xb0";
-      const height = 0x4;
+      const bitset = VALID_BITSET;
+      const height = VALID_HEIGHT_FOR_VALID_PROOF;
 
       const valid = await MerkleProofLibrary.checkProof(
         auditPath,
