@@ -1,0 +1,15 @@
+name: 'Cache capnpro and other artifacts (swagger)'
+description: 'Cache capnpro and other artifacts (swagger)'
+runs:
+  using: "composite"
+  steps:
+  - uses: actions/cache@v3
+    name: V1Artifacts Cache
+    id: v1-artifacts-cache
+    with:
+      path: |
+        **/legacy/V1
+      key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
+  - if: steps.v1-artifacts-cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: make generate-bridge
