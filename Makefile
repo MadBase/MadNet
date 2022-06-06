@@ -20,6 +20,7 @@ generate: generate-bridge generate-go
 generate-bridge: init
 	export MSYS_NO_PATHCONV=1 &&\
 	export PASS_PERMVARS=1 &&\
+	tar -xvf legacy/V1ArtifactsArchive.tar.gz --directory legacy &&\
 	mkdir bridge/node_modules 2>/dev/null || true &&\
 	docker/update-container.sh docker/generate-bridge/Dockerfile madnet-generate-bridge "-v $$PWD/bridge:/app -v /app/node_modules/" &&\
 	docker start -a madnet-generate-bridge

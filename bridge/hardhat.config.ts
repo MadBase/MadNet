@@ -2,6 +2,8 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-truffle5";
 import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
+import { exec } from "child_process";
+import { existsSync } from "fs";
 import "hardhat-abi-exporter";
 import "hardhat-contract-sizer";
 import "hardhat-deploy";
@@ -27,6 +29,16 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
     console.log(account.address);
   }
 });
+
+//TODO implemet trycatch
+
+if (!existsSync("../../legacy/V1")) {
+  const process = exec(
+    "tar -xvf ../legacy/V1ArtifactsArchive.tar.gz --directory ../legacy"
+  );
+  while (!existsSync("../../legacy/V1") && process.killed) {}
+  process.kill();
+}
 
 const config: HardhatUserConfig = {
   namedAccounts: {
