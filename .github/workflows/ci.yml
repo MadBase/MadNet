@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/node-cache
-      - uses: ./.github/actions/v1-artifacts-cache
+      - uses: ./.github/actions/artifacts-cache
     
   solidity-unit-tests:
     runs-on: ubuntu-20.04
