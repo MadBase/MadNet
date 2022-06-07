@@ -14,6 +14,15 @@ runs:
   using: "composite"
 
   steps:
+  - name: "V1Artifacts Cache"
+    id: artifacts-cache
+    uses: actions/cache@v3
+    with:
+      path: '**/legacy/V1'
+      key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
+  - if: steps.artifacts-cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: make generate-bridge
   - shell: bash
     working-directory: ./bridge
     run: npm run clean && npm run compile
