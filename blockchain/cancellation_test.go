@@ -13,7 +13,8 @@ import (
 const SLEEP_DURATION = 500 * time.Millisecond
 
 func TestCancellation_SleepWithContextComplete(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	completed := false
 
@@ -56,7 +57,8 @@ func TestCancellation_SleepWithContextInterrupted(t *testing.T) {
 }
 
 func TestCancellation_SlowReturn(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	type args struct {
 		ctx   context.Context
