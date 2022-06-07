@@ -163,13 +163,10 @@ jobs:
           github.com/MadBase/MadNet/blockchain/tasks
         ]
     steps:
-      # Checkout and tool to format the test output
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
-
-      # Run matrix blockchain unit tests
       - name: Run tests ${{ matrix.test-cmd }}
         timeout-minutes: 45
         run: |
