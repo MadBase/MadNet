@@ -88,7 +88,6 @@ jobs:
   golang-linter:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
-    needs: golang-build
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
@@ -97,7 +96,6 @@ jobs:
   
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
-    needs: golang-build
     strategy:
       matrix:
         os: [ ubuntu-20.04 ]
@@ -124,7 +122,7 @@ jobs:
 
   golang-blockchain-tests:
     runs-on: ${{ matrix.os }}
-    needs: golang-build
+    needs: golang-unit-tests
     timeout-minutes: 60
     strategy:
       fail-fast: false
