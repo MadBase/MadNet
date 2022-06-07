@@ -24,7 +24,7 @@ local-geth/*
 
 # generated files
 scripts/generated
-localstate.swagger.json
+*.swagger.json
 **/swagger-bindata/bindata.go
 **/*.pb.go
 test/mocks/*.mockgen.go
