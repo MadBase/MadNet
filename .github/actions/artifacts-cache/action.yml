@@ -1,5 +1,5 @@
-name: 'Cache capnpro and other artifacts (swagger)'
-description: 'Cache capnpro and other artifacts (swagger)'
+name: 'V1Artifacts'
+description: 'caches v1 contract artifacts'
 runs:
   using: "composite"
   steps:
