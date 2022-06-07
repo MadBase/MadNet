@@ -8,6 +8,7 @@ linters:
   disable:
     - errcheck
     - gosimple
+    - govet
     - ineffassign
     - staticcheck
     - varcheck
