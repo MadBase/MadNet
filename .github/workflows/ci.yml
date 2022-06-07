@@ -55,6 +55,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/node-cache
       - uses: ./.github/actions/solidity-tests
+      - uses: ./.github/actions/artifacts-cache
         with:
           test-group: ${{ matrix.test-group }}
           sub-filter-include: ${{ matrix.sub-filter-include }}
