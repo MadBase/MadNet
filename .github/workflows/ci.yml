@@ -84,27 +84,6 @@ jobs:
       - uses: ./.github/actions/node-cache
       - run: npm run clean && npm run compile && npm run typechain
       - run: npm run lint
-  
-  golang-build:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    needs: solidity-build
-    strategy:
-      matrix:
-        os: [ ubuntu-20.04 ]
-    steps:
-      - name: "Sanitize branch name"
-        run: |
-          echo "BRANCH_NAME=$(echo ${{ github.head_ref || github.ref_name }} | sed -E 's/[^[:alnum:]]+/_/g')" >> $GITHUB_ENV
-          echo "OPERATING_SYSTEM=$(echo ${{ matrix.os }} | sed -E 's/[^[:alnum:]]+/_/g')" >> $GITHUB_ENV
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/alicenet-config
-      - run: make build
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.0.0
-        with:
-          name: alicenet-${{ env.BRANCH_NAME }}-${{ env.OPERATING_SYSTEM }}
-          path: ./madnet
     
   golang-linter:
     runs-on: ubuntu-20.04
@@ -114,8 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v3
   
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
@@ -126,6 +104,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
+      - run: go build ./...
       - name: Set up gotestfmt
         run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@latest
       - name: Run unit tests
