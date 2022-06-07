@@ -8,15 +8,14 @@ runs:
     id: alicenet-cache
     with:
       path: |
-        localrpc/swagger-bindata/bindata.go
-        localrpc/swagger/localstate.swagger.json
+        localrpc/swagger/proto/localstate.swagger.json
         **/*.pb.go
         **/*.capnp.go
         **/*.pb.gw.go
         **/*_mngen.go
         **/*_mngen_test.go
         test/mocks/**
-      key: ${{ runner.os }}-go-${{ hashFiles('**/*.proto', './cmd/mngen/**', './localrpc/swagger/**', '**/generate.go') }}
+      key: ${{ runner.os }}-go-${{ hashFiles('**/*.proto', './cmd/mngen/**', './localrpc/swagger/**', '**/generate.go', './tools.go') }}
   - if: steps.alicenet-cache.outputs.cache-hit != 'true'
     shell: bash
     run: make generate-go
