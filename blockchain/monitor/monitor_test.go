@@ -5,6 +5,7 @@ package monitor_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -28,7 +29,6 @@ import (
 	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
@@ -262,13 +262,8 @@ func TestWrapDoNotContinue(t *testing.T) {
 	genErr := objects.ErrCanNotContinue
 	specErr := errors.New("neutrinos")
 
-	niceErr := errors.Wrapf(genErr, "Caused by %v", specErr)
+	niceErr := fmt.Errorf("%w because %v", genErr, specErr)
 	assert.True(t, errors.Is(niceErr, genErr))
 
-	t.Logf("NiceErr: %v", niceErr)
-
-	nice2Err := fmt.Errorf("%w because %v", genErr, specErr)
-	assert.True(t, errors.Is(nice2Err, genErr))
-
-	t.Logf("Nice2Err: %v", nice2Err)
+	t.Logf("%v", niceErr)
 }
