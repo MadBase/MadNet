@@ -8,7 +8,6 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 // import { ValidatorPool } from "../../typechain-types";
 import {
   ALICENET_FACTORY,
-  BASE_CONFIG_PATH,
   DEFAULT_CONFIG_OUTPUT_DIR,
   VALIDATOR_CONFIG_DIR,
 } from "./constants";
@@ -912,22 +911,29 @@ run a validator with testBaseConfigFile
 */
 
 task(
-  "generate-validator-config",
+  "set-mainnet-validator",
   "modifies an existing validator with values from specified base config file"
 )
   .addOptionalParam(
-    "validatorId",
-    "the number that identifies the validator you want to use, default is 1",
-    "1"
+    "factoryAddress",
+    "Address of alicenet Factory, defaults to mainnet",
+    "0xA85Fcfba7234AD28148ebDEe054165AeF6974a65"
   )
   .addOptionalParam(
-    "baseConfigPath",
-    "path to the base configuration file",
-    BASE_CONFIG_PATH
+    "configPath",
+    "Path to the validator config directory",
+    "../scripts/generated/config"
   )
   .setAction(async (taskArgs) => {
     // get the testBaseConfig file
-    let data = fs.readFileSync(taskArgs.baseConfigPath);
+    let validatorConfigs = fs.readdirSync(taskArgs.configPath);
+    for (let fileName of validatorConfigs) {
+      const filePath = VALIDATOR_CONFIG_DIR + fileName;
+      const data = fs.readFileSync(filePath);
+      const config = toml.parse(data.toString());
+      config["registryAddress"] = taskArgs.factoryAddress;
+      config["startingBlock"] = 14542800;
+    }
     const testBaseConfig: any = toml.parse(data.toString());
     // get a validator file
     data = fs.readFileSync(
@@ -961,11 +967,11 @@ task("get-latest-blockheight", "gets the latest external chain height")
     return blocknum;
   });
 
-task("create-local-seed-node", "start and syncs a node with testnet")
+task("create-local-seed-node", "start and syncs a node with mainnet")
   .addOptionalParam(
     "configPath",
     "path to the nodes config file",
-    "./scripts/base-files/seedValidatorConfig.toml"
+    "~/Desktop/seedValidatorConfig.toml"
   )
   .setAction(async (taskArgs) => {
     const valNode = spawn(
@@ -976,31 +982,32 @@ task("create-local-seed-node", "start and syncs a node with testnet")
         shell: true,
       }
     );
-    valNode.stdout.on("data", (data) => {
-      console.log(data.toString());
-    });
-    valNode.stderr.on("data", (data) => {
-      console.log(data.toString());
-    });
-    valNode.on("close", (code) => {
-      console.log(`child process exited with code ${code}`);
-    });
+    // valNode.stdout.on("data", (data) => {
+    //   console.log(data.toString());
+    // });
+    // valNode.stderr.on("data", (data) => {
+    //   console.log(data.toString());
+    // });
+    // valNode.on("close", (code) => {
+    //   console.log(`child process exited with code ${code}`);
+    //   return
+    // });
     let synced = false;
-    let pauseNode = 0;
+    let alicenetHeight;
     while (!synced) {
       try {
         const requestConfig = {
           timeout: 2000,
         };
         const response = await axios.post(
-          "http://0.0.0.0:8884/" + "get-block-number",
+          "http://0.0.0.0:8885/v1/" + "get-block-number",
           {},
           requestConfig
         );
         if (response.status === 200) {
-          pauseNode = response.data;
-          console.log(response.data);
+          alicenetHeight = response.data;
           synced = true;
+          break;
         }
       } catch (err: any) {
         if (err) {
@@ -1009,7 +1016,8 @@ task("create-local-seed-node", "start and syncs a node with testnet")
       }
     }
     valNode.kill(1);
-    return pauseNode;
+    console.log(alicenetHeight["BlockHeight"]);
+    return alicenetHeight["BlockHeight"].toString();
   });
 
 task("fork-external-chain", "")
@@ -1032,38 +1040,32 @@ task("fork-external-chain", "")
   });
 
 task(
-  "start-local-genesis-node",
+  "start-local-seed-node",
   "starts a node already synce with remote testnet on local testnet"
-)
-  .addOptionalParam(
-    "rpcUrl",
-    "rpc url to fork the chain from, default value is test-net ropsten endpoint",
-    "https://testnet.eth.mnexplore.com/"
-  )
-  .setAction(async () => {
-    const valNode = spawn(
-      "./madnet",
-      [
-        "--config",
-        "./scripts/base-files/localTestNetBaseConfig.toml",
-        "validator",
-      ],
-      {
-        cwd: "../",
-        shell: true,
-      }
-    );
+).setAction(async () => {
+  const valNode = spawn(
+    "./madnet",
+    [
+      "--config",
+      "./scripts/base-files/localTestNetBaseConfig.toml",
+      "validator",
+    ],
+    {
+      cwd: "../",
+      shell: true,
+    }
+  );
 
-    valNode.stdout.on("data", (data) => {
-      console.log(data.toString());
-    });
-    valNode.stderr.on("data", (data) => {
-      console.log(data.toString());
-    });
-    valNode.on("close", (code) => {
-      console.log(`child process exited with code ${code}`);
-    });
-  });
+  // valNode.stdout.on("data", (data) => {
+  //   console.log(data.toString());
+  // });
+  // valNode.stderr.on("data", (data) => {
+  //   console.log(data.toString());
+  // });
+  // valNode.on("close", (code) => {
+  //   console.log(`child process exited with code ${code}`);
+  // });
+});
 
 task("enable-hardhat-impersonate")
   .addParam("account", "account to impersonate")
@@ -1078,7 +1080,6 @@ task("mine-num-blocks")
   .addParam("numBlocks", "number of blocks to mine")
   .setAction(async (taskArgs, hre) => {
     const numBlocks = parseInt(taskArgs.numBlocks, 10);
-    console.log();
     await hre.network.provider.send("hardhat_mine", [
       "0x" + numBlocks.toString(16),
     ]);
@@ -1089,12 +1090,12 @@ task("pause-consensus-at-height")
   .addOptionalParam(
     "factoryAddress",
     "address of the factory contract that deployed all the defaults to ropsten testnet factory",
-    "0x9bebADdd34730b83b1372e4ED1BD67e4f84A02C8"
+    "0xA85Fcfba7234AD28148ebDEe054165AeF6974a65"
   )
   .addOptionalParam(
     "signer",
-    "account that deployed factory, defaults to ",
-    "0x137425E39a2A981ed83Fe490dedE1aB139840B87"
+    "account that deployed factory, defaults to 0xb9670e38d560c5662f0832cacaac3282ecffddb1",
+    "0xb9670e38d560c5662f0832cacaac3282ecffddb1"
   )
   .setAction(async (taskArgs, hre) => {
     // get the signer for the owner of the factory

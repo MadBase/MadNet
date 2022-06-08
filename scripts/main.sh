@@ -162,7 +162,7 @@ case $1 in
         ./scripts/base-scripts/sync-testnet.sh
     ;;
     fork-testnet)
-        ./scripts/base-scripts/hardhat-testnet-fork.sh
+        ./scripts/base-scripts/hardhat-mainnet-fork.sh
     ;;
     validator)
         RUN_VALIDATOR $2
