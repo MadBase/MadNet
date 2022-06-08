@@ -16,6 +16,16 @@ abstract contract ImmutableFactory is DeterministicAddress {
         _;
     }
 
+    // this modifier asserts that the msg.sender was deployed through the factory (with the given salt)
+    modifier onlyFactoryChildren(bytes32 salt) {
+        address expected = getMetamorphicContractAddress(salt, _factoryAddress());
+        require(
+            msg.sender == expected,
+            string(abi.encodePacked(ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_FACTORY_CHILDREN))
+        );
+        _;
+    }
+
     constructor(address factory_) {
         _factory = factory_;
     }
