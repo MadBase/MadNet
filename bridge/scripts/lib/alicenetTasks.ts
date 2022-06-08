@@ -929,29 +929,16 @@ task(
     let validatorConfigs = fs.readdirSync(taskArgs.configPath);
     for (let fileName of validatorConfigs) {
       const filePath = VALIDATOR_CONFIG_DIR + fileName;
-      const data = fs.readFileSync(filePath);
+      const data = await fs.readFileSync(filePath);
       const config = toml.parse(data.toString());
       config["registryAddress"] = taskArgs.factoryAddress;
       config["startingBlock"] = 14542800;
+      const output = toml.stringify(config);
+      await fs.writeFileSync(
+        VALIDATOR_CONFIG_DIR + `validator${taskArgs.validatorId}.toml`,
+        output
+      );
     }
-    const testBaseConfig: any = toml.parse(data.toString());
-    // get a validator file
-    data = fs.readFileSync(
-      VALIDATOR_CONFIG_DIR + "validator" + taskArgs.validatorId + ".toml"
-    );
-    const validator1Config: any = toml.parse(data.toString());
-    validator1Config.ethereum.endpoint = testBaseConfig.ethereum.endpoint;
-    validator1Config.ethereum.registryAddress =
-      testBaseConfig.ethereum.registryAddress;
-    validator1Config.transport.bootNodeAddresses =
-      testBaseConfig.transport.bootNodeAddresses;
-    validator1Config.ethereum.startingBlock =
-      testBaseConfig.ethereum.startingBlock;
-    const output = toml.stringify(validator1Config);
-    fs.writeFileSync(
-      VALIDATOR_CONFIG_DIR + `validator${taskArgs.validatorId}.toml`,
-      output
-    );
   });
 
 task("get-latest-blockheight", "gets the latest external chain height")
