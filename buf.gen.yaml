@@ -23,3 +23,5 @@ plugins:
     out: ./localrpc/swagger/
     opt:
       - logtostderr=true
+      - allow_merge=true
+      - merge_file_name=madnet
