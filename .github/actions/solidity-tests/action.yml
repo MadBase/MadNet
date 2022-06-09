@@ -22,6 +22,7 @@ runs:
       key: ${{ runner.os }}-artifacts-${{ hashFiles('**/legacy/V1ArtifactsArchive.tar.gz') }}
   - if: steps.artifacts-cache.outputs.cache-hit != 'true'
     shell: bash
+  
     run: make generate-bridge
   - shell: bash
     working-directory: ./bridge
