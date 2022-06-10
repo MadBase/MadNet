@@ -105,16 +105,6 @@ jobs:
         with:
           name: alicenet-${{ env.BRANCH_NAME }}-${{ env.OPERATING_SYSTEM }}
           path: ./madnet
-
-  golang-vet:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    needs: golang-build
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/alicenet-config
-      - run: go vet ./...
     
   golang-linter:
     runs-on: ubuntu-20.04
@@ -124,11 +114,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
-      - name: install-golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-      - name: run golangci-lint
-        run: golangci-lint run ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
   
   golang-unit-tests:
     runs-on: ${{ matrix.os }}
@@ -137,7 +124,6 @@ jobs:
       matrix:
         os: [ ubuntu-20.04 ]
     steps:
-        # Checkout and tool to format the test output
       - uses: actions/checkout@v3
       - uses: ./.github/actions/alicenet-config
       - name: Set up gotestfmt
@@ -146,7 +132,16 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          go test -json -v $(go list ./... | grep -Ev '/blockchain|/badgerTrie|/consensus/dman|/testutils') 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go test -json -v -covermode=atomic -coverprofile=coverage.out ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+      - name: Run unit tests (race detection)
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          go test -race -json -v -covermode=atomic -coverprofile=coverage.out ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+      - uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.out
+          verbose: true
 
   golang-blockchain-tests:
     runs-on: ${{ matrix.os }}
@@ -201,4 +196,4 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/main.sh init 5
-          go test -json -v -timeout=15m ${{ matrix.test-cmd }} 2>&1 | tee /tmp/gotest.log | gotestfmt
+          go test -tags=integration -json -v -timeout=15m ${{ matrix.test-cmd }} 2>&1 | tee /tmp/gotest.log | gotestfmt
