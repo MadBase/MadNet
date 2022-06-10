@@ -27,6 +27,7 @@ export interface state {
       user: number;
       bridgePool: bigint;
       aToken: bigint;
+      foundation: bigint;
     };
   };
 }
@@ -62,6 +63,9 @@ export async function getState(fixture: Fixture, bridgePool: BridgePool) {
         ).toBigInt(),
         aToken: (
           await ethers.provider.getBalance(fixture.aToken.address)
+        ).toBigInt(),
+        foundation: (
+          await ethers.provider.getBalance(fixture.foundation.address)
         ).toBigInt(),
       },
     },

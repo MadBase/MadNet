@@ -1,5 +1,5 @@
 import toml from "@iarna/toml";
-import { BytesLike } from "ethers";
+import { BytesLike, ContractTransaction } from "ethers";
 import fs from "fs";
 import { task, types } from "hardhat/config";
 import { getEventVar } from "./alicenetFactoryTasks";

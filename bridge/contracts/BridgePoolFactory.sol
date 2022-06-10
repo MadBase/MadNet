@@ -7,27 +7,46 @@ import "contracts/Proxy.sol";
 import "contracts/utils/ImmutableAuth.sol";
 
 /// @custom:salt BridgePoolFactory
-/// @custom:deploy-type deployStatic
-contract BridgePoolFactory is ImmutableFactory, ImmutableBridgePoolFactory {
-    constructor() ImmutableFactory(msg.sender) {}
+/// @custom:deploy-type deployUpgradeable
+contract BridgePoolFactory is
+    ImmutableFactory,
+    ImmutableBridgePoolFactory,
+    ImmutableBridgePoolDepositNotifier
+{
+    uint256 internal immutable _networkId;
+    string internal constant _BRIDGE_POOL_TAG = "ERC";
 
-    //TODO: Set proper accessControl?
-    function deployNewPool(address erc20Contract_, address token2) public {
+    constructor(uint256 networkId_) ImmutableFactory(msg.sender) {
+        _networkId = networkId_;
+    }
+
+    /**
+     * @notice deployNewPool delegates call to this contract's method "deployViaFactoryLogic" through alicenet factory
+     * @param erc20Contract_ address of ERC20 token contract
+     * @param token address of bridge token contract
+     */
+    function deployNewPool(address erc20Contract_, address token) public {
         bytes memory callData = abi.encodeWithSelector(
             this.deployViaFactoryLogic.selector,
             erc20Contract_,
-            token2
+            token
         );
         address impAddress = Proxy(payable(address(this))).getImplementationAddress();
         AliceNetFactory(_factoryAddress()).delegateCallAny(impAddress, callData);
     }
 
-    function deployViaFactoryLogic(address erc20Contract_, address token2)
+    /**
+     * @notice deployViaFactoryLogic deploys a BridgePool contract between ERC20 token and token
+     * @param erc20Contract_ address of ERC20 token contract
+     * @param token address of bridge token contract
+     * @return contract address
+     */
+    function deployViaFactoryLogic(address erc20Contract_, address token)
         public
         onlyBridgePoolFactory
         returns (address)
     {
-        bytes memory initializers = abi.encode(erc20Contract_, token2);
+        bytes memory initializers = abi.encode(erc20Contract_, token);
         bytes memory deployCode = bytes.concat(type(BridgePool).creationCode, initializers);
         AliceNetFactory(_factoryAddress()).deployTemplate(deployCode);
         bytes32 salt = getSaltFromERC20Address(erc20Contract_);
@@ -42,19 +61,32 @@ contract BridgePoolFactory is ImmutableFactory, ImmutableBridgePoolFactory {
         bytes memory initCallData = abi.encodeWithSelector(
             BridgePool.initialize.selector,
             erc20Contract_,
-            token2
+            token
         );
         AliceNetFactory(_factoryAddress()).upgradeProxy(salt, contractAddress, initCallData);
         return proxyAddress;
     }
 
     /**
-     * @dev getSaltFromAddress calculates salt for a BridgePool contract based on ERC20 contract's address
+     * @notice getSaltFromAddress calculates salt for a BridgePool contract based on ERC20 contract's address
      * @param erc20Contract_ address of ERC20 contract of BridgePool
      * @return calculated salt
      */
-    function getSaltFromERC20Address(address erc20Contract_) internal pure returns (bytes32) {
+    function getSaltFromERC20Address(address erc20Contract_)
+        public
+        view
+        returns (
+            // onlyBridgePoolDepositNotifier
+            bytes32
+        )
+    {
         return
-            keccak256(bytes.concat(keccak256(abi.encodePacked(erc20Contract_)), keccak256("ERC")));
+            keccak256(
+                bytes.concat(
+                    keccak256(abi.encodePacked(erc20Contract_)),
+                    keccak256(abi.encodePacked(_BRIDGE_POOL_TAG)),
+                    keccak256(abi.encodePacked(_networkId))
+                )
+            );
     }
 }

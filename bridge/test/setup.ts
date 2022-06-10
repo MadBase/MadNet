@@ -16,6 +16,7 @@ import {
   AToken,
   ATokenBurner,
   ATokenMinter,
+  BridgePoolDepositNotifier,
   BridgePoolFactory,
   BToken,
   ETHDKG,
@@ -549,22 +550,23 @@ export const getFixture = async (
     "ATokenBurner"
   )) as ATokenBurner;
 
-  // BridgePool
+  // BridgePoolFactory
   const bridgePoolFactory = (await deployUpgradeableWithFactory(
     factory,
     "BridgePoolFactory",
-    "BridgePoolFactory"
+    "BridgePoolFactory",
+    undefined,
+    [1337]
   )) as BridgePoolFactory;
 
-  //TODO: uncomment upon merging of PR-126
-  // DepositNotifier
-  // const depositNotifier = (await deployStaticWithFactory(
-  //   factory,
-  //   "DepositNotifier",
-  //   "DepositNotifier",
-  //   [0],
-  //   [0]
-  // )) as DepositNotifier;
+  //DepositNotifier
+  const depositNotifier = (await deployUpgradeableWithFactory(
+    factory,
+    "BridgePoolDepositNotifier",
+    "BridgePoolDepositNotifier",
+    undefined,
+    [1337]
+  )) as BridgePoolDepositNotifier;
 
   await posFixtureSetup(factory, aToken, legacyToken);
 
@@ -584,6 +586,7 @@ export const getFixture = async (
     snapshots,
     ethdkg,
     bridgePoolFactory,
+    depositNotifier,
     factory,
     namedSigners,
     aTokenMinter,
