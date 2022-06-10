@@ -160,6 +160,37 @@ abstract contract ImmutableBridgePool is ImmutableFactory {
     }
 }
 
+abstract contract ImmutableBridgePoolDepositNotifier is ImmutableFactory {
+    address private immutable _bridgePoolDepositNotifier;
+
+    modifier onlyBridgePoolDepositNotifier() {
+        require(
+            msg.sender == _bridgePoolDepositNotifier,
+            string(
+                abi.encodePacked(
+                    ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_BRIDGEPOOLDEPOSITNOTIFIER
+                )
+            )
+        );
+        _;
+    }
+
+    constructor() {
+        _bridgePoolDepositNotifier = getMetamorphicContractAddress(
+            0x427269646765506f6f6c4465706f7369744e6f74696669657200000000000000,
+            _factoryAddress()
+        );
+    }
+
+    function _bridgePoolDepositNotifierAddress() internal view returns (address) {
+        return _bridgePoolDepositNotifier;
+    }
+
+    function _saltForBridgePoolDepositNotifier() internal pure returns (bytes32) {
+        return 0x427269646765506f6f6c4465706f7369744e6f74696669657200000000000000;
+    }
+}
+
 abstract contract ImmutableBridgePoolFactory is ImmutableFactory {
     address private immutable _bridgePoolFactory;
 
@@ -408,6 +439,33 @@ abstract contract ImmutableValidatorStaking is ImmutableFactory {
 
     function _saltForValidatorStaking() internal pure returns (bytes32) {
         return 0x56616c696461746f725374616b696e6700000000000000000000000000000000;
+    }
+}
+
+abstract contract ImmutableCallAny is ImmutableFactory {
+    address private immutable _callAny;
+
+    modifier onlyCallAny() {
+        require(
+            msg.sender == _callAny,
+            string(abi.encodePacked(ImmutableAuthErrorCodes.IMMUTEABLEAUTH_ONLY_CALLANY))
+        );
+        _;
+    }
+
+    constructor() {
+        _callAny = getMetamorphicContractAddress(
+            0x43616c6c416e7900000000000000000000000000000000000000000000000000,
+            _factoryAddress()
+        );
+    }
+
+    function _callAnyAddress() internal view returns (address) {
+        return _callAny;
+    }
+
+    function _saltForCallAny() internal pure returns (bytes32) {
+        return 0x43616c6c416e7900000000000000000000000000000000000000000000000000;
     }
 }
 

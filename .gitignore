@@ -1,4 +1,5 @@
 local-geth/*
+.vscode/settings.json
 
 # output files
 /madnet

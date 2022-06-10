@@ -7,6 +7,9 @@ chainID_ = "1337"
 [[constructor."contracts/Snapshots.sol:Snapshots"]]
 epochLength_ = "1024"
 
+[[constructor."contracts/DepositNotifier.sol:DepositNotifier"]]
+id = "777"
+
 [[initializer."contracts/Snapshots.sol:Snapshots"]]
 desperationDelay_ = "10"
 
