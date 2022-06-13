@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "contracts/utils/ImmutableAuth.sol";
 import "contracts/BridgePoolFactory.sol";
-import "hardhat/console.sol";
 
 /// @custom:salt BridgePoolDepositNotifier
 /// @custom:deploy-type deployUpgradeable
@@ -20,8 +19,8 @@ contract BridgePoolDepositNotifier is ImmutableFactory, ImmutableBridgePoolFacto
     );
 
     /**
-     * @notice onlyBridgePool verifies that the call is done by one of the instanciated BridgePools
-     * @param informedSalt finroed salt
+     * @notice onlyBridgePool verifies that the call is done by one BridgePools intanciated by BridgePoolFactory
+     * @param informedSalt informed salt
      * @param erc20Contract_ ERC contract address
      */
     modifier onlyBridgePool(bytes32 informedSalt, address erc20Contract_) {

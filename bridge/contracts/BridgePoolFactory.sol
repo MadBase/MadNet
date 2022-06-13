@@ -76,7 +76,7 @@ contract BridgePoolFactory is
         public
         view
         returns (
-            // onlyBridgePoolDepositNotifier
+            //onlyBridgePoolDepositNotifier
             bytes32
         )
     {

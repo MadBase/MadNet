@@ -557,14 +557,22 @@ export const getFixture = async (
     [1337]
   )) as BridgePoolFactory;
 
-  //DepositNotifier
-  const depositNotifier = (await deployUpgradeableWithFactory(
+  //BridgePoolDepositNotifier
+  const bridgePoolDepositNotifier = (await deployUpgradeableWithFactory(
     factory,
     "BridgePoolDepositNotifier",
     "BridgePoolDepositNotifier",
     undefined,
     [1337]
   )) as BridgePoolDepositNotifier;
+
+  const immutableAuthErrorCodesContract = await (
+    await (await ethers.getContractFactory("ImmutableAuthErrorCodes")).deploy()
+  ).deployed();
+
+  const bridgePoolErrorCodesContract = await (
+    await (await ethers.getContractFactory("BridgePoolErrorCodes")).deploy()
+  ).deployed();
 
   await posFixtureSetup(factory, aToken, legacyToken);
 
@@ -584,7 +592,7 @@ export const getFixture = async (
     snapshots,
     ethdkg,
     bridgePoolFactory,
-    depositNotifier,
+    bridgePoolDepositNotifier,
     factory,
     namedSigners,
     aTokenMinter,
@@ -592,6 +600,8 @@ export const getFixture = async (
     liquidityProviderStaking,
     foundation,
     stakingPositionDescriptor,
+    bridgePoolErrorCodesContract,
+    immutableAuthErrorCodesContract,
   };
 };
 
