@@ -1076,7 +1076,7 @@ function extractPath(qualifiedName: string) {
  * @param varName
  * @returns
  */
-export function getEventVar(
+function getEventVar(
   receipt: ContractReceipt,
   eventName: string,
   varName: string

@@ -34,8 +34,6 @@ type ContractDetails struct {
 	validatorPoolAddress    common.Address
 	governance              bindings.IGovernance
 	governanceAddress       common.Address
-	depositNotifier         *bindings.DepositNotifier
-	depositNotifierAddress  common.Address
 }
 
 // LookupContracts uses the registry to lookup and create bindings for all required contracts
@@ -154,16 +152,6 @@ func (c *ContractDetails) LookupContracts(ctx context.Context, contractFactoryAd
 		c.snapshots, err = bindings.NewSnapshots(c.snapshotsAddress, eth.client)
 		logAndEat(logger, err)
 
-		// DepositNotifier
-		c.depositNotifierAddress, err = lookup("DepositNotifier")
-		logAndEat(logger, err)
-		if bytes.Equal(c.depositNotifierAddress.Bytes(), make([]byte, 20)) {
-			continue
-		}
-
-		c.depositNotifier, err = bindings.NewDepositNotifier(c.depositNotifierAddress, eth.client)
-		logAndEat(logger, err)
-
 		break
 	}
 
@@ -240,12 +228,4 @@ func (c *ContractDetails) Governance() bindings.IGovernance {
 
 func (c *ContractDetails) GovernanceAddress() common.Address {
 	return c.governanceAddress
-}
-
-func (c *ContractDetails) DepositNotifier() *bindings.DepositNotifier {
-	return c.depositNotifier
-}
-
-func (c *ContractDetails) DepositNotifierAddress() common.Address {
-	return c.depositNotifierAddress
 }

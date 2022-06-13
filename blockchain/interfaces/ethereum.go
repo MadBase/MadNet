@@ -147,8 +147,6 @@ type Contracts interface {
 	ValidatorPoolAddress() common.Address
 	Governance() bindings.IGovernance
 	GovernanceAddress() common.Address
-	DepositNotifier() *bindings.DepositNotifier
-	DepositNotifierAddress() common.Address
 }
 
 // Task the interface requirements of a task

@@ -7,6 +7,7 @@ import (
 
 	aobjs "github.com/MadBase/MadNet/application/objs"
 	"github.com/MadBase/MadNet/blockchain/interfaces"
+	"github.com/MadBase/MadNet/blockchain/objects"
 	bobjs "github.com/MadBase/MadNet/blockchain/objects"
 	"github.com/MadBase/MadNet/consensus/db"
 	"github.com/MadBase/MadNet/consensus/objs"
@@ -64,7 +65,7 @@ func ProcessDepositReceived(eth interfaces.Ethereum, logger *logrus.Entry, state
 }
 
 // ProcessValueUpdated handles a dynamic value updating coming from our smart contract
-func ProcessValueUpdated(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log,
+func ProcessValueUpdated(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log,
 	adminHandler interfaces.AdminHandler) error {
 
 	logger.Info("ProcessValueUpdated() ...")
@@ -151,7 +152,7 @@ func ProcessSnapshotTaken(eth interfaces.Ethereum, logger *logrus.Entry, state *
 }
 
 // ProcessValidatorMinorSlashed handles the Minor Slash event
-func ProcessValidatorMinorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log) error {
+func ProcessValidatorMinorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
 
 	logger.Info("ProcessValidatorMinorSlashed() ...")
 
@@ -171,7 +172,7 @@ func ProcessValidatorMinorSlashed(eth interfaces.Ethereum, logger *logrus.Entry,
 }
 
 // ProcessValidatorMajorSlashed handles the Major Slash event
-func ProcessValidatorMajorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log) error {
+func ProcessValidatorMajorSlashed(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
 
 	logger.Info("ProcessValidatorMajorSlashed() ...")
 
@@ -185,47 +186,6 @@ func ProcessValidatorMajorSlashed(eth interfaces.Ethereum, logger *logrus.Entry,
 	})
 
 	logger.Infof("ValidatorMajorSlashed")
-
-	return nil
-}
-
-// ProcessDeposited handles the Deposited event
-func ProcessDeposited(eth interfaces.Ethereum, logger *logrus.Entry, state *bobjs.MonitorState, log types.Log, db *db.Database) error {
-
-	event, err := eth.Contracts().DepositNotifier().ParseDeposited(log)
-	if err != nil {
-		return err
-	}
-
-	logger.WithFields(logrus.Fields{
-		"Nonce":       event.Nonce.String(),
-		"ErcContract": event.ErcContract.String(),
-		"Owner":       event.Owner.String(),
-		"Number":      event.Number.String(),
-		"NetworkId":   event.NetworkId.String(),
-	}).Infof("Deposited")
-
-	db.View(func(txn *badger.Txn) error {
-		prevNonce, err := db.GetDepositedNonce(txn)
-		if err != nil {
-			return err
-		}
-
-		cmp := event.Nonce.Cmp(prevNonce)
-		if cmp == 0 {
-			// already check this nonce, noop
-			return nil
-		} else if cmp == 1 {
-			// UTXO creation goes here
-
-			err = db.SetDepositedNonce(txn, event.Nonce)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
 
 	return nil
 }

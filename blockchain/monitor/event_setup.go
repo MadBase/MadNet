@@ -68,14 +68,6 @@ func GetPublicStakingEvents() map[string]abi.Event {
 
 	return publicStakingABI.Events
 }
-func GetDepositNotifierEvents() map[string]abi.Event {
-	depositNotifierABI, err := abi.JSON(strings.NewReader(bindings.DepositNotifierMetaData.ABI))
-	if err != nil {
-		panic(err)
-	}
-
-	return depositNotifierABI.Events
-}
 
 func RegisterETHDKGEvents(em *objects.EventMap, adminHandler interfaces.AdminHandler) {
 	ethDkgEvents := GetETHDKGEvents()
@@ -177,23 +169,6 @@ func SetupEventMap(em *objects.EventMap, cdb *db.Database, adminHandler interfac
 	}
 
 	if err := em.RegisterLocked(validatorMajorSlashedEvent.ID.String(), validatorMajorSlashedEvent.Name, monevents.ProcessValidatorMajorSlashed); err != nil {
-		panic(err)
-	}
-
-	// DepositNotifier.Deposited
-	dnEvents := GetDepositNotifierEvents()
-	depositedEvent, ok := dnEvents["Deposited"]
-	if !ok {
-		panic("could not find event DepositNotifier.Deposited")
-	}
-
-	if err := em.RegisterLocked(
-		depositedEvent.ID.String(),
-		depositedEvent.Name,
-		func(eth interfaces.Ethereum, logger *logrus.Entry, state *objects.MonitorState, log types.Log) error {
-			return monevents.ProcessDeposited(eth, logger, state, log, cdb)
-		},
-	); err != nil {
 		panic(err)
 	}
 

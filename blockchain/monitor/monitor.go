@@ -348,7 +348,7 @@ func MonitorTick(ctx context.Context, cf context.CancelFunc, wg *sync.WaitGroup,
 		"EthereumInSync": monitorState.EthereumInSync})
 
 	c := eth.Contracts()
-	addresses := []common.Address{c.EthdkgAddress(), c.SnapshotsAddress(), c.BTokenAddress(), c.DepositNotifierAddress()}
+	addresses := []common.Address{c.EthdkgAddress(), c.SnapshotsAddress(), c.BTokenAddress()}
 
 	// 1. Check if our Ethereum endpoint is sync with sufficient peers
 	inSync, peerCount, err := EndpointInSync(ctx, eth, logger)
