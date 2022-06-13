@@ -4,6 +4,9 @@ deploymentList = [
   "contracts/ATokenBurner.sol:ATokenBurner",
   "contracts/ATokenMinter.sol:ATokenMinter",
   "contracts/BToken.sol:BToken",
+  "contracts/BridgePool.sol:BridgePool",
+  "contracts/BridgePoolDepositNotifier.sol:BridgePoolDepositNotifier",
+  "contracts/BridgePoolFactory.sol:BridgePoolFactory",
   "contracts/Foundation.sol:Foundation",
   "contracts/Governance.sol:Governance",
   "contracts/LiquidityProviderStaking.sol:LiquidityProviderStaking",
@@ -12,8 +15,8 @@ deploymentList = [
   "contracts/StakingPositionDescriptor.sol:StakingPositionDescriptor",
   "contracts/ValidatorPool.sol:ValidatorPool",
   "contracts/ValidatorStaking.sol:ValidatorStaking",
+  "test/contract-mocks/callAny/CallAny.sol:CallAny",
   "contracts/libraries/ethdkg/ETHDKGAccusations.sol:ETHDKGAccusations",
   "contracts/libraries/ethdkg/ETHDKGPhases.sol:ETHDKGPhases",
-  "contracts/ETHDKG.sol:ETHDKG",
-  "contracts/DepositNotifier.sol:DepositNotifier"
+  "contracts/ETHDKG.sol:ETHDKG"
 ]

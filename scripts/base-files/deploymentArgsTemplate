@@ -1,14 +1,29 @@
 [[constructor."contracts/AToken.sol:AToken"]]
 legacyToken_ = "0x546f99f244b7b58b855330ae0e2bc1b30b41302f"
 
+[[constructor."contracts/BridgePool.sol:BridgePool"]]
+erc20TokenContract_ = "0x4426F1939966427C436c565a4532e41028c60301"
+
+[[constructor."contracts/BridgePool.sol:BridgePool"]]
+bTokenContract_ = "0x3e4b55722e041c0FC55A90B6EBa50EA5d3f7c02A"
+
+[[constructor."contracts/BridgePoolDepositNotifier.sol:BridgePoolDepositNotifier"]]
+networkId_ = "1337"
+
+[[constructor."contracts/BridgePoolFactory.sol:BridgePoolFactory"]]
+networkId_ = "1337"
+
 [[constructor."contracts/Snapshots.sol:Snapshots"]]
 chainID_ = "1337"
 
 [[constructor."contracts/Snapshots.sol:Snapshots"]]
 epochLength_ = "1024"
 
-[[constructor."contracts/DepositNotifier.sol:DepositNotifier"]]
-id = "777"
+[[initializer."contracts/BridgePool.sol:BridgePool"]]
+erc20TokenContract_ = "0x4426F1939966427C436c565a4532e41028c60301"
+
+[[initializer."contracts/BridgePool.sol:BridgePool"]]
+bTokenContract_ = "0x3e4b55722e041c0FC55A90B6EBa50EA5d3f7c02A"
 
 [[initializer."contracts/Snapshots.sol:Snapshots"]]
 desperationDelay_ = "10"
