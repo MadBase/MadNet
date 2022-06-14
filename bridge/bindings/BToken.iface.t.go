@@ -76,4 +76,8 @@ type IBTokenTransactor interface {
 	//
 	// Solidity: function virtualMintDeposit(uint8 accountType_, address to_, uint256 amount_) returns(uint256)
 	VirtualMintDeposit(opts *bind.TransactOpts, accountType_ uint8, to_ common.Address, amount_ *big.Int) (*types.Transaction, error)
+	// Receive is a paid mutator transaction binding the contract receive function.
+	//
+	// Solidity: receive() payable returns()
+	Receive(opts *bind.TransactOpts) (*types.Transaction, error)
 }

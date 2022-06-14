@@ -38,12 +38,6 @@ type IBTokenErrorCodes interface {
 	IBTokenErrorCodesFilterer
 }
 
-type IBridgePoolDepositNotifier interface {
-	IBridgePoolDepositNotifierCaller
-	IBridgePoolDepositNotifierTransactor
-	IBridgePoolDepositNotifierFilterer
-}
-
 type IETHDKG interface {
 	IETHDKGCaller
 	IETHDKGTransactor

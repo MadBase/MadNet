@@ -86,8 +86,6 @@ var FunctionMapping = map[[4]byte]string{
 	{252, 69, 244, 207}:  "BTokenErrorCodes.BTOKEN_MINIMUM_MINT_NOT_MET()",
 	{40, 16, 209, 66}:    "BTokenErrorCodes.BTOKEN_MINT_INSUFFICIENT_ETH()",
 	{199, 245, 60, 79}:   "BTokenErrorCodes.BTOKEN_SPLIT_VALUE_SUM_ERROR()",
-	{197, 139, 10, 79}:   "BridgePoolDepositNotifier.doEmit(bytes32,address,uint256,address)",
-	{134, 83, 164, 101}:  "BridgePoolDepositNotifier.getMetamorphicContractAddress(bytes32,address)",
 	{218, 230, 129, 188}: "ETHDKG.accuseParticipantDidNotDistributeShares(address[])",
 	{125, 242, 78, 233}:  "ETHDKG.accuseParticipantDidNotSubmitGPKJ(address[])",
 	{4, 58, 111, 18}:     "ETHDKG.accuseParticipantDidNotSubmitKeyShares(address[])",

@@ -9,6 +9,7 @@ import "contracts/utils/EthSafeTransfer.sol";
 import "contracts/libraries/math/Sigmoid.sol";
 import "contracts/utils/ImmutableAuth.sol";
 import {BTokenErrorCodes} from "contracts/libraries/errorCodes/BTokenErrorCodes.sol";
+import "hardhat/console.sol";
 
 /// @custom:salt BToken
 /// @custom:deploy-type deployStatic
@@ -505,5 +506,9 @@ contract BToken is
     ) internal pure returns (Deposit memory) {
         Deposit memory d = Deposit(accountType_, account_, value_);
         return d;
+    }
+
+    function depositEth(uint8 magic_) public payable checkMagic(magic_) {
+        console.log("paying!", msg.value);
     }
 }

@@ -16,6 +16,8 @@ import "contracts/BridgePoolDepositNotifier.sol";
 import "contracts/BridgePoolFactory.sol";
 import "contracts/Foundation.sol";
 
+import "contracts/Proxy.sol";
+
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
 contract BridgePool is
@@ -25,7 +27,7 @@ contract BridgePool is
     ImmutableBridgePool,
     ImmutableBridgePoolDepositNotifier,
     ImmutableBridgePoolFactory,
-    ImmutableFoundation
+    ImmutableBToken
 {
     using MerkleProofParserLibrary for bytes;
     using MerkleProofLibrary for MerkleProofParserLibrary.MerkleProof;
@@ -80,7 +82,7 @@ contract BridgePool is
             )
         );
         uint256 returnedETH = BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        Foundation(_foundationAddress()).depositEth{value: returnedETH}(42);
+        BToken(_bTokenAddress()).depositEth{value: returnedETH}(42);
         BridgePoolDepositNotifier(_bridgePoolDepositNotifierAddress()).doEmit(
             BridgePoolFactory(_bridgePoolFactoryAddress()).getSaltFromERC20Address(
                 _ercTokenContract
