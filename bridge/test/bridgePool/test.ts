@@ -102,14 +102,12 @@ describe("Testing BridgePool Contract methods", async () => {
   });
 
   describe("Testing business logic", async () => {
-    it.only("Should make a deposit with parameters and emit correspondent event", async () => {
-      await ethers.provider.send("evm_setAutomine", [true]);
+    it("Should make a deposit with parameters and emit correspondent event", async () => {
       expectedState = await getState(fixture, bridgePool);
       expectedState.Balances.aToken.user -= erc20Amount;
       expectedState.Balances.aToken.bridgePool += erc20Amount;
       expectedState.Balances.bToken.user -= bTokenAmount;
       expectedState.Balances.bToken.totalSupply -= bTokenAmount;
-      expectedState.Balances.eth.bToken += ethsReceived.toBigInt();
       const nonce = 1;
       await expect(
         bridgePool

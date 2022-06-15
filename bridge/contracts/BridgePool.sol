@@ -5,7 +5,6 @@ import "contracts/utils/ImmutableAuth.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "contracts/BToken.sol";
-import "hardhat/console.sol";
 import {BridgePoolErrorCodes} from "contracts/libraries/errorCodes/BridgePoolErrorCodes.sol";
 import "contracts/libraries/parsers/MerkleProofParserLibrary.sol";
 import "contracts/libraries/MerkleProofLibrary.sol";
@@ -15,6 +14,7 @@ import "contracts/utils/ERC20SafeTransfer.sol";
 import "contracts/BridgePoolDepositNotifier.sol";
 import "contracts/BridgePoolFactory.sol";
 import "contracts/Foundation.sol";
+import "contracts/utils/MagicEthTransfer.sol";
 
 import "contracts/Proxy.sol";
 
@@ -27,13 +27,14 @@ contract BridgePool is
     ImmutableBridgePool,
     ImmutableBridgePoolDepositNotifier,
     ImmutableBridgePoolFactory,
-    ImmutableBToken
+    ImmutableBToken,
+    MagicEthTransfer
 {
     using MerkleProofParserLibrary for bytes;
     using MerkleProofLibrary for MerkleProofParserLibrary.MerkleProof;
 
     address internal immutable _ercTokenContract;
-    address internal immutable _bTokenContract;
+    address payable internal immutable _bTokenContract;
 
     struct UTXO {
         uint32 chainID;
@@ -43,7 +44,9 @@ contract BridgePool is
         bytes32 txHash;
     }
 
-    constructor(address erc20TokenContract_, address bTokenContract_) ImmutableFactory(msg.sender) {
+    constructor(address erc20TokenContract_, address payable bTokenContract_)
+        ImmutableFactory(msg.sender)
+    {
         _ercTokenContract = erc20TokenContract_;
         _bTokenContract = bTokenContract_;
     }
@@ -81,8 +84,11 @@ contract BridgePool is
                 )
             )
         );
-        uint256 returnedETH = BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
-        BToken(_bTokenAddress()).depositEth{value: returnedETH}(42);
+        uint256 returnedETH = BToken(_bTokenContract).burnTo(
+            address(_bTokenContract),
+            bTokenAmount_,
+            0
+        );
         BridgePoolDepositNotifier(_bridgePoolDepositNotifierAddress()).doEmit(
             BridgePoolFactory(_bridgePoolFactoryAddress()).getSaltFromERC20Address(
                 _ercTokenContract
