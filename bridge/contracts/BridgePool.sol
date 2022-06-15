@@ -15,7 +15,6 @@ import "contracts/BridgePoolDepositNotifier.sol";
 import "contracts/BridgePoolFactory.sol";
 import "contracts/Foundation.sol";
 import "contracts/utils/MagicEthTransfer.sol";
-
 import "contracts/Proxy.sol";
 
 /// @custom:salt BridgePool
@@ -84,11 +83,9 @@ contract BridgePool is
                 )
             )
         );
-        uint256 returnedETH = BToken(_bTokenContract).burnTo(
-            address(_bTokenContract),
-            bTokenAmount_,
-            0
-        );
+        require(BToken(_bTokenContract).destroyTokens(bTokenAmount_), "unable to burn fees");
+        //for erc20 tokenID field is 0
+        //utxoID is independent of amount
         BridgePoolDepositNotifier(_bridgePoolDepositNotifierAddress()).doEmit(
             BridgePoolFactory(_bridgePoolFactoryAddress()).getSaltFromERC20Address(
                 _ercTokenContract
