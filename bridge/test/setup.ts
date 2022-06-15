@@ -18,8 +18,10 @@ import {
   BToken,
   ETHDKG,
   Foundation,
+  InvalidTxConsumptionAccusation,
   LegacyToken,
   LiquidityProviderStaking,
+  MultipleProposalAccusation,
   PublicStaking,
   Snapshots,
   SnapshotsMock,
@@ -65,6 +67,8 @@ export interface Fixture extends BaseTokensFixture {
   ethdkg: ETHDKG;
   stakingPositionDescriptor: StakingPositionDescriptor;
   namedSigners: SignerWithAddress[];
+  invalidTxConsumptionAccusation: InvalidTxConsumptionAccusation;
+  multipleProposalAccusation: MultipleProposalAccusation;
 }
 
 /**
@@ -547,6 +551,18 @@ export const getFixture = async (
     "ATokenBurner"
   )) as ATokenBurner;
 
+  const invalidTxConsumptionAccusation = (await deployUpgradeableWithFactory(
+    factory,
+    "InvalidTxConsumptionAccusation",
+    "InvalidTxConsumptionAccusation"
+  )) as InvalidTxConsumptionAccusation;
+
+  const multipleProposalAccusation = (await deployUpgradeableWithFactory(
+    factory,
+    "MultipleProposalAccusation",
+    "MultipleProposalAccusation"
+  )) as MultipleProposalAccusation;
+
   await posFixtureSetup(factory, aToken, legacyToken);
 
   const blockNumber = BigInt(await ethers.provider.getBlockNumber());
@@ -571,6 +587,8 @@ export const getFixture = async (
     liquidityProviderStaking,
     foundation,
     stakingPositionDescriptor,
+    invalidTxConsumptionAccusation,
+    multipleProposalAccusation,
   };
 };
 
