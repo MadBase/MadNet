@@ -9,7 +9,7 @@ service LocalState {
   // Get only the raw data from a datastore UTXO that has been mined into chain
   rpc GetData(GetDataRequest) returns (GetDataResponse) {
     option (google.api.http) = {
-      post: "/v1/get-state"
+      post: "/v1/get-data"
       body: "*"
     };
   }
