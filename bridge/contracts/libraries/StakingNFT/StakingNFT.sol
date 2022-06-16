@@ -499,6 +499,10 @@ abstract contract StakingNFT is
         // this is to allow struct packing and is safe due to AToken having a
         // total distribution of 220M
         require(
+            amount_ > 0,
+            string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_STAKED_AMOUNT_IS_ZERO))
+        );
+        require(
             amount_ <= 2**224 - 1,
             string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_MINT_AMOUNT_EXCEEDS_MAX_SUPPLY))
         );
@@ -513,6 +517,17 @@ abstract contract StakingNFT is
 
         // get new tokenID from counter
         tokenID = _increment();
+
+        // Call _slushSkim on Eth accumulator before minting staked position.
+        // This ensures that all stakers receive their appropriate rewards.
+        if (shares > 0) {
+            (ethState.accumulator, ethState.slush) = _slushSkim(
+                shares,
+                ethState.accumulator,
+                ethState.slush
+            );
+            _ethState = ethState;
+        }
 
         // update storage
         shares += amount_;
@@ -551,6 +566,23 @@ abstract contract StakingNFT is
 
         // get copy of storage to save gas
         uint256 shares = _shares;
+        Accumulator memory ethState = _ethState;
+        Accumulator memory tokenState = _tokenState;
+
+        // Call _slushSkim on both tokens and Eth accumulators before burning
+        // staked position. This ensures stakers receive all their earnings.
+        (ethState.accumulator, ethState.slush) = _slushSkim(
+            shares,
+            ethState.accumulator,
+            ethState.slush
+        );
+        _ethState = ethState;
+        (tokenState.accumulator, tokenState.slush) = _slushSkim(
+            shares,
+            tokenState.accumulator,
+            tokenState.slush
+        );
+        _tokenState = tokenState;
 
         // calc Eth amounts due
         (p, payoutEth) = _collectEth(shares, p);
