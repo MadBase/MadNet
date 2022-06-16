@@ -8,10 +8,9 @@ package trie
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
-	"os"
 
 	"github.com/MadBase/MadNet/constants"
+	"github.com/MadBase/MadNet/internal/testing/environment"
 	"github.com/MadBase/MadNet/utils"
 	"github.com/dgraph-io/badger/v2"
 
@@ -31,32 +30,19 @@ func TestSmtEmptyTrie(t *testing.T) {
 }
 
 func testDb(t *testing.T, fn func(txn *badger.Txn) error) {
-	// Open the DB.
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	err = db.Update(fn)
+	t.Helper()
+	db := environment.SetupBadgerDatabase(t)
+	err := db.Update(fn)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestSmtUpdateAndGet(t *testing.T) {
+	t.Parallel()
 	fn := func(txn *badger.Txn) error {
 		smt := NewSMT(nil, Hasher, prefixFn)
-		// Add data to empty trie
+		// Add state to empty trie
 		keys := GetFreshData(10, 32)
 		values := GetFreshData(10, 32)
 		ch := make(chan mresult, 1)
@@ -103,9 +89,10 @@ func TestSmtUpdateAndGet(t *testing.T) {
 }
 
 func TestSmtPublicUpdateAndGet(t *testing.T) {
+	t.Parallel()
 	smt := NewSMT(nil, Hasher, prefixFn)
 	fn := func(txn *badger.Txn) error {
-		// Add data to empty trie
+		// Add state to empty trie
 		keys := GetFreshData(5, 32)
 		values := GetFreshData(5, 32)
 		root, err := smt.Update(txn, keys, values)
@@ -135,9 +122,10 @@ func TestSmtPublicUpdateAndGet(t *testing.T) {
 }
 
 func TestSmtDelete(t *testing.T) {
+	t.Parallel()
 	fn := func(txn *badger.Txn) error {
 		smt := NewSMT(nil, Hasher, prefixFn)
-		// Add data to empty trie
+		// Add state to empty trie
 		keys := GetFreshData(10, 32)
 		values := GetFreshData(10, 32)
 		ch := make(chan mresult, 1)
@@ -214,6 +202,7 @@ func TestSmtDelete(t *testing.T) {
 
 // test updating and deleting at the same time
 func TestTrieUpdateAndDelete(t *testing.T) {
+	t.Parallel()
 	fn := func(txn *badger.Txn) error {
 		smt := NewSMT(nil, Hasher, prefixFn)
 		keys := GetFreshData(2, 32)
@@ -325,21 +314,8 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 }
 
 func TestVerifySubtree(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
 	for i := 0; i < 1024; i++ {
@@ -347,7 +323,7 @@ func TestVerifySubtree(t *testing.T) {
 		values := GetFreshData(1, 32)
 
 		fn := func(txn *badger.Txn) error {
-			// Add data to empty trie
+			// Add state to empty trie
 			_, err := smt.Update(txn, keys, values)
 			if err != nil {
 				return err
@@ -359,7 +335,7 @@ func TestVerifySubtree(t *testing.T) {
 			return nil
 		}
 
-		err = db.Update(fn)
+		err := db.Update(fn)
 		if err != nil {
 			t.Error(err)
 		}
@@ -431,40 +407,13 @@ func TestVerifySubtree(t *testing.T) {
 }
 
 func TestSmtFastSync(t *testing.T) {
+	t.Parallel()
 	type pending struct {
 		layer int
 		hash  []byte
 	}
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	dir2, err := ioutil.TempDir("", "badger-test-2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir2); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	opts2 := badger.DefaultOptions(dir2)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	db2, err := badger.Open(opts2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db2.Close()
+	db := environment.SetupBadgerDatabase(t)
+	db2 := environment.SetupBadgerDatabase(t)
 
 	numKeys := 64
 	depKeys := 32
@@ -495,7 +444,7 @@ func TestSmtFastSync(t *testing.T) {
 
 	for i := 0; i < len(keysSorted); i++ {
 		err = db.Update(func(txn *badger.Txn) error {
-			// Add data to empty trie
+			// Add state to empty trie
 			_, err := smt.Update(txn, [][]byte{keysSorted[i]}, [][]byte{valuesSorted[i]})
 			if err != nil {
 				return err
@@ -522,12 +471,9 @@ func TestSmtFastSync(t *testing.T) {
 				t.Fatal(err)
 			}
 			batch = utils.CopySlice(tmp)
-			tmpB, err := smt.parseBatch(tmp)
+			_, err = smt.parseBatch(tmp)
 			if err != nil {
 				t.Fatal(err)
-			}
-			for i := 0; i < len(tmpB); i++ {
-				fmt.Printf("%v-%v: %x\n", 0, i, tmpB[i])
 			}
 			return nil
 		})
@@ -560,12 +506,9 @@ func TestSmtFastSync(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					tmpB, err := smt.parseBatch(tmp)
+					_, err = smt.parseBatch(tmp)
 					if err != nil {
 						t.Fatal(err)
-					}
-					for j := 0; j < len(tmpB); j++ {
-						fmt.Printf("%v-%v: %x\n", subBatch[i].layer, j, tmpB[j])
 					}
 					batch = utils.CopySlice(tmp)
 					return nil
@@ -673,26 +616,13 @@ func TestSmtFastSync(t *testing.T) {
 }
 
 func TestTrieMerkleProof(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
 
-	err = db.Update(func(txn *badger.Txn) error {
-		// Add data to empty trie
+	err := db.Update(func(txn *badger.Txn) error {
+		// Add state to empty trie
 		keys := GetFreshData(10, 32)
 		values := GetFreshData(10, 32)
 		_, err := smt.Update(txn, keys, values)
@@ -728,25 +658,12 @@ func TestTrieMerkleProof(t *testing.T) {
 }
 
 func TestTrieMerkleProofCompressed(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
-	err = db.Update(func(txn *badger.Txn) error {
-		// Add data to empty trie
+	err := db.Update(func(txn *badger.Txn) error {
+		// Add state to empty trie
 		keys := GetFreshData(10, 32)
 		values := GetFreshData(10, 32)
 		_, err := smt.Update(txn, keys, values)
@@ -783,25 +700,12 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 }
 
 func TestGetFinalLeafNodes(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
-	err = db.Update(func(txn *badger.Txn) error {
-		// Add data to empty trie
+	err := db.Update(func(txn *badger.Txn) error {
+		// Add state to empty trie
 		// keys := GetFreshData(13, 32)
 		// values := GetFreshData(13, 32)
 
@@ -854,25 +758,12 @@ func TestGetFinalLeafNodes(t *testing.T) {
 }
 
 func TestGetFinalLeafNodesrRValues(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
-	err = db.Update(func(txn *badger.Txn) error {
-		// Add data to empty trie
+	err := db.Update(func(txn *badger.Txn) error {
+		// Add state to empty trie
 		keys := GetFreshData(13, 32)
 		values := GetFreshData(13, 32)
 
@@ -917,6 +808,7 @@ func TestGetFinalLeafNodesrRValues(t *testing.T) {
 
 // This test is only looking for panics
 func TestParseBatchNoPanic(t *testing.T) {
+	t.Parallel()
 	smt := NewSMT(nil, Hasher, prefixFn)
 	for i := 0; i < 100; i++ {
 		for j := 0; j < 2000; j++ {
@@ -936,25 +828,12 @@ func TestParseBatchNoPanic(t *testing.T) {
 }
 
 func TestGetInteriorNodesNext(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
-	err = db.Update(func(txn *badger.Txn) error {
-		// Add data to empty trie
+	err := db.Update(func(txn *badger.Txn) error {
+		// Add state to empty trie
 		keys := GetFreshData(13, 32)
 		values := GetFreshData(13, 32)
 
@@ -998,6 +877,7 @@ func TestGetInteriorNodesNext(t *testing.T) {
 }
 
 func TestSmtCommit(t *testing.T) {
+	t.Parallel()
 	smt := NewSMT(nil, Hasher, prefixFn)
 	keys := GetFreshData(32, 32)
 	values := GetFreshData(32, 32)
@@ -1039,22 +919,9 @@ func TestSmtCommit(t *testing.T) {
 }
 
 func TestDoubleUpdate(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	err = db.Update(func(outerTxn *badger.Txn) error {
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
+	err := db.Update(func(outerTxn *badger.Txn) error {
 		err := outerTxn.Set([]byte("b"), []byte("outer"))
 		if err != nil {
 			return err
@@ -1107,8 +974,9 @@ func TestDoubleUpdate(t *testing.T) {
 }
 
 func TestSmtRaisesError(t *testing.T) {
+	t.Parallel()
 	smt := NewSMT(nil, Hasher, prefixFn)
-	// Add data to empty trie
+	// Add state to empty trie
 	keys := GetFreshData(10, 32)
 	values := GetFreshData(10, 32)
 	fn := func(txn *badger.Txn) error {
@@ -1134,26 +1002,13 @@ func TestSmtRaisesError(t *testing.T) {
 }
 
 func TestDiscard(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 	var rootTest []byte
 	smt := NewSMT(nil, Hasher, prefixFn)
 	keys := GetFreshData(20, 32)
 	fn1 := func(txn *badger.Txn) error {
-		// Add data to empty trie
+		// Add state to empty trie
 		values := GetFreshData(20, 32)
 		root, _ := smt.Update(txn, keys, values)
 		rootTest = root
@@ -1198,7 +1053,7 @@ func TestDiscard(t *testing.T) {
 		smt.Discard()
 		return nil
 	}
-	err = db.Update(fn1)
+	err := db.Update(fn1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1229,25 +1084,12 @@ func TestDiscard(t *testing.T) {
 }
 
 func TestWalkers(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 	smt := NewSMT(nil, Hasher, prefixFn)
 	for i := 0; i < 30; i++ {
-		err = db.Update(func(txn *badger.Txn) error {
-			// Add data to empty trie
+		err := db.Update(func(txn *badger.Txn) error {
+			// Add state to empty trie
 			keysInitial := GetFreshData(10, 32)
 			valuesInitial := GetFreshData(10, 32)
 			_, err := smt.Update(txn, keysInitial, valuesInitial)
@@ -1315,21 +1157,8 @@ func TestWalkers(t *testing.T) {
 }
 
 func TestBigDelete(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 
 	smt := NewSMT(nil, Hasher, prefixFn)
 
@@ -1384,26 +1213,13 @@ func TestBigDelete(t *testing.T) {
 }
 
 func TestSnapShotDrop(t *testing.T) {
-	dir, err := ioutil.TempDir("", "badger-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	opts := badger.DefaultOptions(dir)
-	db, err := badger.Open(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	t.Parallel()
+	db := environment.SetupBadgerDatabase(t)
 	smt := NewSMT(nil, Hasher, prefixFn)
-	numKeys := 30000
+	numKeys := 3000
 	keys := GetFreshData(numKeys, 32)
 	values := GetFreshData(numKeys, 32)
-	err = db.Update(func(txn *badger.Txn) error {
+	err := db.Update(func(txn *badger.Txn) error {
 		var err error
 		_, err = smt.Update(txn, keys, values)
 		if err != nil {
