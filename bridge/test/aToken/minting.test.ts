@@ -49,6 +49,21 @@ describe("Testing AToken", async () => {
           ).to.be.rejectedWith("2000");
         });
       });
+
+      describe("Tests that pass", async () => {
+        it("Test mint gas cost", async function () {
+          let receipt = await factoryCallAnyFixture(
+            fixture,
+            "aTokenMinter",
+            "mint",
+            [user.address, amount]
+          );
+          //console.log(receipt.gasUsed);
+          expectedState.Balances.aToken.user += amount;
+          currentState = await getState(fixture);
+          expect(currentState).to.be.deep.eq(expectedState);
+        });
+      });
     });
   });
 });
