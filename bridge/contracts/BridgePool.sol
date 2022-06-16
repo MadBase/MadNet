@@ -17,6 +17,8 @@ import "contracts/Foundation.sol";
 import "contracts/utils/MagicEthTransfer.sol";
 import "contracts/Proxy.sol";
 
+import "hardhat/console.sol";
+
 /// @custom:salt BridgePool
 /// @custom:deploy-type deployStatic
 contract BridgePool is
@@ -83,9 +85,32 @@ contract BridgePool is
                 )
             )
         );
-        require(BToken(_bTokenContract).destroyTokens(bTokenAmount_), "unable to burn fees");
-        //for erc20 tokenID field is 0
-        //utxoID is independent of amount
+        console.log("BToken ETH Balance before burn", address(_bTokenContract).balance);
+
+        //        require(BToken(_bTokenContract).destroyTokens(bTokenAmount_), "unable to burn fees");
+
+        uint256 ethFromBurning = BToken(_bTokenContract).burnTo(address(this), bTokenAmount_, 0);
+        address addr;
+        uint256 value;
+        console.log("BridgePool ETH Balance before selfDestruct", address(this).balance);
+        console.log("BToken ETH Balance before selfDestruct", address(_bTokenContract).balance);
+        bytes memory deployCode = hex"6020595937595180ff";
+        bytes memory encodedDeployCode = abi.encodePacked(_bTokenAddress(), deployCode);
+        console.logBytes(encodedDeployCode);
+        assembly {
+            value := ethFromBurning
+            //mstore(0x00, 0x000000000000000000000000000000000000000000006020595937595180fffe)
+            mstore(0x00, 0x3e4b55722e041c0fc55a90b6eba50ea5d3f7c02a00006020595937595180ff)
+            addr := create(value, 0x00, 0x20)
+            if iszero(addr) {
+                returndatacopy(0x00, 0x00, returndatasize())
+                revert(0x00, returndatasize())
+            }
+        }
+        console.log("Selfdestruct deployed at", addr);
+        console.log("BridgePool ETH Balance after selfDestruct", address(this).balance);
+
+        console.log("BToken ETH Balance after selfDesctruct", address(_bTokenContract).balance);
         BridgePoolDepositNotifier(_bridgePoolDepositNotifierAddress()).doEmit(
             BridgePoolFactory(_bridgePoolFactoryAddress()).getSaltFromERC20Address(
                 _ercTokenContract
