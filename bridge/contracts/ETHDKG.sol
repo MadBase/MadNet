@@ -75,7 +75,7 @@ contract ETHDKG is
 
     function setConfirmationLength(uint16 confirmationLength_) public onlyFactory {
         require(
-            !_isETHDKGRunning(),
+            !_isETHDKGRunning() && true,
             string(abi.encodePacked(ETHDKGErrorCodes.ETHDKG_VARIABLE_CANNOT_BE_SET_WHILE_RUNNING))
         );
         _confirmationLength = confirmationLength_;

@@ -812,7 +812,6 @@ task("fundValidators", "manually put 100 eth in each validator account")
         accounts.push(getValidatorAccount(`${configPath}/${val}`));
       }
     });
-
     const minAmount = 90n;
     const maxAmount = 100n;
     for (const account of accounts) {
@@ -930,14 +929,11 @@ task(
     for (let fileName of validatorConfigs) {
       const filePath = VALIDATOR_CONFIG_DIR + fileName;
       const data = await fs.readFileSync(filePath);
-      const config = toml.parse(data.toString());
-      config["registryAddress"] = taskArgs.factoryAddress;
-      config["startingBlock"] = 14542800;
+      const config: any = toml.parse(data.toString());
+      config.ethereum["registryAddress"] = taskArgs.factoryAddress;
+      config.ethereum["startingBlock"] = 14542800;
       const output = toml.stringify(config);
-      await fs.writeFileSync(
-        VALIDATOR_CONFIG_DIR + `validator${taskArgs.validatorId}.toml`,
-        output
-      );
+      await fs.writeFileSync(VALIDATOR_CONFIG_DIR + fileName, output);
     }
   });
 
@@ -969,16 +965,16 @@ task("create-local-seed-node", "start and syncs a node with mainnet")
         shell: true,
       }
     );
-    // valNode.stdout.on("data", (data) => {
-    //   console.log(data.toString());
-    // });
-    // valNode.stderr.on("data", (data) => {
-    //   console.log(data.toString());
-    // });
-    // valNode.on("close", (code) => {
-    //   console.log(`child process exited with code ${code}`);
-    //   return
-    // });
+    valNode.stdout.on("data", (data) => {
+      console.log(data.toString());
+    });
+    valNode.stderr.on("data", (data) => {
+      console.log(data.toString());
+    });
+    valNode.on("close", (code) => {
+      console.log(`child process exited with code ${code}`);
+      return;
+    });
     let synced = false;
     let alicenetHeight;
     while (!synced) {
@@ -1055,7 +1051,11 @@ task(
 });
 
 task("enable-hardhat-impersonate")
-  .addParam("account", "account to impersonate")
+  .addParam(
+    "account",
+    "account to impersonate",
+    "0xb9670e38d560c5662f0832cacaac3282ecffddb1"
+  )
   .setAction(async (taskArgs, hre) => {
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
@@ -1086,39 +1086,50 @@ task("pause-consensus-at-height")
   )
   .setAction(async (taskArgs, hre) => {
     // get the signer for the owner of the factory
+    hre.ethers.provider = new hre.ethers.providers.JsonRpcProvider(
+      hre.ethers.provider.connection.url
+    );
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xb9670e38d560c5662f0832cacaac3282ecffddb1"],
+    });
     const signer = await hre.ethers.getSigner(taskArgs.signer);
     const factory = await hre.ethers.getContractAt(
       ALICENET_FACTORY,
       taskArgs.factoryAddress,
       signer
     );
+    console.log(1);
     const valPoolAddress = await factory.lookup(
       hre.ethers.utils.formatBytes32String("ValidatorPool")
     );
+    console.log(2);
     const valPool = await hre.ethers.getContractFactory("ValidatorPool");
     const pauseConsensusAt = valPool.interface.encodeFunctionData(
       "pauseConsensusOnArbitraryHeight",
       [taskArgs.height]
     );
-    const txResponse = await factory.callAny(
-      valPoolAddress,
-      0,
-      pauseConsensusAt
-    );
+    console.log(3);
+    // const factoryBase = await hre.ethers.getContractFactory("AliceNetFactory")
+    const txResponse = await factory
+      .connect(signer)
+      .callAny(valPoolAddress, 0, pauseConsensusAt);
+    console.log(4);
     // wait for the tx to be mined
     await txResponse.wait();
+    console.log(5);
   });
 
 task("unregister-all-validators", "unregisters all the validators")
   .addOptionalParam(
     "factoryAddress",
     "address of the factory contract that deployed all the defaults to ropsten testnet factory",
-    "0x9bebADdd34730b83b1372e4ED1BD67e4f84A02C8"
+    "0xA85Fcfba7234AD28148ebDEe054165AeF6974a65"
   )
   .addOptionalParam(
     "signer",
     "account that deployed factory, defaults to ",
-    "0x137425E39a2A981ed83Fe490dedE1aB139840B87"
+    "0xb9670e38d560c5662f0832cacaac3282ecffddb1"
   )
   .setAction(async (taskArgs, hre) => {
     // get the signer for the owner of the factory

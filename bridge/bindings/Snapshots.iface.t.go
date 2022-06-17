@@ -13,10 +13,6 @@ type ISnapshotsTransactor interface {
 	//
 	// Solidity: function initialize(uint32 desperationDelay_, uint32 desperationFactor_) returns()
 	Initialize(opts *bind.TransactOpts, desperationDelay_ uint32, desperationFactor_ uint32) (*types.Transaction, error)
-	// MigrateSnapshots is a paid mutator transaction binding the contract method 0xae2728ea.
-	//
-	// Solidity: function migrateSnapshots(bytes[] groupSignature_, bytes[] bClaims_) returns(bool)
-	MigrateSnapshots(opts *bind.TransactOpts, groupSignature_ [][]byte, bClaims_ [][]byte) (*types.Transaction, error)
 	// SetMinimumIntervalBetweenSnapshots is a paid mutator transaction binding the contract method 0xeb7c7afe.
 	//
 	// Solidity: function setMinimumIntervalBetweenSnapshots(uint32 minimumIntervalBetweenSnapshots_) returns()

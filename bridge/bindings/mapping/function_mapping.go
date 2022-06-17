@@ -241,7 +241,6 @@ var FunctionMapping = map[[4]byte]string{
 	{124, 196, 204, 230}: "Snapshots.getSnapshotDesperationFactor()",
 	{62, 204, 15, 94}:    "Snapshots.initialize(uint32,uint32)",
 	{244, 95, 162, 70}:   "Snapshots.mayValidatorSnapshot(uint256,uint256,uint256,bytes32,uint256)",
-	{174, 39, 40, 234}:   "Snapshots.migrateSnapshots(bytes[],bytes[])",
 	{235, 124, 122, 254}: "Snapshots.setMinimumIntervalBetweenSnapshots(uint32)",
 	{194, 232, 254, 242}: "Snapshots.setSnapshotDesperationDelay(uint32)",
 	{63, 167, 161, 173}:  "Snapshots.setSnapshotDesperationFactor(uint32)",

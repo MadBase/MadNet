@@ -28585,9 +28585,6 @@ type MockISnapshots struct {
 	// MayValidatorSnapshotFunc is an instance of a mock function object
 	// controlling the behavior of the method MayValidatorSnapshot.
 	MayValidatorSnapshotFunc *ISnapshotsMayValidatorSnapshotFunc
-	// MigrateSnapshotsFunc is an instance of a mock function object
-	// controlling the behavior of the method MigrateSnapshots.
-	MigrateSnapshotsFunc *ISnapshotsMigrateSnapshotsFunc
 	// ParseSnapshotTakenFunc is an instance of a mock function object
 	// controlling the behavior of the method ParseSnapshotTaken.
 	ParseSnapshotTakenFunc *ISnapshotsParseSnapshotTakenFunc
@@ -28718,11 +28715,6 @@ func NewMockISnapshots() *MockISnapshots {
 		MayValidatorSnapshotFunc: &ISnapshotsMayValidatorSnapshotFunc{
 			defaultHook: func(*bind.CallOpts, *big.Int, *big.Int, *big.Int, [32]byte, *big.Int) (bool, error) {
 				return false, nil
-			},
-		},
-		MigrateSnapshotsFunc: &ISnapshotsMigrateSnapshotsFunc{
-			defaultHook: func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error) {
-				return nil, nil
 			},
 		},
 		ParseSnapshotTakenFunc: &ISnapshotsParseSnapshotTakenFunc{
@@ -28867,11 +28859,6 @@ func NewStrictMockISnapshots() *MockISnapshots {
 				panic("unexpected invocation of MockISnapshots.MayValidatorSnapshot")
 			},
 		},
-		MigrateSnapshotsFunc: &ISnapshotsMigrateSnapshotsFunc{
-			defaultHook: func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error) {
-				panic("unexpected invocation of MockISnapshots.MigrateSnapshots")
-			},
-		},
 		ParseSnapshotTakenFunc: &ISnapshotsParseSnapshotTakenFunc{
 			defaultHook: func(types.Log) (*bindings.SnapshotsSnapshotTaken, error) {
 				panic("unexpected invocation of MockISnapshots.ParseSnapshotTaken")
@@ -28971,9 +28958,6 @@ func NewMockISnapshotsFrom(i bindings.ISnapshots) *MockISnapshots {
 		},
 		MayValidatorSnapshotFunc: &ISnapshotsMayValidatorSnapshotFunc{
 			defaultHook: i.MayValidatorSnapshot,
-		},
-		MigrateSnapshotsFunc: &ISnapshotsMigrateSnapshotsFunc{
-			defaultHook: i.MigrateSnapshots,
 		},
 		ParseSnapshotTakenFunc: &ISnapshotsParseSnapshotTakenFunc{
 			defaultHook: i.ParseSnapshotTaken,
@@ -31304,117 +31288,6 @@ func (c ISnapshotsMayValidatorSnapshotFuncCall) Args() []interface{} {
 // Results returns an interface slice containing the results of this
 // invocation.
 func (c ISnapshotsMayValidatorSnapshotFuncCall) Results() []interface{} {
-	return []interface{}{c.Result0, c.Result1}
-}
-
-// ISnapshotsMigrateSnapshotsFunc describes the behavior when the
-// MigrateSnapshots method of the parent MockISnapshots instance is invoked.
-type ISnapshotsMigrateSnapshotsFunc struct {
-	defaultHook func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error)
-	hooks       []func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error)
-	history     []ISnapshotsMigrateSnapshotsFuncCall
-	mutex       sync.Mutex
-}
-
-// MigrateSnapshots delegates to the next hook function in the queue and
-// stores the parameter and result values of this invocation.
-func (m *MockISnapshots) MigrateSnapshots(v0 *bind.TransactOpts, v1 [][]byte, v2 [][]byte) (*types.Transaction, error) {
-	r0, r1 := m.MigrateSnapshotsFunc.nextHook()(v0, v1, v2)
-	m.MigrateSnapshotsFunc.appendCall(ISnapshotsMigrateSnapshotsFuncCall{v0, v1, v2, r0, r1})
-	return r0, r1
-}
-
-// SetDefaultHook sets function that is called when the MigrateSnapshots
-// method of the parent MockISnapshots instance is invoked and the hook
-// queue is empty.
-func (f *ISnapshotsMigrateSnapshotsFunc) SetDefaultHook(hook func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error)) {
-	f.defaultHook = hook
-}
-
-// PushHook adds a function to the end of hook queue. Each invocation of the
-// MigrateSnapshots method of the parent MockISnapshots instance invokes the
-// hook at the front of the queue and discards it. After the queue is empty,
-// the default hook function is invoked for any future action.
-func (f *ISnapshotsMigrateSnapshotsFunc) PushHook(hook func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error)) {
-	f.mutex.Lock()
-	f.hooks = append(f.hooks, hook)
-	f.mutex.Unlock()
-}
-
-// SetDefaultReturn calls SetDefaultHook with a function that returns the
-// given values.
-func (f *ISnapshotsMigrateSnapshotsFunc) SetDefaultReturn(r0 *types.Transaction, r1 error) {
-	f.SetDefaultHook(func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error) {
-		return r0, r1
-	})
-}
-
-// PushReturn calls PushHook with a function that returns the given values.
-func (f *ISnapshotsMigrateSnapshotsFunc) PushReturn(r0 *types.Transaction, r1 error) {
-	f.PushHook(func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error) {
-		return r0, r1
-	})
-}
-
-func (f *ISnapshotsMigrateSnapshotsFunc) nextHook() func(*bind.TransactOpts, [][]byte, [][]byte) (*types.Transaction, error) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-
-	if len(f.hooks) == 0 {
-		return f.defaultHook
-	}
-
-	hook := f.hooks[0]
-	f.hooks = f.hooks[1:]
-	return hook
-}
-
-func (f *ISnapshotsMigrateSnapshotsFunc) appendCall(r0 ISnapshotsMigrateSnapshotsFuncCall) {
-	f.mutex.Lock()
-	f.history = append(f.history, r0)
-	f.mutex.Unlock()
-}
-
-// History returns a sequence of ISnapshotsMigrateSnapshotsFuncCall objects
-// describing the invocations of this function.
-func (f *ISnapshotsMigrateSnapshotsFunc) History() []ISnapshotsMigrateSnapshotsFuncCall {
-	f.mutex.Lock()
-	history := make([]ISnapshotsMigrateSnapshotsFuncCall, len(f.history))
-	copy(history, f.history)
-	f.mutex.Unlock()
-
-	return history
-}
-
-// ISnapshotsMigrateSnapshotsFuncCall is an object that describes an
-// invocation of method MigrateSnapshots on an instance of MockISnapshots.
-type ISnapshotsMigrateSnapshotsFuncCall struct {
-	// Arg0 is the value of the 1st argument passed to this method
-	// invocation.
-	Arg0 *bind.TransactOpts
-	// Arg1 is the value of the 2nd argument passed to this method
-	// invocation.
-	Arg1 [][]byte
-	// Arg2 is the value of the 3rd argument passed to this method
-	// invocation.
-	Arg2 [][]byte
-	// Result0 is the value of the 1st result returned from this method
-	// invocation.
-	Result0 *types.Transaction
-	// Result1 is the value of the 2nd result returned from this method
-	// invocation.
-	Result1 error
-}
-
-// Args returns an interface slice containing the arguments of this
-// invocation.
-func (c ISnapshotsMigrateSnapshotsFuncCall) Args() []interface{} {
-	return []interface{}{c.Arg0, c.Arg1, c.Arg2}
-}
-
-// Results returns an interface slice containing the results of this
-// invocation.
-func (c ISnapshotsMigrateSnapshotsFuncCall) Results() []interface{} {
 	return []interface{}{c.Result0, c.Result1}
 }
 
