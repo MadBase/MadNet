@@ -778,7 +778,7 @@ abstract contract StakingNFT is
                 // The maximum allowed value for the accumulator is 2**168-1.
                 // This hard limit was set to not overflow the operation
                 // `accumulator * shares` that happens later in the code.
-                accumulator_ = accumulator_ % type(uint168).max;
+                accumulator_ = accumulator_ % (2**168);
             }
         }
         return (accumulator_, slush_);
