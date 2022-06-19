@@ -77,7 +77,6 @@ func (a *RootActor) Close() {
 	})
 }
 
-// TODO verify blockheader cache is being cleaned
 func (a *RootActor) FlushCacheToDisk(txn *badger.Txn, height uint32) error {
 	txList, txHashList := a.txc.GetHeight(height + 1)
 	for i := 0; i < len(txList); i++ {
@@ -107,24 +106,24 @@ func (a *RootActor) CleanCache(txn *badger.Txn, height uint32) error {
 // DownloadPendingTx downloads txs that are pending from remote peers
 func (a *RootActor) DownloadPendingTx(height, round uint32, txHash []byte) {
 	req := NewTxDownloadRequest(txHash, PendingTxRequest, height, round)
-	a.download(req, false)
+	a.download(req, true)
 }
 
 // DownloadPendingTx downloads txs that are mined from remote peers
 func (a *RootActor) DownloadMinedTx(height, round uint32, txHash []byte) {
 	req := NewTxDownloadRequest(txHash, MinedTxRequest, height, round)
-	a.download(req, false)
+	a.download(req, true)
 }
 
 func (a *RootActor) DownloadTx(height, round uint32, txHash []byte) {
 	req := NewTxDownloadRequest(txHash, PendingAndMinedTxRequest, height, round)
-	a.download(req, false)
+	a.download(req, true)
 }
 
 // DownloadBlockHeader downloads block headers from remote peers
 func (a *RootActor) DownloadBlockHeader(height, round uint32) {
 	req := NewBlockHeaderDownloadRequest(height, round, BlockHeaderRequest)
-	a.download(req, false)
+	a.download(req, true)
 }
 
 func (a *RootActor) download(b DownloadRequest, retry bool) {
@@ -160,7 +159,7 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 		case <-a.closeChan:
 			return
 		case a.dispatchQ <- b:
-			a.await(b)
+			a.await(b, retry)
 		}
 	case PendingAndMinedTxRequest:
 		ok := func() bool {
@@ -200,7 +199,7 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 			case <-a.closeChan:
 				return
 			case a.dispatchQ <- bc0:
-				a.await(bc0)
+				a.await(bc0, retry)
 			}
 		}()
 		go func() {
@@ -209,7 +208,7 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 			case <-a.closeChan:
 				return
 			case a.dispatchQ <- bc1:
-				a.await(bc1)
+				a.await(bc1, retry)
 			}
 		}()
 		select {
@@ -248,14 +247,14 @@ func (a *RootActor) doDownload(b DownloadRequest, retry bool) {
 		case <-a.closeChan:
 			return
 		case a.dispatchQ <- b:
-			a.await(b)
+			a.await(b, retry)
 		}
 	default:
 		panic(b.DownloadType())
 	}
 }
 
-func (a *RootActor) await(req DownloadRequest) {
+func (a *RootActor) await(req DownloadRequest, retry bool) {
 	select {
 	case <-a.closeChan:
 		return
@@ -270,7 +269,9 @@ func (a *RootActor) await(req DownloadRequest) {
 				exists := a.txc.Contains(r.TxHash)
 				if !exists {
 					utils.DebugTrace(a.logger, r.Err)
-					defer a.download(req, true)
+					if retry {
+						defer a.download(req, true)
+					}
 				}
 				return
 			}
@@ -284,12 +285,16 @@ func (a *RootActor) await(req DownloadRequest) {
 			if ok {
 				return
 			}
-			defer a.download(req, true)
+			if retry {
+				defer a.download(req, true)
+			}
 		case BlockHeaderRequest:
 			r := resp.(*BlockHeaderDownloadResponse)
 			if r.Err != nil {
 				utils.DebugTrace(a.logger, r.Err)
-				defer a.download(req, true)
+				if retry {
+					defer a.download(req, true)
+				}
 				return
 			}
 			ok := func() bool {
@@ -302,7 +307,9 @@ func (a *RootActor) await(req DownloadRequest) {
 			if ok {
 				return
 			}
-			defer a.download(req, true)
+			if retry {
+				defer a.download(req, true)
+			}
 		default:
 			panic(req.DownloadType())
 		}
@@ -675,6 +682,7 @@ func (a *blockHeaderDownloadActor) run() {
 		select {
 		case <-time.After(10 * time.Second):
 			a.Lock()
+
 			if a.numWorkers > 1 {
 				a.numWorkers--
 				a.Unlock()

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/MadBase/MadNet/constants/dbprefix"
@@ -1699,7 +1700,7 @@ func (pni *PendingLeafIter) Close() {
 
 func (db *Database) SetSafeToProceed(txn *badger.Txn, height uint32, isSafe bool) error {
 	if height%constants.EpochLength != 1 {
-		panic("The height must be mod 1 epoch length")
+		panic(fmt.Sprintf("the height must be mod 1 epoch length. height: %v", height))
 	}
 	key := &objs.SafeToProceedKey{Prefix: dbprefix.PrefixSafeToProceed(), Height: height}
 	k, err := key.MarshalBinary()
@@ -1714,7 +1715,7 @@ func (db *Database) SetSafeToProceed(txn *badger.Txn, height uint32, isSafe bool
 
 func (db *Database) GetSafeToProceed(txn *badger.Txn, height uint32) (bool, error) {
 	if height%constants.EpochLength != 1 {
-		panic("The height must be mod 1 epoch length")
+		panic(fmt.Errorf("The height must be mod 1 epoch length. height: %v\n", height))
 	}
 	key := &objs.SafeToProceedKey{Prefix: dbprefix.PrefixSafeToProceed(), Height: height}
 	k, err := key.MarshalBinary()
