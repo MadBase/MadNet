@@ -177,7 +177,7 @@ abstract contract StakingNFT is
         // collect tokens
         _safeTransferFromERC20(IERC20Transferable(_aTokenAddress()), msg.sender, amount_);
         // update state
-        _tokenState = _deposit(_shares, amount_, _tokenState);
+        _tokenState = _deposit(amount_, _tokenState);
         _reserveToken += amount_;
     }
 
@@ -189,7 +189,7 @@ abstract contract StakingNFT is
     /// successfully interacting with this method without first reading the
     /// source code and hopefully this comment
     function depositEth(uint8 magic_) public payable withCircuitBreaker checkMagic(magic_) {
-        _ethState = _deposit(_shares, msg.value, _ethState);
+        _ethState = _deposit(msg.value, _ethState);
         _reserveEth += msg.value;
     }
 
@@ -375,7 +375,14 @@ abstract contract StakingNFT is
             string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
         );
         Position memory p = _positions[tokenID_];
-        (, , , payout) = _collect(_shares, _ethState, p, p.accumulatorEth);
+        Accumulator memory ethState = _ethState;
+        uint256 shares = _shares;
+        (ethState.accumulator, ethState.slush) = _slushSkim(
+            shares,
+            ethState.accumulator,
+            ethState.slush
+        );
+        (, , , payout) = _collect(shares, ethState, p, p.accumulatorEth);
         return payout;
     }
 
@@ -386,7 +393,14 @@ abstract contract StakingNFT is
             string(abi.encodePacked(StakingNFTErrorCodes.STAKENFT_INVALID_TOKEN_ID))
         );
         Position memory p = _positions[tokenID_];
-        (, , , payout) = _collect(_shares, _tokenState, p, p.accumulatorToken);
+        Accumulator memory tokenState = _tokenState;
+        uint256 shares = _shares;
+        (tokenState.accumulator, tokenState.slush) = _slushSkim(
+            shares,
+            tokenState.accumulator,
+            tokenState.slush
+        );
+        (, , , payout) = _collect(shares, tokenState, p, p.accumulatorToken);
         return payout;
     }
 
@@ -566,23 +580,6 @@ abstract contract StakingNFT is
 
         // get copy of storage to save gas
         uint256 shares = _shares;
-        Accumulator memory ethState = _ethState;
-        Accumulator memory tokenState = _tokenState;
-
-        // Call _slushSkim on both tokens and Eth accumulators before burning
-        // staked position. This ensures stakers receive all their earnings.
-        (ethState.accumulator, ethState.slush) = _slushSkim(
-            shares,
-            ethState.accumulator,
-            ethState.slush
-        );
-        _ethState = ethState;
-        (tokenState.accumulator, tokenState.slush) = _slushSkim(
-            shares,
-            tokenState.accumulator,
-            tokenState.slush
-        );
-        _tokenState = tokenState;
 
         // calc Eth amounts due
         (p, payoutEth) = _collectEth(shares, p);
@@ -613,7 +610,14 @@ abstract contract StakingNFT is
         returns (Position memory p, uint256 payout)
     {
         uint256 acc;
-        (_tokenState, p, acc, payout) = _collect(shares_, _tokenState, p_, p_.accumulatorToken);
+        Accumulator memory tokenState = _tokenState;
+        (tokenState.accumulator, tokenState.slush) = _slushSkim(
+            shares_,
+            tokenState.accumulator,
+            tokenState.slush
+        );
+        (tokenState, p, acc, payout) = _collect(shares_, tokenState, p_, p_.accumulatorToken);
+        _tokenState = tokenState;
         p.accumulatorToken = acc;
         return (p, payout);
     }
@@ -625,7 +629,14 @@ abstract contract StakingNFT is
         returns (Position memory p, uint256 payout)
     {
         uint256 acc;
-        (_ethState, p, acc, payout) = _collect(shares_, _ethState, p_, p_.accumulatorEth);
+        Accumulator memory ethState = _ethState;
+        (ethState.accumulator, ethState.slush) = _slushSkim(
+            shares_,
+            ethState.accumulator,
+            ethState.slush
+        );
+        (ethState, p, acc, payout) = _collect(shares_, ethState, p_, p_.accumulatorEth);
+        _ethState = ethState;
         p.accumulatorEth = acc;
         return (p, payout);
     }
@@ -739,20 +750,13 @@ abstract contract StakingNFT is
 
     // _deposit allows an Accumulator to be updated with new value if there are
     // no currently staked positions, all value is stored in the slush
-    function _deposit(
-        uint256 shares_,
-        uint256 delta_,
-        Accumulator memory state_
-    ) internal pure returns (Accumulator memory) {
+    function _deposit(uint256 delta_, Accumulator memory state_)
+        internal
+        pure
+        returns (Accumulator memory)
+    {
         state_.slush += (delta_ * _ACCUMULATOR_SCALE_FACTOR);
 
-        if (shares_ > 0) {
-            (state_.accumulator, state_.slush) = _slushSkim(
-                shares_,
-                state_.accumulator,
-                state_.slush
-            );
-        }
         // Slush should be never be above 2**167 to protect against overflow in
         // the later code.
         require(
