@@ -50,7 +50,6 @@ contract BridgePoolFactory is
         bytes memory deployCode = bytes.concat(type(BridgePool).creationCode, initializers);
         AliceNetFactory(_factoryAddress()).deployTemplate(deployCode);
         bytes32 salt = getSaltFromERC20Address(erc20Contract_);
-        //TODO: set proper value
         uint256 value = 0;
         address contractAddress = AliceNetFactory(_factoryAddress()).deployCreate2(
             value,
