@@ -1,5 +1,4 @@
 local-geth/*
-.vscode/settings.json
 
 # output files
 /madnet
@@ -28,5 +27,4 @@ local-geth/*
 scripts/generated
 node_modules/
 bridge/dist
-node_modules/
-bridge/bindings
+bridge/bindings 

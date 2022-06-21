@@ -326,12 +326,6 @@ contract BToken is
         return true;
     }
 
-    //possibly only allow bridge pools but
-    //whats the harm in someone volunatrily giving us free money
-    function destroyTokens(uint256 numBTK_) public returns (bool) {
-        return _destroyTokens(numBTK_);
-    }
-
     // Internal function that does the deposit in the AliceNet Chain, i.e emit the
     // event DepositReceived. All the BTokens sent to this function are burned.
     function _deposit(
