@@ -718,9 +718,9 @@ abstract contract StakingNFT is
         )
     {
         // determine number of accumulator steps this Position needs distributions from
-        uint256 accumulatorDelta = 0;
+        uint256 accumulatorDelta;
         if (positionAccumulatorValue_ > state_.accumulator) {
-            accumulatorDelta = type(uint168).max - positionAccumulatorValue_;
+            accumulatorDelta = 2**168 - positionAccumulatorValue_;
             accumulatorDelta += state_.accumulator;
             positionAccumulatorValue_ = state_.accumulator;
         } else {

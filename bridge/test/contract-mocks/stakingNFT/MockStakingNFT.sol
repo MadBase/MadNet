@@ -34,20 +34,37 @@ contract MockStakingNFT is StakingNFT {
         return StakingNFT._collect(shares_, state_, p_, positionAccumulatorValue_);
     }
 
-    function depositMock(
+    function collectPure(
         uint256 shares_,
-        uint256 delta_,
-        Accumulator memory state_
-    ) public returns (Accumulator memory) {
-        return StakingNFT._deposit(shares_, delta_, state_);
+        Accumulator memory state_,
+        Position memory p_,
+        uint256 positionAccumulatorValue_
+    )
+        public
+        pure
+        returns (
+            Accumulator memory,
+            Position memory,
+            uint256,
+            uint256
+        )
+    {
+        return StakingNFT._collect(shares_, state_, p_, positionAccumulatorValue_);
     }
 
-    function depositPure(
-        uint256 shares_,
-        uint256 delta_,
-        Accumulator memory state_
-    ) public pure returns (Accumulator memory) {
-        return StakingNFT._deposit(shares_, delta_, state_);
+    function depositMock(uint256 delta_, Accumulator memory state_)
+        public
+        returns (Accumulator memory)
+    {
+        return StakingNFT._deposit(delta_, state_);
+    }
+
+    function depositPure(uint256 delta_, Accumulator memory state_)
+        public
+        pure
+        returns (Accumulator memory)
+    {
+        return StakingNFT._deposit(delta_, state_);
     }
 
     function slushSkimMock(
