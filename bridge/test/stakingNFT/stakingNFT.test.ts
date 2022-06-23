@@ -24,6 +24,22 @@ contract("StakingNFT", async (accounts) => {
 
   //describe("burn", async () => {});
 
+  describe("counter", async () => {
+    it.only("counter Test", async () => {
+      let expCounter = BigNumber.from("0");
+      let retCounter = await stakingNFT.getCountMock();
+      expect(retCounter).to.eq(expCounter);
+      // const txResponse = await stakingNFT.depositMock(delta, state);
+      // const receipt = await txResponse.wait();
+      await stakingNFT.incrementMock();
+      await stakingNFT.incrementMock();
+
+      retCounter = await stakingNFT.getCountMock();
+      expCounter = BigNumber.from("2");
+      expect(retCounter).to.eq(expCounter);
+    });
+  });
+
   describe("collect", async () => {
     it("collectPure Test 1; normal (all zero)", async () => {
       // Test Setup

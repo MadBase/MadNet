@@ -17,6 +17,14 @@ contract MockStakingNFT is StakingNFT {
         return StakingNFT._burn(from_, to_, tokenID_);
     }
 
+    function getCountMock() public view returns (uint256) {
+        return StakingNFT._getCount();
+    }
+
+    function incrementMock() public returns (uint256) {
+        return StakingNFT._increment();
+    }
+
     function collectMock(
         uint256 shares_,
         Accumulator memory state_,
