@@ -80,9 +80,9 @@ contract("StakingNFT", async (accounts) => {
 
     it("collectPure Test 2; normal (state nonzero, no slush, no wraparound)", async () => {
       // Test Setup
-      const shares = BigNumber.from("3");
+      const shares = BigNumber.from("1");
       const stateAccum = BigNumber.from("10000000000000000000");
-      const stateSlush = BigNumber.from("2");
+      const stateSlush = BigNumber.from("0");
       const state = { accumulator: stateAccum, slush: stateSlush };
       const positionShares = BigNumber.from("1");
       const positionFreeAfter = BigNumber.from("1");
@@ -100,28 +100,19 @@ contract("StakingNFT", async (accounts) => {
 
       const accumScaleFactor = await stakingNFT.getAccumulatorScaleFactor();
       // Compute Expected Values
-      console.log("accumScaleFactor:", accumScaleFactor);
       let expStateSlush = stateSlush;
       const accumDelta = stateAccum.sub(positionAccumulatorValue);
-      console.log("accumDelta:", accumDelta);
       let tmp = accumDelta.mul(positionShares);
       if (shares == positionShares) {
         tmp = tmp.add(stateSlush);
         expStateSlush = BigNumber.from("0");
       }
-      console.log("tmp:", tmp);
       const expPayout = tmp.div(accumScaleFactor);
-      console.log("expPayout:", expPayout);
       const payoutRem = tmp.sub(expPayout.mul(accumScaleFactor));
-      console.log("payoutRem:", payoutRem);
       const expPositionAccumulatorValue = stateAccum;
-      console.log("expPositionAccum:", expPositionAccumulatorValue);
       const expStateAccumulator = stateAccum;
-      console.log("expStateAccum:", expStateAccumulator);
       expStateSlush = expStateSlush.add(payoutRem);
-      console.log("expStateSlush:", expStateSlush);
       const expPositionShares = positionShares;
-      console.log("expPositionShares:", expPositionShares);
 
       // Run collect
       const returned = await stakingNFT.collectPure(
@@ -140,9 +131,156 @@ contract("StakingNFT", async (accounts) => {
       expect(retState.accumulator).to.eq(expStateAccumulator);
       expect(retState.slush).to.eq(expStateSlush);
       expect(retPosition.shares).to.eq(expPositionShares);
-      console.log("retPayout:", retPayout);
-      console.log("expPayout:", expPayout);
       expect(retPayout).to.eq(expPayout);
+    });
+
+    it("collectPure Test 3; normal (state nonzero, slush, no wraparound)", async () => {
+      // Test Setup
+      const shares = BigNumber.from("10000");
+      const stateAccum = BigNumber.from("10000000000000000000");
+      const stateSlush = BigNumber.from("123456789");
+      const state = { accumulator: stateAccum, slush: stateSlush };
+      const positionShares = BigNumber.from("1234");
+      const positionFreeAfter = BigNumber.from("1");
+      const positionWithdrawFreeAfter = BigNumber.from("1");
+      const positionAccumulatorEth = BigNumber.from("0");
+      const positionAccumulatorToken = BigNumber.from("0");
+      const position = {
+        shares: positionShares,
+        freeAfter: positionFreeAfter,
+        withdrawFreeAfter: positionWithdrawFreeAfter,
+        accumulatorEth: positionAccumulatorEth,
+        accumulatorToken: positionAccumulatorToken,
+      };
+      let positionAccumulatorValue = BigNumber.from("0");
+
+      const accumScaleFactor = await stakingNFT.getAccumulatorScaleFactor();
+      // Compute Expected Values
+      let expStateSlush = stateSlush;
+      const accumDelta = stateAccum.sub(positionAccumulatorValue);
+      let tmp = accumDelta.mul(positionShares);
+      if (shares == positionShares) {
+        tmp = tmp.add(stateSlush);
+        expStateSlush = BigNumber.from("0");
+      }
+      const expPayout = tmp.div(accumScaleFactor);
+      const payoutRem = tmp.sub(expPayout.mul(accumScaleFactor));
+      const expPositionAccumulatorValue = stateAccum;
+      const expStateAccumulator = stateAccum;
+      expStateSlush = expStateSlush.add(payoutRem);
+      const expPositionShares = positionShares;
+
+      // Run collect
+      const returned = await stakingNFT.collectPure(
+        shares,
+        state,
+        position,
+        positionAccumulatorValue
+      );
+      let retState = returned[0];
+      let retPosition = returned[1];
+      let retPositionAccumulatorValue = returned[2];
+      let retPayout = returned[3];
+
+      // Verify returned values
+      expect(retPositionAccumulatorValue).to.eq(expPositionAccumulatorValue);
+      expect(retState.accumulator).to.eq(expStateAccumulator);
+      expect(retState.slush).to.eq(expStateSlush);
+      expect(retPosition.shares).to.eq(expPositionShares);
+      expect(retPayout).to.eq(expPayout);
+    });
+
+    it("collectPure Test 4; normal (state nonzero, slush, wraparound)", async () => {
+      // Test Setup
+      const twoPower168 = BigNumber.from(
+        "374144419156711147060143317175368453031918731001856"
+      );
+      const shares = BigNumber.from("1000000");
+      const stateAccum = BigNumber.from("1234567890");
+      const stateSlush = BigNumber.from("987654321");
+      const state = { accumulator: stateAccum, slush: stateSlush };
+      const positionShares = BigNumber.from("13579");
+      const positionFreeAfter = BigNumber.from("1");
+      const positionWithdrawFreeAfter = BigNumber.from("1");
+      const positionAccumulatorEth = BigNumber.from("0");
+      const positionAccumulatorToken = BigNumber.from("0");
+      const position = {
+        shares: positionShares,
+        freeAfter: positionFreeAfter,
+        withdrawFreeAfter: positionWithdrawFreeAfter,
+        accumulatorEth: positionAccumulatorEth,
+        accumulatorToken: positionAccumulatorToken,
+      };
+      let positionAccumulatorValue = BigNumber.from(
+        "374144419156711147059143317175368453031918731001856"
+      ); // 2**168 - 10**30
+
+      const accumScaleFactor = await stakingNFT.getAccumulatorScaleFactor();
+      // Compute Expected Values
+      let expStateSlush = stateSlush;
+      const accumDelta = stateAccum.add(
+        twoPower168.sub(positionAccumulatorValue)
+      );
+      let tmp = accumDelta.mul(positionShares);
+      if (shares == positionShares) {
+        tmp = tmp.add(stateSlush);
+        expStateSlush = BigNumber.from("0");
+      }
+      const expPayout = tmp.div(accumScaleFactor);
+      const payoutRem = tmp.sub(expPayout.mul(accumScaleFactor));
+      const expPositionAccumulatorValue = stateAccum;
+      const expStateAccumulator = stateAccum;
+      expStateSlush = expStateSlush.add(payoutRem);
+      const expPositionShares = positionShares;
+
+      // Run collect
+      const returned = await stakingNFT.collectPure(
+        shares,
+        state,
+        position,
+        positionAccumulatorValue
+      );
+      let retState = returned[0];
+      let retPosition = returned[1];
+      let retPositionAccumulatorValue = returned[2];
+      let retPayout = returned[3];
+
+      // Verify returned values
+      expect(retPositionAccumulatorValue).to.eq(expPositionAccumulatorValue);
+      expect(retState.accumulator).to.eq(expStateAccumulator);
+      expect(retState.slush).to.eq(expStateSlush);
+      expect(retPosition.shares).to.eq(expPositionShares);
+      expect(retPayout).to.eq(expPayout);
+    });
+
+    it("collect gas Test", async () => {
+      // Test Setup
+      const shares = BigNumber.from("10000");
+      const stateAccum = BigNumber.from("10000000000000000000");
+      const stateSlush = BigNumber.from("123456789");
+      const state = { accumulator: stateAccum, slush: stateSlush };
+      const positionShares = BigNumber.from("1234");
+      const positionFreeAfter = BigNumber.from("1");
+      const positionWithdrawFreeAfter = BigNumber.from("1");
+      const positionAccumulatorEth = BigNumber.from("0");
+      const positionAccumulatorToken = BigNumber.from("0");
+      const position = {
+        shares: positionShares,
+        freeAfter: positionFreeAfter,
+        withdrawFreeAfter: positionWithdrawFreeAfter,
+        accumulatorEth: positionAccumulatorEth,
+        accumulatorToken: positionAccumulatorToken,
+      };
+      let positionAccumulatorValue = BigNumber.from("1");
+      // Run collect
+      const txResponse = await stakingNFT.collectMock(
+        shares,
+        state,
+        position,
+        positionAccumulatorValue
+      );
+      const receipt = await txResponse.wait();
+      expect(receipt.status).to.eq(1);
     });
   });
 
@@ -253,6 +391,16 @@ contract("StakingNFT", async (accounts) => {
       const tx = stakingNFT.depositPure(delta, state);
       // Error Code 608 for Slush Too Large; must have slush < 2**167
       await expect(tx).to.be.revertedWith("608");
+    });
+
+    it("deposit gas Test", async () => {
+      const delta = BigNumber.from("1234567890");
+      const stateAccum = BigNumber.from("5678901234");
+      const stateSlush = BigNumber.from("1234");
+      const state = { accumulator: stateAccum, slush: stateSlush };
+      const txResponse = await stakingNFT.depositMock(delta, state);
+      const receipt = await txResponse.wait();
+      expect(receipt.status).to.eq(1);
     });
   });
 });
